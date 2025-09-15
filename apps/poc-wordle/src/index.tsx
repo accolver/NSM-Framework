@@ -25,13 +25,15 @@ root.render(
         <h2 style={{ textAlign: 'center', margin: '20px 0' }}>NSM Wordle Demo</h2>
         <NSMWordleApp
           enableNSM={true}
-          relayUrls={['wss://relay.damus.io']}
-          privateKey="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          relayUrls={['wss://relay.damus.io', 'wss://nos.lol']} // Use public relays
+          privateKey={undefined} // Will use NIP-07 for authentication
         />
         <div style={{ textAlign: 'center', margin: '20px 0', fontSize: '14px', color: '#666' }}>
-          This version demonstrates NSM (Nostr State Machine) distributed state management.
+          This version demonstrates NSM (Nostr State Machine) with NIP-07 authentication.
           <br />
-          State changes are published to Nostr relays for multi-user synchronization.
+          Login with your Nostr extension to enable multiplayer synchronization.
+          <br />
+          The game works locally without login, or globally with Nostr authentication.
         </div>
       </div>
     ) : (

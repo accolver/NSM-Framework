@@ -86,28 +86,39 @@ export class WordleNSMConnector {
 
   async initialize(): Promise<void> {
     try {
-      // Connect to NSM client
-      await this.nsmClient.connect();
+      // Try to connect to NSM client but don't fail if connection fails
+      try {
+        await this.nsmClient.connect();
+        this.isConnected = true;
+      } catch (connectError) {
+        console.warn('NSM relay connection failed, running in local-only mode:', connectError);
+        this.isConnected = false;
+        // Don't throw - allow app to work in local mode
+      }
 
-      // Set up subscription to application events
-      this.subscription = this.nsmClient.subscribeToApplication(
-        this.applicationId,
-        {
-          onInteraction: this.handleInteraction.bind(this),
-          onStateUpdate: this.handleStateUpdate.bind(this),
-          onError: this.handleError.bind(this)
-        }
-      );
+      // Only set up subscriptions if connected
+      if (this.isConnected) {
+        // Set up subscription to application events
+        this.subscription = this.nsmClient.subscribeToApplication(
+          this.applicationId,
+          {
+            onInteraction: this.handleInteraction.bind(this),
+            onStateUpdate: this.handleStateUpdate.bind(this),
+            onError: this.handleError.bind(this)
+          }
+        );
 
-      // Subscribe to actor state changes to publish updates
-      this.actor.subscribe((snapshot: any) => {
-        this.publishStateUpdate(snapshot);
-      });
+        // Subscribe to actor state changes to publish updates
+        this.actor.subscribe((snapshot: any) => {
+          this.publishStateUpdate(snapshot);
+        });
 
-      // Subscribe to actor events to publish interactions
-      this.setupInteractionPublishing();
-
-      this.isConnected = true;
+        // Subscribe to actor events to publish interactions
+        this.setupInteractionPublishing();
+      } else {
+        // In local mode, just track state locally without publishing
+        console.log('Running in local-only mode without relay connections');
+      }
     } catch (error) {
       console.error('Failed to initialize NSM connection:', error);
       throw error;
@@ -190,8 +201,19 @@ export class WordleNSMConnector {
   }
 
   private async publishStateUpdate(snapshot: any): Promise<void> {
+    // Skip publishing if not connected
+    if (!this.isConnected) {
+      return;
+    }
+
     // Rate limiting to prevent spam
     if (this.lastPublishTime && Date.now() - this.lastPublishTime < this.publishThrottleMs) {
+      return;
+    }
+
+    // Prevent duplicate publishes for the same state
+    const stateKey = JSON.stringify({ value: snapshot.value, context: snapshot.context });
+    if ((this as any).lastPublishedState === stateKey) {
       return;
     }
 
@@ -204,25 +226,32 @@ export class WordleNSMConnector {
         }
       });
       this.lastPublishTime = Date.now();
+      (this as any).lastPublishedState = stateKey;
     } catch (error) {
+      // Don't log error if it's just a missing signer in demo mode
+      if (error instanceof Error && error.message.includes('Signer required')) {
+        // Silently skip - we're in demo mode without a signer
+        return;
+      }
       console.error('Error publishing state update:', error);
       this.handlePublishError(error);
     }
   }
 
   private setupInteractionPublishing(): void {
-    // Store original send method to intercept events
-    const originalSend = this.actor.send.bind(this.actor);
+    // Don't intercept actor.send in demo/local mode to avoid duplicate events
+    // Publishing will be handled through subscriptions instead
 
-    this.actor.send = (event: any) => {
-      // Publish interaction before applying locally
-      this.publishInteraction(event);
-      // Apply locally
-      return originalSend(event);
-    };
+    // Subscribe to actor events for publishing (if we implement full NSM later)
+    // For now, we'll just let the local state machine work without publishing
   }
 
   private async publishInteraction(event: any): Promise<void> {
+    // Skip publishing if not connected
+    if (!this.isConnected) {
+      return;
+    }
+
     try {
       await this.nsmClient.publishInteraction({
         applicationId: this.applicationId,
@@ -230,6 +259,11 @@ export class WordleNSMConnector {
         payload: event.type === 'KEYPRESS' ? { letter: event.letter } : null
       });
     } catch (error) {
+      // Don't log error if it's just a missing signer in demo mode
+      if (error instanceof Error && error.message.includes('Signer required')) {
+        // Silently skip - we're in demo mode without a signer
+        return;
+      }
       console.error('Error publishing interaction:', error);
       this.handlePublishError(error);
     }

@@ -1,4 +1,4 @@
-import NDK, { NDKEvent, NDKFilter, NDKSubscription, NDKRelay, NDKPrivateKeySigner } from '@nostr-dev-kit/ndk';
+import NDK, { NDKEvent, NDKFilter, NDKSubscription, NDKRelay, NDKPrivateKeySigner, NDKNip07Signer } from '@nostr-dev-kit/ndk';
 import {
   INSMDefinitionEvent,
   INSMInteractionEvent,
@@ -16,6 +16,7 @@ export interface NSMClientOptions {
   ndk?: NDK; // Allow injecting NDK for testing
   autoConnect?: boolean;
   privateKey?: string; // Private key for signing events
+  useNip07?: boolean; // Use NIP-07 browser extension for signing
 }
 
 export interface NSMApplication {
@@ -72,10 +73,17 @@ export class NSMClient {
       explicitRelayUrls: this.relayUrls
     });
 
-    // Set up signer if private key is provided
-    if (options.privateKey && !options.ndk) {
-      const signer = new NDKPrivateKeySigner(options.privateKey);
-      this.ndk.signer = signer;
+    // Set up signer based on options
+    if (!options.ndk) {
+      if (options.useNip07) {
+        // Use NIP-07 browser extension for signing
+        const nip07Signer = new NDKNip07Signer();
+        this.ndk.signer = nip07Signer;
+      } else if (options.privateKey) {
+        // Use private key for signing
+        const signer = new NDKPrivateKeySigner(options.privateKey);
+        this.ndk.signer = signer;
+      }
     }
 
     if (options.autoConnect !== false && !options.ndk) {
@@ -85,7 +93,15 @@ export class NSMClient {
 
   async connect(): Promise<void> {
     try {
-      await this.ndk.connect();
+      // Add timeout for connection attempts
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Connection timeout')), 5000)
+      );
+
+      await Promise.race([
+        this.ndk.connect(),
+        timeout
+      ]);
     } catch (error) {
       throw new Error(`Failed to connect to relays: ${error}`);
     }
@@ -312,5 +328,39 @@ export class NSMClient {
       throw new Error('NDK pool not available');
     }
     await this.ndk.pool.removeRelay(url);
+  }
+
+  // NIP-07 specific methods
+  static isNip07Available(): boolean {
+    return typeof window !== 'undefined' && window.nostr !== undefined;
+  }
+
+  async getUserPublicKey(): Promise<string | null> {
+    if (!this.ndk.signer) {
+      return null;
+    }
+
+    try {
+      const user = await this.ndk.signer.user();
+      return user.pubkey;
+    } catch (error) {
+      console.error('Failed to get user public key:', error);
+      return null;
+    }
+  }
+
+  async requestNip07Permission(): Promise<boolean> {
+    if (!NSMClient.isNip07Available()) {
+      return false;
+    }
+
+    try {
+      // Request permission from the extension
+      const pubkey = await window.nostr!.getPublicKey();
+      return !!pubkey;
+    } catch (error) {
+      console.error('Failed to get NIP-07 permission:', error);
+      return false;
+    }
   }
 }

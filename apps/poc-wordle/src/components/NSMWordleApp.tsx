@@ -32,6 +32,8 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
   const [nsmConnector, setNSMConnector] = useState<WordleNSMConnector | null>(null);
   const [nsmStatus, setNSMStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
   const [error, setError] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userPubkey, setUserPubkey] = useState<string | null>(null);
 
   // Initialize state machine
   useEffect(() => {
@@ -46,51 +48,89 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
     };
   }, [actor]);
 
-  // Initialize NSM integration
+  // Check if NIP-07 is available on mount
   useEffect(() => {
-    if (!enableNSM) return;
+    if (enableNSM && NSMClient.isNip07Available()) {
+      console.log('NIP-07 extension detected');
+    }
+  }, [enableNSM]);
 
-    const initializeNSM = async () => {
+  // Handle Nostr login
+  const handleNostrLogin = async () => {
+    if (!NSMClient.isNip07Available()) {
+      setError('No Nostr extension found. Please install Alby, nos2x, or another NIP-07 extension.');
+      return;
+    }
+
+    try {
+      setNSMStatus('connecting');
+      setError(null);
+
+      // Create NSM client with NIP-07
+      const client = new NSMClient({
+        relayUrls: relayUrls || ['wss://relay.damus.io'],
+        autoConnect: false,
+        useNip07: true
+      });
+
+      // Request permission from extension
+      const hasPermission = await client.requestNip07Permission();
+      if (!hasPermission) {
+        setError('Permission denied by Nostr extension');
+        setNSMStatus('disconnected');
+        return;
+      }
+
+      // Get user's public key
+      const pubkey = await client.getUserPublicKey();
+      if (pubkey) {
+        setUserPubkey(pubkey);
+        setIsLoggedIn(true);
+      }
+
+      // Create connector
+      const connector = new WordleNSMConnector(client, actor);
+
+      // Initialize connection
       try {
-        setNSMStatus('connecting');
-        setError(null);
-
-        // Create NSM client
-        const client = new NSMClient({
-          relayUrls,
-          autoConnect: false,
-          privateKey
-        });
-
-        // Create connector
-        const connector = new WordleNSMConnector(client, actor);
-
-        // Initialize connection
         await connector.initialize();
-
-        setNSMClient(client);
-        setNSMConnector(connector);
         setNSMStatus('connected');
+      } catch (connectionError) {
+        console.warn('NSM connection failed:', connectionError);
+        setNSMStatus('disconnected');
+        setError('Failed to connect to relays');
+      }
 
-        // Publish application definition
+      setNSMClient(client);
+      setNSMConnector(connector);
+
+      // Publish application definition
+      try {
         const definition = await createWordleNSMDefinition();
         console.log('Wordle NSM definition created:', definition);
-
-      } catch (err) {
-        console.error('Failed to initialize NSM:', err);
-        setError(err instanceof Error ? err.message : 'Unknown NSM error');
-        setNSMStatus('error');
+      } catch (defError) {
+        console.warn('Could not publish NSM definition:', defError);
       }
-    };
 
-    initializeNSM();
+    } catch (err) {
+      console.error('Failed to login with Nostr:', err);
+      setError(err instanceof Error ? err.message : 'Failed to login');
+      setNSMStatus('error');
+    }
+  };
 
-    return () => {
-      if (nsmConnector) {
-        nsmConnector.disconnect();
-      }
-    };
-  }, [enableNSM, relayUrls, privateKey, actor]);
+  // Handle logout
+  const handleNostrLogout = () => {
+    if (nsmConnector) {
+      nsmConnector.disconnect();
+    }
+    setNSMClient(null);
+    setNSMConnector(null);
+    setIsLoggedIn(false);
+    setUserPubkey(null);
+    setNSMStatus('disconnected');
+    setError(null);
+  };
 
   // Get grid data from state
   const wordGrid = React.useMemo(() => {
@@ -191,7 +231,7 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
     }
   }, [handleEnter, handleBackspace, handleKeyPress]);
 
-  // NSM status indicator
+  // NSM status indicator with login
   const renderNSMStatus = () => {
     if (!enableNSM) return null;
 
@@ -205,24 +245,73 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
     return (
       <div className="nsm-status" style={{
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: 'column',
         gap: '8px',
         marginBottom: '16px',
-        padding: '8px',
-        backgroundColor: '#f8f9fa',
+        padding: '12px',
+        backgroundColor: '#2a2a2a',
         borderRadius: '4px',
-        fontSize: '14px'
+        fontSize: '14px',
+        color: '#ffffff'
       }}>
-        <div
-          style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: statusColors[nsmStatus]
-          }}
-        />
-        <span>NSM: {nsmStatus}</span>
-        {error && <span style={{ color: '#e74c3c' }}>({error})</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: statusColors[nsmStatus]
+            }}
+          />
+          <span style={{ color: '#ffffff' }}>NSM: {nsmStatus}</span>
+          {error && <span style={{ color: '#ff6b6b' }}>({error})</span>}
+        </div>
+
+        {!isLoggedIn ? (
+          <button
+            onClick={handleNostrLogin}
+            disabled={nsmStatus === 'connecting'}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#8b5cf6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              opacity: nsmStatus === 'connecting' ? 0.5 : 1
+            }}
+          >
+            {nsmStatus === 'connecting' ? 'Connecting...' : 'Login with Nostr'}
+          </button>
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '12px', color: '#aaa' }}>
+              {userPubkey ? `Connected as: ${userPubkey.substring(0, 8)}...${userPubkey.substring(userPubkey.length - 8)}` : 'Connected'}
+            </span>
+            <button
+              onClick={handleNostrLogout}
+              style={{
+                padding: '4px 8px',
+                backgroundColor: '#ef4444',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              Logout
+            </button>
+          </div>
+        )}
+
+        {!NSMClient.isNip07Available() && !isLoggedIn && (
+          <div style={{ fontSize: '12px', color: '#aaa', marginTop: '4px' }}>
+            Install a Nostr browser extension like Alby or nos2x to enable multiplayer features
+          </div>
+        )}
       </div>
     );
   };
