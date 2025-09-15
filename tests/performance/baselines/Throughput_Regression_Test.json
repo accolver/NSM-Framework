@@ -1,0 +1,18 @@
+{
+  "name": "Throughput Regression Test",
+  "version": "1.0.0",
+  "timestamp": 1757957991816,
+  "metrics": {
+    "avgExecutionTime": 0.2710096774403426,
+    "throughputPerSecond": 55330.333333333336,
+    "memoryUsage": 30406812,
+    "p95Latency": 0.420583,
+    "p99Latency": 1.035084
+  },
+  "environment": {
+    "nodeVersion": "v24.3.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpuCount": 12
+  }
+}

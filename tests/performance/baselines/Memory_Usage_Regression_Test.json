@@ -1,0 +1,18 @@
+{
+  "name": "Memory Usage Regression Test",
+  "version": "1.0.0",
+  "timestamp": 1757957988272,
+  "metrics": {
+    "avgExecutionTime": 0.11914210000000004,
+    "throughputPerSecond": 8393.338710665665,
+    "memoryUsage": 23656159,
+    "p95Latency": 0.17871315000000007,
+    "p99Latency": 0.23828420000000008
+  },
+  "environment": {
+    "nodeVersion": "v24.3.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpuCount": 12
+  }
+}

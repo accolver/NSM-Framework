@@ -1,4 +1,4 @@
-import NDK, { NDKEvent, NDKFilter, NDKSubscription, NDKRelay } from '@nostr-dev-kit/ndk';
+import NDK, { NDKEvent, NDKFilter, NDKSubscription, NDKRelay, NDKPrivateKeySigner } from '@nostr-dev-kit/ndk';
 import {
   INSMDefinitionEvent,
   INSMInteractionEvent,
@@ -15,6 +15,7 @@ export interface NSMClientOptions {
   relayUrls?: string[];
   ndk?: NDK; // Allow injecting NDK for testing
   autoConnect?: boolean;
+  privateKey?: string; // Private key for signing events
 }
 
 export interface NSMApplication {
@@ -70,6 +71,12 @@ export class NSMClient {
     this.ndk = options.ndk || new NDK({
       explicitRelayUrls: this.relayUrls
     });
+
+    // Set up signer if private key is provided
+    if (options.privateKey && !options.ndk) {
+      const signer = new NDKPrivateKeySigner(options.privateKey);
+      this.ndk.signer = signer;
+    }
 
     if (options.autoConnect !== false && !options.ndk) {
       this.connect().catch(console.error);

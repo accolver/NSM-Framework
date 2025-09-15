@@ -1,0 +1,18 @@
+{
+  "name": "Concurrent Load Performance Baseline",
+  "version": "1.0.0",
+  "timestamp": 1757957988226,
+  "metrics": {
+    "avgExecutionTime": 0.45435827338789375,
+    "throughputPerSecond": 44007.8,
+    "memoryUsage": 51728675,
+    "p95Latency": 1.124667,
+    "p99Latency": 1.644833
+  },
+  "environment": {
+    "nodeVersion": "v24.3.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpuCount": 12
+  }
+}
