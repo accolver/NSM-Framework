@@ -7,7 +7,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { createActor } from 'xstate';
-import { wordleMachine } from '../wordle-machine';
+import { createWordleMachine } from '../wordle-machine';
 import { WordGrid } from './WordGrid';
 import { Keyboard } from './Keyboard';
 import { GameStatus } from './GameStatus';
@@ -26,14 +26,9 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
   relayUrls = ['wss://relay.damus.io'],
   privateKey
 }) => {
-  // Create actor ref to persist across renders
-  const actorRef = useRef<ReturnType<typeof createActor>>();
-  const [state, setState] = useState(() => {
-    if (!actorRef.current) {
-      actorRef.current = createActor(wordleMachine);
-    }
-    return actorRef.current.getSnapshot();
-  });
+  // Create actor ref to persist across renders - initialize as null
+  const actorRef = useRef<ReturnType<typeof createActor> | null>(null);
+  const [state, setState] = useState<any>(null);
 
   const [nsmClient, setNSMClient] = useState<NSMClient | null>(null);
   const [nsmConnector, setNSMConnector] = useState<WordleNSMConnector | null>(null);
@@ -46,41 +41,42 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
   // Note: Debug logging can be enabled here for troubleshooting
   // console.log('🔄 NSMWordleApp render:', { currentGuess: state.context.currentGuess, state: state.value });
 
-  // Initialize state machine
+  // Initialize state machine - single effect for actor creation and management
   useEffect(() => {
+    console.log('🔧 Effect running, actorRef.current:', actorRef.current ? 'exists' : 'null');
+
+    // Only create actor if it doesn't exist
     if (!actorRef.current) {
-      actorRef.current = createActor(wordleMachine);
+      console.log('🆕 Creating new XState actor');
+      actorRef.current = createActor(createWordleMachine());
+      actorRef.current.start();
+      console.log('✅ Actor created and started');
     }
 
     const actor = actorRef.current;
-    console.log('Initializing XState actor');
-
-    // Only start if not already started
-    if (actor.getSnapshot().status === 'stopped') {
-      actor.start();
-      console.log('Actor started');
-    }
-
     const initialSnapshot = actor.getSnapshot();
-    console.log('Initial state:', initialSnapshot);
+    console.log('📊 Actor status:', initialSnapshot.status);
     setState(initialSnapshot);
 
     const subscription = actor.subscribe((snapshot) => {
-      console.log('State machine updated:', snapshot);
+      console.log('🔄 State machine updated:', snapshot.value, 'currentGuess:', snapshot.context.currentGuess);
       setState(snapshot);
     });
 
     return () => {
+      console.log('🧹 Effect cleanup, unsubscribing');
       subscription.unsubscribe();
-      // Don't stop the actor on cleanup in StrictMode - only when component truly unmounts
+      // Don't stop the actor here - let the unmount effect handle it
     };
-  }, []); // Empty dependency array since we use useRef
+  }, []); // Empty dependency array
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      console.log('🛑 Component unmounting, stopping actor');
       if (actorRef.current) {
         actorRef.current.stop();
+        actorRef.current = null;
       }
     };
   }, []);
@@ -177,6 +173,8 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
 
   // Get grid data from state
   const wordGrid = React.useMemo(() => {
+    if (!state) return Array(6).fill([null, null, null, null, null]);
+
     const grid: (string | null)[][] = [];
 
     // Add completed guesses
@@ -199,10 +197,12 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
     }
 
     return grid;
-  }, [state.context.guesses, state.context.currentGuess, state.value]);
+  }, [state?.context?.guesses, state?.context?.currentGuess, state?.value]);
 
   // Get status grid from state
   const statusGrid = React.useMemo(() => {
+    if (!state) return Array(6).fill([null, null, null, null, null]);
+
     const grid: (string | null)[][] = [];
 
     // Add completed guesses with status
@@ -216,10 +216,12 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
     }
 
     return grid;
-  }, [state.context.guesses]);
+  }, [state?.context?.guesses]);
 
   // Get keyboard status
   const keyboardStatus = React.useMemo(() => {
+    if (!state) return {};
+
     const keyStatus: Record<string, string> = {};
 
     // Process all guesses to determine letter status
@@ -239,15 +241,15 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
     }
 
     return keyStatus;
-  }, [state.context.guesses]);
+  }, [state?.context?.guesses]);
 
   // Event handlers
   const handleKeyPress = useCallback((letter: string) => {
     if (!actorRef.current) return;
 
     console.log('handleKeyPress called with letter:', letter);
-    console.log('Current state:', state.value);
-    console.log('Current guess:', state.context.currentGuess);
+    console.log('Current state:', state?.value);
+    console.log('Current guess:', state?.context?.currentGuess);
     console.log('Actor state before send:', actorRef.current.getSnapshot());
 
     const event = { type: 'KEYPRESS', letter };
@@ -255,23 +257,23 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
     actorRef.current.send(event);
 
     console.log('Actor state after send:', actorRef.current.getSnapshot());
-  }, [state.value, state.context.currentGuess]);
+  }, [state?.value, state?.context?.currentGuess]);
 
   const handleBackspace = useCallback(() => {
     if (!actorRef.current) return;
 
     console.log('handleBackspace called');
-    console.log('Current guess:', state.context.currentGuess);
+    console.log('Current guess:', state?.context?.currentGuess);
     actorRef.current.send({ type: 'BACKSPACE' });
-  }, [state.context.currentGuess]);
+  }, [state?.context?.currentGuess]);
 
   const handleEnter = useCallback(() => {
     if (!actorRef.current) return;
 
     console.log('handleEnter called');
-    console.log('Current guess:', state.context.currentGuess);
+    console.log('Current guess:', state?.context?.currentGuess);
     actorRef.current.send({ type: 'SUBMIT_GUESS' });
-  }, [state.context.currentGuess]);
+  }, [state?.context?.currentGuess]);
 
   const handleReset = useCallback(() => {
     if (!actorRef.current) return;
@@ -407,9 +409,9 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
       {renderNSMStatus()}
 
       <GameStatus
-        gameState={state.value as 'playing' | 'won' | 'lost'}
-        attemptNumber={state.context.attemptNumber}
-        hiddenWord={state.context.hiddenWord}
+        gameState={(state?.value as 'playing' | 'won' | 'lost') || 'playing'}
+        attemptNumber={state?.context?.attemptNumber || 0}
+        hiddenWord={state?.context?.hiddenWord || ''}
         onReset={handleReset}
       />
 
