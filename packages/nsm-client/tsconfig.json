@@ -2,10 +2,17 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "composite": true,
+    "module": "CommonJS",
+    "moduleResolution": "node"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "exclude": ["node_modules", "dist", "**/*.test.ts"],
+  "references": [
+    { "path": "../nsm-core" }
+  ]
 }

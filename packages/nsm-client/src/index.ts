@@ -10,7 +10,7 @@ export type {
 
 // Re-export core types for convenience
 export type {
-  NSMDefinitionEvent,
-  NSMInteractionEvent,
-  NSMStateUpdateEvent
+  INSMDefinitionEvent as NSMDefinitionEvent,
+  INSMInteractionEvent as NSMInteractionEvent,
+  INSMStateUpdateEvent as NSMStateUpdateEvent
 } from '@nsm/core';

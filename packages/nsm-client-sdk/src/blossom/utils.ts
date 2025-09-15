@@ -16,7 +16,7 @@ export async function calculateSHA256(content: string | Uint8Array): Promise<str
     data = content;
   }
 
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data as BufferSource);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
@@ -41,7 +41,7 @@ export function contentToBlob(content: string | Uint8Array, contentType?: string
   if (typeof content === 'string') {
     return new Blob([content], { type: contentType || 'application/octet-stream' });
   } else {
-    return new Blob([content], { type: contentType || 'application/octet-stream' });
+    return new Blob([content as BlobPart], { type: contentType || 'application/octet-stream' });
   }
 }
 

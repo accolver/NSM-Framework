@@ -153,11 +153,11 @@ export class BlossomClient {
 
     if (healthyServers.length === 0) {
       // If no healthy servers, try all servers
-      return this.config.servers[this.serverIndex++ % this.config.servers.length];
+      return this.config.servers[this.serverIndex++ % this.config.servers.length]!;
     }
 
     // Use a different index for healthy servers to ensure proper round-robin
-    const server = healthyServers[this.serverIndex % healthyServers.length];
+    const server = healthyServers[this.serverIndex % healthyServers.length]!;
     this.serverIndex++;
     return server;
   }
@@ -246,7 +246,7 @@ export class BlossomClient {
       } catch (error) {
         await this.recordRequest(server, false, Date.now() - requestStartTime);
 
-        if (error.name === 'AbortError') {
+        if ((error as Error).name === 'AbortError') {
           errors.push(new Error('Upload timeout exceeded'));
           break; // Don't try more servers if timeout
         } else if ((error as Error).message.startsWith('Upload failed:')) {
@@ -291,7 +291,7 @@ export class BlossomClient {
 
     // Upload to multiple servers directly
     for (let i = 0; i < Math.min(replicationCount, this.config.servers.length); i++) {
-      const server = this.config.servers[i];
+      const server = this.config.servers[i]!;
       const startTime = Date.now();
 
       try {
@@ -314,9 +314,9 @@ export class BlossomClient {
         await this.recordRequest(server, true, responseTime);
 
         replicas.push({
-          hash: result.hash,
-          url: result.url,
-          size: result.size
+          hash: result.hash || hash,
+          url: result.url || `${server}/${hash}`,
+          size: result.size || blob.size
         });
       } catch (error) {
         await this.recordRequest(server, false, Date.now() - startTime);
@@ -328,7 +328,7 @@ export class BlossomClient {
       throw new Error('All replication attempts failed');
     }
 
-    const primaryReplica = replicas[0];
+    const primaryReplica = replicas[0]!;
     return {
       ...primaryReplica,
       replicas,

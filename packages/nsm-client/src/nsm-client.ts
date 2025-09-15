@@ -1,8 +1,8 @@
 import NDK, { NDKEvent, NDKFilter, NDKSubscription, NDKRelay } from '@nostr-dev-kit/ndk';
 import {
-  NSMDefinitionEvent,
-  NSMInteractionEvent,
-  NSMStateUpdateEvent,
+  INSMDefinitionEvent,
+  INSMInteractionEvent,
+  INSMStateUpdateEvent,
   createNSMDefinitionEvent,
   createNSMInteractionEvent,
   createNSMStateUpdateEvent,
@@ -93,7 +93,7 @@ export class NSMClient {
 
   async discoverApplications(options: DiscoverOptions = {}): Promise<NSMApplication[]> {
     const filter: NDKFilter = {
-      kinds: [30079], // NSM Definition Event
+      kinds: [30079 as any], // NSM Definition Event
       limit: options.limit || 100
     };
 
@@ -146,7 +146,7 @@ export class NSMClient {
     }
 
     const filter: NDKFilter = {
-      kinds: [30079],
+      kinds: [30079 as any],
       '#d': [identifier],
       limit: 1
     };
@@ -217,13 +217,8 @@ export class NSMClient {
   }
 
   async publishInteraction(interaction: InteractionPayload): Promise<void> {
-    if (!this.ndk.publish) {
-      // For testing or when NDK doesn't have publish
-      throw new Error('NDK publish not available');
-    }
-
     const event = new NDKEvent(this.ndk, {
-      kind: 7000, // NSM Interaction Event
+      kind: 7000 as any, // NSM Interaction Event
       content: JSON.stringify({
         action: interaction.action,
         payload: interaction.payload
@@ -234,15 +229,10 @@ export class NSMClient {
       created_at: Math.floor(Date.now() / 1000)
     });
 
-    await this.ndk.publish(event);
+    await event.publish();
   }
 
   async publishStateUpdate(stateUpdate: StateUpdatePayload): Promise<void> {
-    if (!this.ndk.publish) {
-      // For testing or when NDK doesn't have publish
-      throw new Error('NDK publish not available');
-    }
-
     const tags = [
       ['a', `30079:test-pubkey:${stateUpdate.applicationId}`]
     ];
@@ -252,13 +242,13 @@ export class NSMClient {
     }
 
     const event = new NDKEvent(this.ndk, {
-      kind: 10079, // NSM State Update Event
+      kind: 10079 as any, // NSM State Update Event
       content: JSON.stringify(stateUpdate.state),
       tags,
       created_at: Math.floor(Date.now() / 1000)
     });
 
-    await this.ndk.publish(event);
+    await event.publish();
   }
 
   subscribeToApplication(
@@ -266,7 +256,7 @@ export class NSMClient {
     handlers: SubscriptionHandlers
   ): NDKSubscription {
     const filter: NDKFilter = {
-      kinds: [7000, 10079], // Interaction and State Update events
+      kinds: [7000 as any, 10079 as any], // Interaction and State Update events
       '#a': [`30079:test-pubkey:${applicationId}`]
     };
 
@@ -306,7 +296,8 @@ export class NSMClient {
     if (!this.ndk.pool?.addRelay) {
       throw new Error('NDK pool not available');
     }
-    await this.ndk.pool.addRelay(url);
+    const relay = new NDKRelay(url, undefined, this.ndk);
+    await this.ndk.pool.addRelay(relay);
   }
 
   async removeRelay(url: string): Promise<void> {

@@ -3,7 +3,6 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -20,6 +19,7 @@
     "sourceMap": true,
     "outDir": "./dist",
     "rootDir": "./src",
+    "composite": true,
     "types": ["bun-types"]
   },
   "include": [
