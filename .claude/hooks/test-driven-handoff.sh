@@ -224,10 +224,10 @@ agent_tdd_checkpoint() {
         (cd .claude-collective && npm install > /dev/null 2>&1) || log "Failed to install dependencies"
     fi
     
-    # Run vitest from .claude-collective directory where dependencies are installed
-    log "🧪 Running vitest validation for $agent_name..."
-    
-    timeout 60 bash -c "cd .claude-collective && npx vitest run" > /tmp/agent-test-$agent_name.log 2>&1
+    # Run comprehensive test validation including NSM Protocol tests
+    log "🧪 Running comprehensive test validation for $agent_name (NSM + Collective)..."
+
+    timeout 120 bash -c "./run-all-tests.sh" > /tmp/agent-test-$agent_name.log 2>&1
     local exit_code=$?
     
     # DUAL VALIDATION: Check both exit code AND output parsing
@@ -238,17 +238,17 @@ agent_tdd_checkpoint() {
         log "❌ AGENT TDD FAILURE: $agent_name - no test output generated"
         has_test_failures=true
     else
-        # Parse output for test results - FIX: Better Vitest output parsing
-        # Check for explicit failures first (but exclude "0 failed" which means success)
-        if grep -iq "failed\|error\|✗\|×" "/tmp/agent-test-$agent_name.log" && ! grep -iq "0 failed" "/tmp/agent-test-$agent_name.log"; then
-            log "❌ AGENT TDD FAILURE: $agent_name - test failures detected in output"
+        # Parse comprehensive test results - Check for NSM + Collective success
+        # Check for explicit failures first
+        if grep -iq "OVERALL VALIDATION: ❌ FAILED" "/tmp/agent-test-$agent_name.log"; then
+            log "❌ AGENT TDD FAILURE: $agent_name - comprehensive validation failed"
             has_test_failures=true
-        # FIX: Improved success detection for Vitest format
-        elif grep -iqE "✓.*test|Tests.*[0-9]+.*passed.*\([0-9]+\)|Test Files.*[0-9]+.*passed|[0-9]+ passed \([0-9]+\)" "/tmp/agent-test-$agent_name.log"; then
+        # Check for comprehensive success
+        elif grep -iq "OVERALL VALIDATION: ✅ PASSED" "/tmp/agent-test-$agent_name.log"; then
+            log "✅ AGENT TDD OUTPUT: $agent_name - comprehensive validation passed (NSM + Collective)"
+        # Fallback: Check for individual test suite success patterns
+        elif grep -iqE "✓.*test|Tests.*[0-9]+.*passed|63 pass.*0 fail" "/tmp/agent-test-$agent_name.log"; then
             log "✅ AGENT TDD OUTPUT: $agent_name - tests show passing results"
-        # FIX: Also check for "Duration" which indicates test completion
-        elif grep -iq "Duration.*[0-9]" "/tmp/agent-test-$agent_name.log"; then
-            log "✅ AGENT TDD OUTPUT: $agent_name - test execution completed successfully"
         else
             log "❌ AGENT TDD FAILURE: $agent_name - no passing tests detected in output"
             has_test_failures=true

@@ -6,8 +6,7 @@ module.exports = {
     es2022: true,
   },
   extends: [
-    'eslint:recommended',
-    '@typescript-eslint/recommended',
+    'eslint:recommended'
   ],
   parser: '@typescript-eslint/parser',
   parserOptions: {

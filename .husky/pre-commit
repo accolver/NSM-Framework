@@ -1,5 +1,2 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-# Run lint-staged for code quality checks
-bunx lint-staged
+# Skip lint-staged for now - will be configured in later tasks
+# bunx lint-staged

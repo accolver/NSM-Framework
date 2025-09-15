@@ -1,0 +1,28 @@
+{
+  "name": "@nsm/client",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "bun test",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@nsm/core": "workspace:*",
+    "@nostr-dev-kit/ndk": "^2.10.5",
+    "xstate": "^5.19.0",
+    "nostr-tools": "^2.10.4"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.21",
+    "typescript": "^5.4.0"
+  }
+}

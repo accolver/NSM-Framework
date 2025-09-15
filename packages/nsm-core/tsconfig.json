@@ -1,16 +1,33 @@
 {
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "noEmit": false,
-    "allowImportingTsExtensions": false,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
     "declaration": true,
     "declarationMap": true,
-    "composite": true,
-    "module": "CommonJS",
-    "moduleResolution": "node"
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "types": ["bun-types"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules", "**/*.test.ts", "**/*.spec.ts"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "tests"
+  ]
 }
