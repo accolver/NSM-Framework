@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "composite": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowJs": true,
+    "declaration": true,
+    "declarationMap": true,
+    "incremental": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "baseUrl": ".",
+    "paths": {
+      "@nsm/core": ["./packages/nsm-core/src"],
+      "@nsm/client-sdk": ["./packages/nsm-client-sdk/src"],
+      "@nsm/dev-tools": ["./packages/nsm-dev-tools/src"]
+    },
+    "types": ["bun-types"]
+  },
+  "include": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
+  "exclude": ["node_modules", "dist", "build", ".next"],
+  "references": [
+    { "path": "./packages/nsm-core" },
+    { "path": "./packages/nsm-client-sdk" },
+    { "path": "./packages/nsm-dev-tools" },
+    { "path": "./apps/poc-wordle" },
+    { "path": "./apps/poc-whiteboard" },
+    { "path": "./apps/dev-tools" },
+    { "path": "./apps/docs" }
+  ]
+}

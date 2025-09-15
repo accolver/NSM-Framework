@@ -1,0 +1,620 @@
+{
+  "tasks": [
+    {
+      "id": "1",
+      "title": "Project Foundation and Monorepo Setup",
+      "description": "Set up the foundational project structure using Turborepo with Bun runtime, establishing the monorepo architecture for the NSM framework development.",
+      "status": "pending",
+      "priority": "critical",
+      "dependencies": [],
+      "research_context": {
+        "required_research": ["turborepo", "bun", "monorepo"],
+        "research_files": [".taskmaster/docs/research/2025-09-15_turborepo-monorepo.md", ".taskmaster/docs/research/2025-09-15_bun-runtime.md"],
+        "key_findings": ["Turborepo provides incremental builds and parallel execution", "Bun offers 4x performance improvement over Node.js", "Workspace protocols enable efficient inter-package dependencies"]
+      },
+      "implementation_guidance": {
+        "tdd_approach": "Write project structure validation tests first, then implement monorepo configuration",
+        "test_criteria": ["All packages build successfully", "Workspace dependencies resolve correctly", "Turborepo pipeline executes in proper order"],
+        "research_references": "See @.taskmaster/docs/research/2025-09-15_turborepo-monorepo.md for monorepo patterns and @.taskmaster/docs/research/2025-09-15_bun-runtime.md for runtime configuration"
+      },
+      "subtasks": [
+        {
+          "id": "1.1",
+          "title": "Initialize Turborepo monorepo structure",
+          "description": "Create root package.json, turbo.json configuration, and workspace structure with proper package organization",
+          "status": "pending",
+          "details": "Set up workspace structure: packages/ (nsm-core, nsm-client-sdk, nsm-dev-tools), apps/ (poc-wordle, poc-whiteboard, dev-tools, docs), tools/ (shared configs)",
+          "testStrategy": "Validate workspace resolution, turbo pipeline execution, and proper dependency management"
+        },
+        {
+          "id": "1.2",
+          "title": "Configure Bun as the primary runtime",
+          "description": "Set up Bun runtime configuration, package management, and build tools across the monorepo",
+          "status": "pending",
+          "details": "Configure bun.config.ts, set up package.json scripts, configure TypeScript with bun-types",
+          "testStrategy": "Test Bun build performance, runtime compatibility, and TypeScript compilation"
+        },
+        {
+          "id": "1.3",
+          "title": "Establish shared tooling and configuration",
+          "description": "Create shared ESLint, Prettier, TypeScript configurations and development scripts",
+          "status": "pending",
+          "details": "Set up tools/eslint-config, tools/typescript-config, shared testing utilities",
+          "testStrategy": "Verify consistent linting and formatting across all packages"
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "title": "Core NSM Protocol Implementation",
+      "description": "Implement the core Nostr State Machine protocol definitions, event schemas, and TypeScript interfaces for the three proposed event kinds (30079, 7000-7999, 10079).",
+      "status": "pending",
+      "priority": "critical",
+      "dependencies": ["1"],
+      "research_context": {
+        "required_research": ["nostr", "nips", "protocol-design"],
+        "research_files": [".taskmaster/docs/research/2025-09-15_ndk-integration.md"],
+        "key_findings": ["Event kind 30079 for parameterized replaceable NSM definitions", "Range 7000-7999 for interaction events", "Kind 10079 for state snapshots", "NDK provides comprehensive Nostr protocol support"]
+      },
+      "implementation_guidance": {
+        "tdd_approach": "Write protocol validation tests first, then implement event schemas and TypeScript definitions",
+        "test_criteria": ["All event schemas validate correctly", "TypeScript interfaces provide full type safety", "Protocol compliance with Nostr specifications"],
+        "research_references": "See @.taskmaster/docs/research/2025-09-15_ndk-integration.md for Nostr integration patterns"
+      },
+      "subtasks": [
+        {
+          "id": "2.1",
+          "title": "Define NSM Definition Event schema (kind:30079)",
+          "description": "Create TypeScript interfaces and JSON schemas for NSM Definition Events with all required tags and content structure",
+          "status": "pending",
+          "details": "Define INSMDefinitionEvent interface with mandatory tags (d, name, engine, engineCodeURI) and content schema (initialState, stateSchema, interactionSchema)",
+          "testStrategy": "Validate schema against example Wordle and Whiteboard definitions"
+        },
+        {
+          "id": "2.2",
+          "title": "Define NSM Interaction Event schema (kind:7000-7999)",
+          "description": "Create TypeScript interfaces for interaction events with proper application addressing and content validation",
+          "status": "pending",
+          "details": "Define INSMInteractionEvent interface with a tag addressing, content validation against interactionSchema",
+          "testStrategy": "Test interaction event validation for different application types"
+        },
+        {
+          "id": "2.3",
+          "title": "Define NSM State Update Event schema (kind:10079)",
+          "description": "Create TypeScript interfaces for replaceable state snapshot events with state validation",
+          "status": "pending",
+          "details": "Define INSMStateUpdateEvent interface with proper state content validation against stateSchema",
+          "testStrategy": "Verify state snapshot validation and replaceability mechanics"
+        },
+        {
+          "id": "2.4",
+          "title": "Implement protocol validation utilities",
+          "description": "Create validation functions for all NSM event types with comprehensive error handling and type guards",
+          "status": "pending",
+          "details": "Implement validateNSMDefinition, validateNSMInteraction, validateNSMStateUpdate functions with detailed error messages",
+          "testStrategy": "Test validation with malformed events, missing fields, and edge cases"
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "title": "Client SDK Development",
+      "description": "Build the main NSM client SDK that wraps NDK, integrates XState, and provides a simple API for developers to build NSM applications.",
+      "status": "pending",
+      "priority": "critical",
+      "dependencies": ["2"],
+      "research_context": {
+        "required_research": ["ndk", "xstate", "client-architecture"],
+        "research_files": [".taskmaster/docs/research/2025-09-15_ndk-integration.md", ".taskmaster/docs/research/2025-09-15_xstate-patterns.md"],
+        "key_findings": ["NDK provides high-level Nostr abstractions", "XState enables serializable state machines", "Smart client/dumb relay architecture", "Sandboxed execution required for untrusted code"]
+      },
+      "implementation_guidance": {
+        "tdd_approach": "Write client API tests first, then implement SDK functionality with proper error handling and security",
+        "test_criteria": ["SDK initializes correctly", "State machines execute properly", "Event publishing and subscription work", "Security sandbox prevents code injection"],
+        "research_references": "See @.taskmaster/docs/research/2025-09-15_ndk-integration.md for NDK patterns and @.taskmaster/docs/research/2025-09-15_xstate-patterns.md for state machine integration"
+      },
+      "subtasks": [
+        {
+          "id": "3.1",
+          "title": "Create NSMClient core class",
+          "description": "Implement the main client class that manages NDK instance, subscriptions, and application lifecycle",
+          "status": "pending",
+          "details": "Class should handle initialization, relay connections, event subscriptions, and application discovery",
+          "testStrategy": "Test client initialization, connection management, and proper cleanup"
+        },
+        {
+          "id": "3.2",
+          "title": "Implement state machine integration with XState",
+          "description": "Create secure state machine loader and interpreter integration with sandboxed execution",
+          "status": "pending",
+          "details": "Implement createMachine, interpretMachine, and secure sandbox for untrusted state machine code",
+          "testStrategy": "Test state machine execution, security isolation, and performance"
+        },
+        {
+          "id": "3.3",
+          "title": "Build application discovery and loading system",
+          "description": "Implement discovery of NSM applications, loading definitions, and fetching logic from Blossom servers",
+          "status": "pending",
+          "details": "Create discoverApplications, loadApplication, fetchFromBlossom with integrity verification",
+          "testStrategy": "Test application discovery, loading performance, and hash verification"
+        },
+        {
+          "id": "3.4",
+          "title": "Implement optimistic updates and state reconciliation",
+          "description": "Create optimistic update system with conflict resolution and canonical state synchronization",
+          "status": "pending",
+          "details": "Implement optimistic state transitions, conflict detection, and automatic reconciliation with canonical state",
+          "testStrategy": "Test optimistic updates, conflict resolution, and multi-user synchronization"
+        },
+        {
+          "id": "3.5",
+          "title": "Create event publishing and subscription management",
+          "description": "Implement event creation, signing, publishing, and real-time subscription management",
+          "status": "pending",
+          "details": "Handle interaction event creation, state update publishing, and efficient subscription management",
+          "testStrategy": "Test event publishing, subscription performance, and memory management"
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "title": "Blossom Integration for Large Asset Storage",
+      "description": "Implement Blossom protocol integration for storing and retrieving large application assets like state machine logic files with proper authentication and verification.",
+      "status": "pending",
+      "priority": "high",
+      "dependencies": ["3"],
+      "research_context": {
+        "required_research": ["blossom", "content-addressing", "file-storage"],
+        "research_files": [".taskmaster/docs/research/2025-09-15_blossom-storage.md"],
+        "key_findings": ["Content-addressed storage via SHA-256", "Nostr event authorization required", "Multiple server support for redundancy", "HTTP-based API with PUT/GET operations"]
+      },
+      "implementation_guidance": {
+        "tdd_approach": "Write storage integration tests first, then implement Blossom client with proper error handling",
+        "test_criteria": ["File upload/download works correctly", "SHA-256 verification passes", "Authorization events are valid", "Multi-server fallback functions"],
+        "research_references": "See @.taskmaster/docs/research/2025-09-15_blossom-storage.md for Blossom integration patterns"
+      },
+      "subtasks": [
+        {
+          "id": "4.1",
+          "title": "Implement Blossom client for file operations",
+          "description": "Create BlossomClient class with upload, download, and delete operations using proper Nostr authorization",
+          "status": "pending",
+          "details": "Implement PUT /upload, GET /{hash}, DELETE /{hash} with signed authorization events",
+          "testStrategy": "Test file operations, authorization, and error handling"
+        },
+        {
+          "id": "4.2",
+          "title": "Add content integrity verification",
+          "description": "Implement SHA-256 hash verification for all downloaded content to ensure integrity",
+          "status": "pending",
+          "details": "Calculate and verify SHA-256 hashes for all downloaded files with proper error handling",
+          "testStrategy": "Test hash verification, corrupted file detection, and integrity failures"
+        },
+        {
+          "id": "4.3",
+          "title": "Implement multi-server redundancy",
+          "description": "Add support for multiple Blossom servers with automatic failover and server discovery via NIP-B7",
+          "status": "pending",
+          "details": "Support server lists, automatic failover, and load balancing across multiple Blossom servers",
+          "testStrategy": "Test failover behavior, server selection, and availability handling"
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "title": "Wordle Proof of Concept Application",
+      "description": "Build a single-player Wordle game as the first proof-of-concept NSM application to demonstrate the framework's capabilities with React frontend.",
+      "status": "pending",
+      "priority": "high",
+      "dependencies": ["3", "4"],
+      "research_context": {
+        "required_research": ["react", "xstate", "wordle-game"],
+        "research_files": [".taskmaster/docs/research/2025-09-15_react-frontend.md", ".taskmaster/docs/research/2025-09-15_xstate-patterns.md"],
+        "key_findings": ["State-driven UI rendering", "XState for game logic", "React hooks for state machine integration", "Event emission for user interactions"]
+      },
+      "implementation_guidance": {
+        "tdd_approach": "Write game logic tests first, then implement Wordle mechanics with proper state transitions",
+        "test_criteria": ["Game mechanics work correctly", "UI updates properly", "State persistence functions", "NSM protocol compliance"],
+        "research_references": "See @.taskmaster/docs/research/2025-09-15_react-frontend.md for React patterns and @.taskmaster/docs/research/2025-09-15_xstate-patterns.md for state machine implementation"
+      },
+      "subtasks": [
+        {
+          "id": "5.1",
+          "title": "Design Wordle state machine",
+          "description": "Create XState machine definition for Wordle game with all states, transitions, and context",
+          "status": "pending",
+          "details": "Define states (loading, playing, won, lost), events (KEYPRESS, SUBMIT_GUESS), and context (hiddenWord, guesses, currentGuess)",
+          "testStrategy": "Test state transitions, guard conditions, and game logic"
+        },
+        {
+          "id": "5.2",
+          "title": "Build React UI components",
+          "description": "Create React components for word grid, keyboard, and game status with state-driven rendering",
+          "status": "pending",
+          "details": "Implement WordGrid, Keyboard, GameStatus components with proper event emission",
+          "testStrategy": "Test component rendering, user interactions, and state integration"
+        },
+        {
+          "id": "5.3",
+          "title": "Integrate with NSM client SDK",
+          "description": "Connect Wordle game to NSM client for publishing and state management",
+          "status": "pending",
+          "details": "Implement NSM Definition Event creation, state publishing, and real-time updates",
+          "testStrategy": "Test NSM integration, event publishing, and state synchronization"
+        },
+        {
+          "id": "5.4",
+          "title": "Implement game persistence and replay",
+          "description": "Add game state persistence and ability to replay completed games",
+          "status": "pending",
+          "details": "Store game history, enable replay functionality, and maintain statistics",
+          "testStrategy": "Test state persistence, replay accuracy, and statistics tracking"
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "title": "Collaborative Whiteboard Proof of Concept",
+      "description": "Build a multi-user collaborative whiteboard application to demonstrate multi-user state reconciliation and real-time collaboration features.",
+      "status": "pending",
+      "priority": "high",
+      "dependencies": ["5"],
+      "research_context": {
+        "required_research": ["react", "canvas", "multi-user-sync", "conflict-resolution"],
+        "research_files": [".taskmaster/docs/research/2025-09-15_react-frontend.md", ".taskmaster/docs/research/2025-09-15_xstate-patterns.md"],
+        "key_findings": ["Canvas-based drawing interface", "Pointer event handling", "Multi-user state reconciliation", "Deterministic conflict resolution"]
+      },
+      "implementation_guidance": {
+        "tdd_approach": "Write collaboration tests first, then implement whiteboard with conflict resolution",
+        "test_criteria": ["Drawing operations work correctly", "Multi-user sync functions", "Conflicts resolve deterministically", "Canvas performance is acceptable"],
+        "research_references": "See @.taskmaster/docs/research/2025-09-15_react-frontend.md for React patterns and multi-user component architecture"
+      },
+      "subtasks": [
+        {
+          "id": "6.1",
+          "title": "Design whiteboard state machine",
+          "description": "Create XState machine for collaborative whiteboard with drawing objects and user interactions",
+          "status": "pending",
+          "details": "Define states (idle, drawing, moving, resizing), events (POINTER_DOWN, POINTER_MOVE, etc.), and objects context",
+          "testStrategy": "Test state transitions, drawing logic, and object management"
+        },
+        {
+          "id": "6.2",
+          "title": "Build Canvas drawing interface",
+          "description": "Implement HTML5 Canvas-based drawing interface with pointer event handling",
+          "status": "pending",
+          "details": "Canvas component with drawing tools (pen, shapes), object selection, and real-time rendering",
+          "testStrategy": "Test drawing performance, event handling, and canvas operations"
+        },
+        {
+          "id": "6.3",
+          "title": "Implement multi-user state reconciliation",
+          "description": "Add conflict resolution logic for simultaneous user operations with deterministic ordering",
+          "status": "pending",
+          "details": "Implement conflict resolution policy, state arbiter logic, and canonical state publishing",
+          "testStrategy": "Test concurrent operations, conflict resolution, and state convergence"
+        },
+        {
+          "id": "6.4",
+          "title": "Add real-time collaboration features",
+          "description": "Implement user cursors, live drawing indicators, and collaborative session management",
+          "status": "pending",
+          "details": "Show other users' cursors, live drawing streams, and session participant management",
+          "testStrategy": "Test real-time features, performance with multiple users, and session management"
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "title": "Developer Tools and Debugging Interface",
+      "description": "Create comprehensive developer tools including state visualizer, event log, and debugging panel for NSM application development.",
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": ["3"],
+      "research_context": {
+        "required_research": ["xstate-inspector", "debugging-tools", "developer-experience"],
+        "research_files": [".taskmaster/docs/research/2025-09-15_xstate-patterns.md", ".taskmaster/docs/research/2025-09-15_react-frontend.md"],
+        "key_findings": ["@statelyai/inspect for state machine visualization", "Real-time event logging", "Time-travel debugging", "Interactive state exploration"]
+      },
+      "implementation_guidance": {
+        "tdd_approach": "Write developer tool tests first, then implement debugging interface with proper integration",
+        "test_criteria": ["State visualization works correctly", "Event logging is accurate", "Time-travel debugging functions", "Performance impact is minimal"],
+        "research_references": "See @.taskmaster/docs/research/2025-09-15_xstate-patterns.md for XState inspector integration"
+      },
+      "subtasks": [
+        {
+          "id": "7.1",
+          "title": "Integrate XState inspector for state visualization",
+          "description": "Implement @statelyai/inspect integration for live state machine visualization",
+          "status": "pending",
+          "details": "Create inspector instance, connect to running machines, and render visual state graphs",
+          "testStrategy": "Test visualization accuracy, real-time updates, and multiple machine support"
+        },
+        {
+          "id": "7.2",
+          "title": "Build Nostr event log viewer",
+          "description": "Create real-time event log showing all NSM-related Nostr events with filtering and search",
+          "status": "pending",
+          "details": "Display interaction events, state updates, and application definitions with metadata",
+          "testStrategy": "Test event capture, filtering performance, and log accuracy"
+        },
+        {
+          "id": "7.3",
+          "title": "Implement time-travel debugging",
+          "description": "Add time-travel debugging capability to replay application state at any point in history",
+          "status": "pending",
+          "details": "Enable state replay, event history navigation, and state comparison",
+          "testStrategy": "Test replay accuracy, performance with large histories, and state consistency"
+        },
+        {
+          "id": "7.4",
+          "title": "Create developer dashboard",
+          "description": "Build comprehensive dashboard combining all developer tools with application discovery",
+          "status": "pending",
+          "details": "Unified interface for multiple applications, tool switching, and development workflow",
+          "testStrategy": "Test dashboard usability, tool integration, and performance"
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "title": "Documentation Site Development",
+      "description": "Create comprehensive documentation website using Mintlify with API references, guides, and examples for NSM framework adoption.",
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": ["3", "5", "6"],
+      "research_context": {
+        "required_research": ["mintlify", "documentation", "developer-onboarding"],
+        "research_files": [],
+        "key_findings": ["Mintlify provides modern documentation platform", "API documentation generation", "Interactive code examples", "Search and navigation"]
+      },
+      "implementation_guidance": {
+        "tdd_approach": "Write documentation validation tests first, then create comprehensive docs with examples",
+        "test_criteria": ["All APIs are documented", "Examples work correctly", "Documentation is searchable", "Getting started guide is complete"],
+        "research_references": "Documentation should follow Mintlify best practices for developer experience"
+      },
+      "subtasks": [
+        {
+          "id": "8.1",
+          "title": "Set up Mintlify documentation site",
+          "description": "Initialize Mintlify documentation site with proper configuration and theming",
+          "status": "pending",
+          "details": "Configure mint.json, set up navigation, and establish documentation structure",
+          "testStrategy": "Test site generation, navigation, and responsive design"
+        },
+        {
+          "id": "8.2",
+          "title": "Write API documentation and references",
+          "description": "Create comprehensive API documentation for NSM client SDK with examples",
+          "status": "pending",
+          "details": "Document all classes, methods, interfaces, and configuration options with usage examples",
+          "testStrategy": "Validate API examples, ensure documentation completeness, and test code snippets"
+        },
+        {
+          "id": "8.3",
+          "title": "Create getting started guides and tutorials",
+          "description": "Write step-by-step guides for building NSM applications with practical examples",
+          "status": "pending",
+          "details": "Include setup guide, first application tutorial, and advanced usage patterns",
+          "testStrategy": "Test tutorial accuracy, validate example code, and ensure clear progression"
+        },
+        {
+          "id": "8.4",
+          "title": "Document protocol specifications and NIPs",
+          "description": "Create detailed protocol documentation for the proposed NSM event kinds and specifications",
+          "status": "pending",
+          "details": "Document event schemas, interaction patterns, and implementation requirements",
+          "testStrategy": "Validate protocol examples, ensure specification completeness, and test implementations"
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "title": "Testing Infrastructure and Quality Assurance",
+      "description": "Establish comprehensive testing infrastructure including unit tests, integration tests, and end-to-end testing for the entire NSM framework.",
+      "status": "pending",
+      "priority": "high",
+      "dependencies": ["1"],
+      "research_context": {
+        "required_research": ["bun-testing", "react-testing", "integration-testing"],
+        "research_files": [".taskmaster/docs/research/2025-09-15_bun-runtime.md", ".taskmaster/docs/research/2025-09-15_react-frontend.md"],
+        "key_findings": ["Bun provides built-in test runner", "React testing library for component tests", "NDK testing patterns", "State machine testing strategies"]
+      },
+      "implementation_guidance": {
+        "tdd_approach": "Establish testing infrastructure first, then write comprehensive test suites for all components",
+        "test_criteria": ["≥90% code coverage", "All critical paths tested", "Performance benchmarks pass", "Integration tests validate user workflows"],
+        "research_references": "See @.taskmaster/docs/research/2025-09-15_bun-runtime.md for Bun testing patterns"
+      },
+      "subtasks": [
+        {
+          "id": "9.1",
+          "title": "Set up testing infrastructure with Bun",
+          "description": "Configure Bun test runner, coverage reporting, and shared testing utilities",
+          "status": "pending",
+          "details": "Set up test configuration, mocking utilities, and CI/CD integration",
+          "testStrategy": "Verify test runner performance, coverage accuracy, and CI integration"
+        },
+        {
+          "id": "9.2",
+          "title": "Write unit tests for core SDK",
+          "description": "Create comprehensive unit tests for NSM client SDK, protocol validation, and state management",
+          "status": "pending",
+          "details": "Test all SDK classes, methods, error handling, and edge cases",
+          "testStrategy": "Achieve 90%+ unit test coverage with proper mocking and isolation"
+        },
+        {
+          "id": "9.3",
+          "title": "Implement integration tests",
+          "description": "Create integration tests for Nostr communication, Blossom storage, and multi-user scenarios",
+          "status": "pending",
+          "details": "Test end-to-end workflows, network communication, and data persistence",
+          "testStrategy": "Validate complete user journeys and system integration points"
+        },
+        {
+          "id": "9.4",
+          "title": "Add performance and load testing",
+          "description": "Implement performance benchmarks and load testing for high-usage scenarios",
+          "status": "pending",
+          "details": "Test state machine performance, network efficiency, and multi-user scalability",
+          "testStrategy": "Establish performance baselines and regression testing"
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "title": "Security Implementation and Auditing",
+      "description": "Implement comprehensive security measures including sandboxed execution, input validation, and security auditing for the NSM framework.",
+      "status": "pending",
+      "priority": "critical",
+      "dependencies": ["3"],
+      "research_context": {
+        "required_research": ["sandboxing", "security", "input-validation", "nostr-security"],
+        "research_files": [".taskmaster/docs/research/2025-09-15_xstate-patterns.md"],
+        "key_findings": ["Sandboxed execution required for untrusted code", "Input validation critical for all events", "Cryptographic verification needed", "DoS attack prevention necessary"]
+      },
+      "implementation_guidance": {
+        "tdd_approach": "Write security tests first, then implement security measures with proper validation",
+        "test_criteria": ["Sandbox prevents code injection", "Input validation blocks malformed data", "Cryptographic verification works", "DoS protection functions"],
+        "research_references": "See @.taskmaster/docs/research/2025-09-15_xstate-patterns.md for security considerations"
+      },
+      "subtasks": [
+        {
+          "id": "10.1",
+          "title": "Implement secure sandboxed execution",
+          "description": "Create secure sandbox environment for executing untrusted state machine code",
+          "status": "pending",
+          "details": "Implement Web Worker or VM-based sandbox with limited API access and resource constraints",
+          "testStrategy": "Test sandbox isolation, prevent code injection, and validate resource limits"
+        },
+        {
+          "id": "10.2",
+          "title": "Add comprehensive input validation",
+          "description": "Implement validation for all Nostr events, state machine definitions, and user inputs",
+          "status": "pending",
+          "details": "Validate against schemas, sanitize inputs, and implement rate limiting",
+          "testStrategy": "Test with malicious inputs, oversized data, and injection attempts"
+        },
+        {
+          "id": "10.3",
+          "title": "Implement cryptographic verification",
+          "description": "Add signature verification, hash validation, and key management security",
+          "status": "pending",
+          "details": "Verify Nostr event signatures, Blossom content hashes, and implement secure key handling",
+          "testStrategy": "Test signature verification, hash integrity, and key security"
+        },
+        {
+          "id": "10.4",
+          "title": "Add DoS protection and rate limiting",
+          "description": "Implement protection against spam, flooding, and resource exhaustion attacks",
+          "status": "pending",
+          "details": "Rate limiting, event filtering, resource monitoring, and automatic throttling",
+          "testStrategy": "Test with high-volume attacks, resource exhaustion, and malicious behavior"
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "title": "Performance Optimization and Scalability",
+      "description": "Optimize performance across the NSM framework including state machine execution, network communication, and UI rendering for production use.",
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": ["5", "6", "9"],
+      "research_context": {
+        "required_research": ["performance", "optimization", "caching", "bundling"],
+        "research_files": [".taskmaster/docs/research/2025-09-15_bun-runtime.md", ".taskmaster/docs/research/2025-09-15_react-frontend.md"],
+        "key_findings": ["Bun provides superior performance", "React optimization patterns", "Caching strategies important", "Bundle size optimization needed"]
+      },
+      "implementation_guidance": {
+        "tdd_approach": "Write performance tests first, then implement optimizations with benchmarking",
+        "test_criteria": ["State transitions <100ms", "Bundle size <500KB", "Memory usage optimized", "Network requests minimized"],
+        "research_references": "See @.taskmaster/docs/research/2025-09-15_bun-runtime.md for runtime optimizations"
+      },
+      "subtasks": [
+        {
+          "id": "11.1",
+          "title": "Optimize state machine execution performance",
+          "description": "Implement performance optimizations for XState machine interpretation and transitions",
+          "status": "pending",
+          "details": "Optimize machine compilation, transition performance, and memory usage",
+          "testStrategy": "Benchmark state machine performance, measure memory usage, and validate optimization gains"
+        },
+        {
+          "id": "11.2",
+          "title": "Implement efficient caching strategies",
+          "description": "Add caching for Nostr events, Blossom content, and state machine definitions",
+          "status": "pending",
+          "details": "Implement IndexedDB caching, memory caching, and cache invalidation strategies",
+          "testStrategy": "Test cache hit rates, invalidation accuracy, and performance improvements"
+        },
+        {
+          "id": "11.3",
+          "title": "Optimize bundle size and loading",
+          "description": "Implement code splitting, tree shaking, and lazy loading for optimal bundle sizes",
+          "status": "pending",
+          "details": "Configure Bun bundling, implement dynamic imports, and optimize asset loading",
+          "testStrategy": "Measure bundle sizes, loading performance, and user experience metrics"
+        },
+        {
+          "id": "11.4",
+          "title": "Add performance monitoring and metrics",
+          "description": "Implement performance monitoring, metrics collection, and alerting for production use",
+          "status": "pending",
+          "details": "Monitor state machine performance, network latency, and user interaction metrics",
+          "testStrategy": "Validate metrics accuracy, monitoring coverage, and alerting functionality"
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "title": "Community Engagement and NIP Standardization",
+      "description": "Engage with the Nostr community to standardize the NSM protocol through formal NIP proposals and gather feedback for framework improvement.",
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": ["2", "5", "6"],
+      "research_context": {
+        "required_research": ["nip-process", "community-engagement", "standards"],
+        "research_files": [],
+        "key_findings": ["NIP process requires community review", "Reference implementations help adoption", "Feedback essential for standardization", "Multiple client implementations needed"]
+      },
+      "implementation_guidance": {
+        "tdd_approach": "Create working implementations first, then formalize NIPs with community feedback",
+        "test_criteria": ["NIPs are technically sound", "Reference implementations work", "Community feedback incorporated", "Multiple implementations possible"],
+        "research_references": "Follow established NIP proposal process and community guidelines"
+      },
+      "subtasks": [
+        {
+          "id": "12.1",
+          "title": "Draft formal NIP specifications",
+          "description": "Create formal NIP documents for the three proposed event kinds with detailed specifications",
+          "status": "pending",
+          "details": "Write comprehensive NIPs for kinds 30079, 7000-7999, and 10079 with examples",
+          "testStrategy": "Review specification completeness, validate examples, and ensure clarity"
+        },
+        {
+          "id": "12.2",
+          "title": "Create reference implementations",
+          "description": "Develop reference implementations in multiple languages to demonstrate NIP viability",
+          "status": "pending",
+          "details": "Provide JavaScript/TypeScript reference, consider Python and Go implementations",
+          "testStrategy": "Test interoperability, validate specifications, and ensure consistency"
+        },
+        {
+          "id": "12.3",
+          "title": "Engage community and gather feedback",
+          "description": "Present NIPs to community, gather feedback, and iterate based on input",
+          "status": "pending",
+          "details": "Post to GitHub, engage on social platforms, and collect structured feedback",
+          "testStrategy": "Track feedback incorporation, measure community engagement, and validate improvements"
+        },
+        {
+          "id": "12.4",
+          "title": "Support ecosystem adoption",
+          "description": "Help other developers implement NSM support and build compatible applications",
+          "status": "pending",
+          "details": "Provide integration guides, support libraries, and developer assistance",
+          "testStrategy": "Measure adoption rates, validate compatibility, and support ecosystem growth"
+        }
+      ]
+    }
+  ]
+}

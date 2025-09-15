@@ -1,0 +1,24 @@
+{
+  "name": "nsm-docs",
+  "version": "0.1.0",
+  "description": "NSM Framework Documentation Site (Mintlify)",
+  "private": true,
+  "scripts": {
+    "build": "echo 'Mintlify docs build - will be implemented in Task 8'",
+    "dev": "echo 'Mintlify docs dev server - will be implemented in Task 8'",
+    "test": "echo 'No tests for docs yet'",
+    "test:watch": "echo 'No tests for docs yet'",
+    "lint": "echo 'Lint docs - will be implemented in Task 8'",
+    "format": "echo 'Format docs - will be implemented in Task 8'",
+    "type-check": "echo 'Type check docs - will be implemented in Task 8'",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@nsm/core": "workspace:*",
+    "@nsm/client-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0"
+  }
+}

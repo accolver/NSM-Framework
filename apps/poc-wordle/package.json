@@ -1,0 +1,25 @@
+{
+  "name": "nsm-poc-wordle",
+  "version": "0.1.0",
+  "description": "Wordle Proof of Concept - NSM application demo",
+  "private": true,
+  "scripts": {
+    "build": "bun run build:app",
+    "build:app": "bun build src/index.ts --outdir dist",
+    "dev": "bun --watch run src/index.ts",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write src/**/*.ts",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@nsm/core": "workspace:*",
+    "@nsm/client-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0"
+  }
+}

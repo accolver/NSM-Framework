@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
+    "composite": true,
+    "module": "CommonJS",
+    "moduleResolution": "node"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["dist", "node_modules"],
+  "references": [
+    { "path": "../../packages/nsm-core" },
+    { "path": "../../packages/nsm-client-sdk" },
+    { "path": "../../packages/nsm-dev-tools" }
+  ]
+}
