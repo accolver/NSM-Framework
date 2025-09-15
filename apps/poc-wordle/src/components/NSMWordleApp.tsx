@@ -5,7 +5,7 @@
  * REFACTOR PHASE - Production-ready React integration with error handling
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { createActor } from 'xstate';
 import { wordleMachine } from '../wordle-machine';
 import { WordGrid } from './WordGrid';
@@ -26,32 +26,75 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
   relayUrls = ['wss://relay.damus.io'],
   privateKey
 }) => {
-  const [actor] = useState(() => createActor(wordleMachine));
-  const [state, setState] = useState(() => actor.getSnapshot());
+  // Create actor ref to persist across renders
+  const actorRef = useRef<ReturnType<typeof createActor>>();
+  const [state, setState] = useState(() => {
+    if (!actorRef.current) {
+      actorRef.current = createActor(wordleMachine);
+    }
+    return actorRef.current.getSnapshot();
+  });
+
   const [nsmClient, setNSMClient] = useState<NSMClient | null>(null);
   const [nsmConnector, setNSMConnector] = useState<WordleNSMConnector | null>(null);
   const [nsmStatus, setNSMStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
   const [error, setError] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userPubkey, setUserPubkey] = useState<string | null>(null);
+  const mainRef = useRef<HTMLElement>(null);
+
+  // Note: Debug logging can be enabled here for troubleshooting
+  // console.log('🔄 NSMWordleApp render:', { currentGuess: state.context.currentGuess, state: state.value });
 
   // Initialize state machine
   useEffect(() => {
-    actor.start();
+    if (!actorRef.current) {
+      actorRef.current = createActor(wordleMachine);
+    }
+
+    const actor = actorRef.current;
+    console.log('Initializing XState actor');
+
+    // Only start if not already started
+    if (actor.getSnapshot().status === 'stopped') {
+      actor.start();
+      console.log('Actor started');
+    }
+
+    const initialSnapshot = actor.getSnapshot();
+    console.log('Initial state:', initialSnapshot);
+    setState(initialSnapshot);
+
     const subscription = actor.subscribe((snapshot) => {
+      console.log('State machine updated:', snapshot);
       setState(snapshot);
     });
 
     return () => {
       subscription.unsubscribe();
-      actor.stop();
+      // Don't stop the actor on cleanup in StrictMode - only when component truly unmounts
     };
-  }, [actor]);
+  }, []); // Empty dependency array since we use useRef
 
-  // Check if NIP-07 is available on mount
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (actorRef.current) {
+        actorRef.current.stop();
+      }
+    };
+  }, []);
+
+  // Check if NIP-07 is available on mount and focus main element
   useEffect(() => {
     if (enableNSM && NSMClient.isNip07Available()) {
       console.log('NIP-07 extension detected');
+    }
+
+    // Focus the main element to enable keyboard events
+    if (mainRef.current) {
+      mainRef.current.focus();
+      console.log('Main element focused for keyboard input');
     }
   }, [enableNSM]);
 
@@ -89,7 +132,7 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
       }
 
       // Create connector
-      const connector = new WordleNSMConnector(client, actor);
+      const connector = new WordleNSMConnector(client, actorRef.current!);
 
       // Initialize connection
       try {
@@ -200,32 +243,57 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
 
   // Event handlers
   const handleKeyPress = useCallback((letter: string) => {
-    actor.send({ type: 'KEYPRESS', letter });
-  }, [actor]);
+    if (!actorRef.current) return;
+
+    console.log('handleKeyPress called with letter:', letter);
+    console.log('Current state:', state.value);
+    console.log('Current guess:', state.context.currentGuess);
+    console.log('Actor state before send:', actorRef.current.getSnapshot());
+
+    const event = { type: 'KEYPRESS', letter };
+    console.log('Sending event to actor:', event);
+    actorRef.current.send(event);
+
+    console.log('Actor state after send:', actorRef.current.getSnapshot());
+  }, [state.value, state.context.currentGuess]);
 
   const handleBackspace = useCallback(() => {
-    actor.send({ type: 'BACKSPACE' });
-  }, [actor]);
+    if (!actorRef.current) return;
+
+    console.log('handleBackspace called');
+    console.log('Current guess:', state.context.currentGuess);
+    actorRef.current.send({ type: 'BACKSPACE' });
+  }, [state.context.currentGuess]);
 
   const handleEnter = useCallback(() => {
-    actor.send({ type: 'SUBMIT_GUESS' });
-  }, [actor]);
+    if (!actorRef.current) return;
+
+    console.log('handleEnter called');
+    console.log('Current guess:', state.context.currentGuess);
+    actorRef.current.send({ type: 'SUBMIT_GUESS' });
+  }, [state.context.currentGuess]);
 
   const handleReset = useCallback(() => {
-    actor.send({ type: 'RESET_GAME' });
-  }, [actor]);
+    if (!actorRef.current) return;
+
+    actorRef.current.send({ type: 'RESET_GAME' });
+  }, []);
 
   // Physical keyboard handling
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
+    console.log('handleKeyDown called with key:', event.key);
     const key = event.key.toUpperCase();
 
     if (key === 'ENTER') {
+      console.log('Enter key detected');
       event.preventDefault();
       handleEnter();
     } else if (key === 'BACKSPACE') {
+      console.log('Backspace key detected');
       event.preventDefault();
       handleBackspace();
     } else if (/^[A-Z]$/.test(key)) {
+      console.log('Letter key detected:', key);
       event.preventDefault();
       handleKeyPress(key);
     }
@@ -318,6 +386,7 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
 
   return (
     <main
+      ref={mainRef}
       className="app"
       tabIndex={0}
       onKeyDown={handleKeyDown}
@@ -326,6 +395,7 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
       aria-describedby="game-instructions"
     >
       <h1>Wordle {enableNSM && <span style={{ fontSize: '0.6em', color: '#666' }}>NSM</span>}</h1>
+
 
       <div id="game-instructions" className="sr-only">
         Guess the 5-letter word in 6 attempts. Use your keyboard or click the virtual keyboard.
