@@ -3,7 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "description": "Nostr State Machine Framework - Building deterministic, multi-user applications on Nostr",
-  "keywords": ["nostr", "state-machine", "xstate", "framework", "collaboration"],
+  "keywords": [
+    "nostr",
+    "state-machine",
+    "xstate",
+    "framework",
+    "collaboration"
+  ],
   "packageManager": "bun@1.2.21",
   "workspaces": [
     "packages/*",
@@ -19,17 +25,29 @@
     "type-check": "turbo run type-check",
     "clean": "turbo run clean",
     "install:all": "bun install --frozen-lockfile",
-    "test:watch": "turbo run test:watch"
+    "test:watch": "turbo run test:watch",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "turbo": "^1.13.0",
-    "typescript": "^5.4.0",
-    "bun-types": "^1.2.21",
     "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^8.43.0",
+    "@typescript-eslint/parser": "^8.43.0",
+    "bun-types": "^1.2.21",
     "eslint": "^8.57.0",
-    "prettier": "^3.2.5",
     "husky": "^9.0.11",
-    "lint-staged": "^15.2.2"
+    "lint-staged": "^15.2.2",
+    "prettier": "^3.2.5",
+    "turbo": "^1.13.0",
+    "typescript": "^5.4.0"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
   },
   "engines": {
     "node": ">=18",
