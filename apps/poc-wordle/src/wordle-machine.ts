@@ -56,7 +56,11 @@ const calculateLetterStatus = (guess: string, hiddenWord: string): LetterStatus[
 
 // Actions
 const setRandomWord = assign({
-  hiddenWord: () => getRandomWord()
+  hiddenWord: () => {
+    const word = getRandomWord();
+    console.log('XState setRandomWord action called, selected word:', word);
+    return word;
+  }
 });
 
 const setSpecificWord = (word: string) => assign({
@@ -65,16 +69,23 @@ const setSpecificWord = (word: string) => assign({
 
 const addLetter = assign({
   currentGuess: ({ context, event }) => {
+    console.log('XState addLetter action called:', { event, currentGuess: context.currentGuess });
     if (event.type === 'KEYPRESS' && context.currentGuess.length < 5) {
-      return context.currentGuess + event.letter.toUpperCase();
+      const newGuess = context.currentGuess + event.letter.toUpperCase();
+      console.log('Adding letter, new guess:', newGuess);
+      return newGuess;
     }
+    console.log('Letter not added, current guess unchanged');
     return context.currentGuess;
   }
 });
 
 const removeLetter = assign({
   currentGuess: ({ context }) => {
-    return context.currentGuess.slice(0, -1);
+    console.log('XState removeLetter action called, current guess:', context.currentGuess);
+    const newGuess = context.currentGuess.slice(0, -1);
+    console.log('Removed letter, new guess:', newGuess);
+    return newGuess;
   }
 });
 
@@ -108,7 +119,9 @@ const resetGame = assign({
 
 // Guards
 const canAddLetter = ({ context }) => {
-  return context.currentGuess.length < 5;
+  const result = context.currentGuess.length < 5;
+  console.log('canAddLetter guard:', { currentGuessLength: context.currentGuess.length, result });
+  return result;
 };
 
 const canRemoveLetter = ({ context }) => {

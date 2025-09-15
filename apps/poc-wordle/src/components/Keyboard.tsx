@@ -32,7 +32,10 @@ export const Keyboard: React.FC<KeyboardProps> = ({
             <button
               type="button"
               className="keyboard-key key-special"
-              onClick={onEnter}
+              onClick={() => {
+                console.log('Virtual Enter button clicked');
+                onEnter();
+              }}
               aria-label="Enter"
             >
               Enter
@@ -44,7 +47,10 @@ export const Keyboard: React.FC<KeyboardProps> = ({
               key={letter}
               type="button"
               className={`keyboard-key ${getKeyClass(letter)}`}
-              onClick={() => onKeyPress(letter)}
+              onClick={() => {
+                console.log('Virtual keyboard button clicked:', letter);
+                onKeyPress(letter);
+              }}
               aria-label={letter}
             >
               {letter}
@@ -55,7 +61,10 @@ export const Keyboard: React.FC<KeyboardProps> = ({
             <button
               type="button"
               className="keyboard-key key-special"
-              onClick={onBackspace}
+              onClick={() => {
+                console.log('Virtual Backspace button clicked');
+                onBackspace();
+              }}
               aria-label="Backspace"
             >
               Backspace

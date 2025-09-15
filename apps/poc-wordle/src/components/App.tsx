@@ -12,12 +12,15 @@ export const App: React.FC = () => {
 
   // Start the machine on mount and subscribe to state changes
   useEffect(() => {
+    console.log('🎮 App component mounted - starting state machine');
     actor.start();
     const subscription = actor.subscribe((snapshot) => {
+      console.log('🔄 State machine update:', snapshot.value, snapshot.context);
       setState(snapshot);
     });
 
     return () => {
+      console.log('🎮 App component unmounting - stopping state machine');
       subscription.unsubscribe();
       actor.stop();
     };
@@ -91,14 +94,20 @@ export const App: React.FC = () => {
 
   // Event handlers
   const handleKeyPress = useCallback((letter: string) => {
+    console.log('📤 handleKeyPress called with letter:', letter);
+    console.log('📤 Sending KEYPRESS event to state machine');
     actor.send({ type: 'KEYPRESS', letter });
   }, [actor]);
 
   const handleBackspace = useCallback(() => {
+    console.log('📤 handleBackspace called');
+    console.log('📤 Sending BACKSPACE event to state machine');
     actor.send({ type: 'BACKSPACE' });
   }, [actor]);
 
   const handleEnter = useCallback(() => {
+    console.log('📤 handleEnter called');
+    console.log('📤 Sending SUBMIT_GUESS event to state machine');
     actor.send({ type: 'SUBMIT_GUESS' });
   }, [actor]);
 
@@ -108,17 +117,31 @@ export const App: React.FC = () => {
 
   // Physical keyboard handling
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
+    console.log('🎹 Physical keyboard event detected:', {
+      key: event.key,
+      keyCode: event.keyCode,
+      code: event.code,
+      target: event.target,
+      type: event.type
+    });
+
     const key = event.key.toUpperCase();
+    console.log('🔤 Processed key:', key);
 
     if (key === 'ENTER') {
+      console.log('✅ Enter key detected - calling handleEnter');
       event.preventDefault();
       handleEnter();
     } else if (key === 'BACKSPACE') {
+      console.log('⬅️ Backspace key detected - calling handleBackspace');
       event.preventDefault();
       handleBackspace();
     } else if (/^[A-Z]$/.test(key)) {
+      console.log('🔤 Letter key detected - calling handleKeyPress with:', key);
       event.preventDefault();
       handleKeyPress(key);
+    } else {
+      console.log('❌ Key not recognized for game input:', key);
     }
   }, [handleEnter, handleBackspace, handleKeyPress]);
 
@@ -127,6 +150,10 @@ export const App: React.FC = () => {
       className="app"
       tabIndex={0}
       onKeyDown={handleKeyDown}
+      onFocus={() => console.log('🎯 Main element gained focus')}
+      onBlur={() => console.log('🎯 Main element lost focus')}
+      onKeyUp={(e) => console.log('⬆️ Key up event:', e.key)}
+      onKeyPress={(e) => console.log('👇 Key press event:', e.key)}
       role="main"
       aria-label="Wordle game"
       aria-describedby="game-instructions"

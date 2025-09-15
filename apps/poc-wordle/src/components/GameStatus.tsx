@@ -11,7 +11,7 @@ export const GameStatus: React.FC<GameStatusProps> = ({
   gameState,
   attemptNumber,
   hiddenWord,
-  onReset
+  onReset,
 }) => {
   const renderStatusContent = () => {
     switch (gameState) {
@@ -26,7 +26,7 @@ export const GameStatus: React.FC<GameStatusProps> = ({
         return (
           <div className="status-won">
             <h2>Congratulations!</h2>
-            <p>You won in {attemptNumber + 1} attempts!</p>
+            <p>You won in {attemptNumber} attempts!</p>
             <button
               type="button"
               className="reset-button"
