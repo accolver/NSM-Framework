@@ -64,3 +64,12 @@ export type {
   ExecutionContext,
   SecurityMetrics
 } from './security/sandbox';
+
+// Export state machine components
+export { NSMStateMachine } from './state-machine';
+export { OptimizedStateMachine, OptimizedActor } from './state-machine-optimized';
+export type { OptimizationConfig, CachedMachine } from './state-machine-optimized';
+
+// Export performance utilities
+export { LRUCache } from './utils/lru-cache';
+export { ObjectPool } from './utils/object-pool';

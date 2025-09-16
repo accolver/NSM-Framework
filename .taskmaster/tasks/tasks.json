@@ -489,7 +489,7 @@
         "id": 8,
         "title": "Documentation Site Development",
         "description": "Create comprehensive documentation website using Mintlify with API references, guides, and examples for NSM framework adoption.",
-        "status": "pending",
+        "status": "done",
         "priority": "medium",
         "dependencies": [
           "3",
@@ -741,7 +741,7 @@
             "id": 1,
             "title": "Optimize state machine execution performance",
             "description": "Implement performance optimizations for XState machine interpretation and transitions",
-            "status": "pending",
+            "status": "done",
             "details": "Optimize machine compilation, transition performance, and memory usage",
             "testStrategy": "Benchmark state machine performance, measure memory usage, and validate optimization gains"
           },
@@ -844,7 +844,7 @@
     ],
     "metadata": {
       "created": "2025-09-15T12:51:55.799Z",
-      "updated": "2025-09-16T20:19:57.902Z",
+      "updated": "2025-09-16T20:29:14.076Z",
       "description": "Tasks for master context"
     }
   }
