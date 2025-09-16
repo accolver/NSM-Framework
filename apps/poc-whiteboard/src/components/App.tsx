@@ -5,7 +5,8 @@ import { WhiteboardCanvas } from './WhiteboardCanvas';
 import { Toolbar } from './Toolbar';
 import { getInspectorService } from '../services/inspector-service';
 import { getEventLogService, logNostrEvent } from '../services/event-log-service';
-import { EventLogViewer } from './EventLogViewer';
+import { getTimeTravelService } from '../services/time-travel-service';
+import { DeveloperDashboard } from './DeveloperDashboard';
 import { NSM_PROTOCOL } from '@nsm/core';
 import type { INostrEvent } from '@nsm/core';
 
@@ -31,24 +32,29 @@ export const App: React.FC = () => {
     height: window.innerHeight - 120 // Account for toolbar
   });
   const [inspectorConnected, setInspectorConnected] = useState(false);
-  const [showEventLog, setShowEventLog] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(true);
   const [eventLogService] = useState(() => getEventLogService({
     maxEvents: 500,
     enableRealtime: true,
     autoStart: true
+  }));
+  const [timeTravelService] = useState(() => getTimeTravelService({
+    maxSnapshots: 100,
+    enableRealtime: true,
+    autoCapture: true,
+    devOnly: true
+  }));
+  const [inspectorService] = useState(() => getInspectorService({
+    autoStart: true,
+    devOnly: true
   }));
 
   // Initialize the actor and subscribe to state changes
   useEffect(() => {
     console.log('🎨 Whiteboard app starting - initializing state machine');
 
-    // Initialize inspector service in development
+    // Initialize developer tools in development
     if (process.env.NODE_ENV === 'development') {
-      const inspectorService = getInspectorService({
-        autoStart: true,
-        devOnly: true
-      });
-
       // Connect and register the actor for inspection
       inspectorService.connect().then((connected) => {
         if (connected) {
@@ -62,6 +68,13 @@ export const App: React.FC = () => {
       }).catch(() => {
         setInspectorConnected(false);
       });
+
+      // Initialize Time Travel Service
+      timeTravelService.connect();
+      const registered = timeTravelService.registerActor(actor, 'whiteboard-machine');
+      if (registered) {
+        console.log('🕰️ Time Travel Service initialized - time travel debugging available');
+      }
     }
 
     actor.start();
@@ -118,8 +131,13 @@ export const App: React.FC = () => {
       console.log('🎨 Whiteboard app stopping');
       subscription.unsubscribe();
       actor.stop();
+
+      // Cleanup developer tools
+      if (process.env.NODE_ENV === 'development') {
+        timeTravelService.disconnect();
+      }
     };
-  }, [actor]);
+  }, [actor, inspectorService, timeTravelService]);
 
   // Handle window resize
   useEffect(() => {
@@ -316,10 +334,10 @@ export const App: React.FC = () => {
                   🔍 Inspector: {inspectorConnected ? 'Connected' : 'Disconnected'}
                 </span>
                 <button
-                  onClick={() => setShowEventLog(!showEventLog)}
+                  onClick={() => setShowDashboard(!showDashboard)}
                   style={{
                     padding: '4px 8px',
-                    backgroundColor: showEventLog ? '#4caf50' : 'transparent',
+                    backgroundColor: showDashboard ? '#4caf50' : 'transparent',
                     color: 'white',
                     border: '1px solid white',
                     borderRadius: '4px',
@@ -327,7 +345,7 @@ export const App: React.FC = () => {
                     fontSize: '12px'
                   }}
                 >
-                  📊 Event Log
+                  🔧 Developer Dashboard
                 </button>
               </>
             )}
@@ -345,26 +363,18 @@ export const App: React.FC = () => {
           <WhiteboardCanvas
             context={state.context}
             send={send}
-            width={showEventLog ? canvasSize.width * 0.7 : canvasSize.width}
+            width={showDashboard ? canvasSize.width * 0.6 : canvasSize.width}
             height={canvasSize.height}
           />
         </div>
 
-        {/* Developer Tools Panel */}
-        {showEventLog && process.env.NODE_ENV === 'development' && (
-          <div style={{
-            width: '30%',
-            borderLeft: '1px solid #dee2e6',
-            backgroundColor: '#f8f9fa',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
-            <EventLogViewer
-              eventLogService={eventLogService}
-              className="h-full"
-            />
-          </div>
+        {/* Developer Dashboard */}
+        {showDashboard && process.env.NODE_ENV === 'development' && (
+          <DeveloperDashboard
+            eventLogService={eventLogService}
+            timeTravelService={timeTravelService}
+            inspectorService={inspectorService}
+          />
         )}
       </div>
 
