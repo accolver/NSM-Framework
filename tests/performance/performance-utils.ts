@@ -464,4 +464,127 @@ export class TestDataGenerator {
     }
     return events;
   }
+
+  static generateNostrEvents(
+    count: number = 100,
+    options?: {
+      kindDistribution?: Record<number, number>;
+      timeRange?: { start: number; end: number };
+    }
+  ): any[] {
+    const events = [];
+    const kinds = options?.kindDistribution ? Object.keys(options.kindDistribution).map(Number) : [1, 3, 4];
+    const authors = Array.from({ length: 10 }, (_, i) =>
+      Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')
+    );
+
+    for (let i = 0; i < count; i++) {
+      const kind = kinds[Math.floor(Math.random() * kinds.length)];
+      const author = authors[Math.floor(Math.random() * authors.length)];
+      const created_at = options?.timeRange ?
+        Math.floor(Math.random() * (options.timeRange.end - options.timeRange.start) + options.timeRange.start) :
+        Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 86400);
+
+      const event = {
+        id: Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+        kind,
+        pubkey: author,
+        created_at,
+        tags: this.generateEventTags(kind),
+        content: this.generateEventContent(kind, i),
+        sig: Array.from({ length: 128 }, () => Math.floor(Math.random() * 16).toString(16)).join('')
+      };
+
+      events.push(event);
+    }
+
+    return events;
+  }
+
+  static generateEventTags(kind: number): string[][] {
+    const tags: string[][] = [];
+
+    switch (kind) {
+      case 0: // metadata
+        break;
+      case 1: // text note
+        if (Math.random() > 0.7) {
+          tags.push(['t', 'nostr']);
+        }
+        if (Math.random() > 0.8) {
+          tags.push(['e', Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')]);
+        }
+        break;
+      case 3: // contacts
+        for (let i = 0; i < Math.floor(Math.random() * 5); i++) {
+          tags.push(['p', Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')]);
+        }
+        break;
+      case 4: // encrypted dm
+        tags.push(['p', Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')]);
+        break;
+    }
+
+    return tags;
+  }
+
+  static generateEventContent(kind: number, index: number): string {
+    switch (kind) {
+      case 0: // metadata
+        return JSON.stringify({
+          name: `User ${index}`,
+          about: `Test user ${index} for performance testing`,
+          picture: `https://example.com/avatar${index}.jpg`
+        });
+      case 1: // text note
+        return `This is test note ${index} for performance testing. ${Math.random() > 0.5 ? 'With some additional content to vary size.' : ''}`;
+      case 3: // contacts
+        return JSON.stringify({});
+      case 4: // encrypted dm
+        return Array.from({ length: 100 + Math.floor(Math.random() * 200) }, () =>
+          Math.floor(Math.random() * 16).toString(16)
+        ).join('');
+      default:
+        return `Test content ${index}`;
+    }
+  }
+
+  static generateBlossomContent(
+    size: number,
+    contentType: string = 'application/json'
+  ): any {
+    let data: string | Uint8Array;
+
+    if (contentType.includes('json')) {
+      const obj: any = { test: true, size, type: contentType };
+      const baseSize = JSON.stringify(obj).length;
+      const paddingSize = Math.max(0, size - baseSize);
+      obj.padding = 'x'.repeat(paddingSize);
+      data = JSON.stringify(obj);
+    } else if (contentType.includes('text')) {
+      data = 'x'.repeat(size);
+    } else {
+      // Binary data
+      data = new Uint8Array(size);
+      for (let i = 0; i < size; i++) {
+        data[i] = Math.floor(Math.random() * 256);
+      }
+    }
+
+    // Simple hash calculation for testing
+    const hashString = typeof data === 'string' ? data : Array.from(data).join('');
+    let hash = '';
+    for (let i = 0; i < 64; i++) {
+      hash += Math.floor(Math.random() * 16).toString(16);
+    }
+
+    return {
+      hash,
+      data,
+      contentType,
+      size: typeof data === 'string' ? data.length : data.length,
+      url: `https://blossom.example.com/${hash}`,
+      verified: true
+    };
+  }
 }

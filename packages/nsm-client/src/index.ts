@@ -73,3 +73,41 @@ export type { OptimizationConfig, CachedMachine } from './state-machine-optimize
 // Export performance utilities
 export { LRUCache } from './utils/lru-cache';
 export { ObjectPool } from './utils/object-pool';
+
+// Export cache components
+export { MemoryCache } from './cache/memory-cache';
+export { IndexedDBCache } from './cache/indexeddb-cache';
+export { NostrEventCache } from './cache/nostr-event-cache';
+export { BlossomContentCache } from './cache/blossom-content-cache';
+export { CacheInvalidationManager, createNSMInvalidationManager, CommonInvalidationRules } from './cache/cache-invalidation';
+export type {
+  MemoryCacheEntry,
+  MemoryCacheOptions,
+  CacheStats
+} from './cache/memory-cache';
+export type {
+  CacheEntry,
+  CacheOptions,
+  CacheQuery
+} from './cache/indexeddb-cache';
+export type {
+  NostrEvent,
+  NostrFilter,
+  CachePolicy,
+  EventCacheEntry,
+  CacheMetrics
+} from './cache/nostr-event-cache';
+export type {
+  BlossomContent,
+  BlossomCacheEntry,
+  BlossomCachePolicy,
+  ContentQuery,
+  CacheHealth
+} from './cache/blossom-content-cache';
+export type {
+  InvalidationRule,
+  InvalidationEvent,
+  InvalidationPolicy,
+  InvalidationMetrics,
+  CacheManager
+} from './cache/cache-invalidation';
