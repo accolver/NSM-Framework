@@ -3,7 +3,7 @@
  * Testing the complete flow of bloom filter validation in Wordle
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'bun:test';
 import { createWordleMachine, WordleContext } from '../wordle-machine';
 import { createActor } from 'xstate';
 import { generateWordFilter } from '../generate-word-filter';

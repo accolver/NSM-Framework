@@ -165,9 +165,9 @@ describe('Wordle State Machine', () => {
       testActor.start();
 
       testActor.send({ type: 'KEYPRESS', letter: 'A' });
-      testActor.send({ type: 'KEYPRESS', letter: 'R' });
+      testActor.send({ type: 'KEYPRESS', letter: 'L' });
       testActor.send({ type: 'KEYPRESS', letter: 'O' });
-      testActor.send({ type: 'KEYPRESS', letter: 'S' });
+      testActor.send({ type: 'KEYPRESS', letter: 'N' });
       testActor.send({ type: 'KEYPRESS', letter: 'E' });
       testActor.send({ type: 'SUBMIT_GUESS' });
 
@@ -175,9 +175,9 @@ describe('Wordle State Machine', () => {
       const guess = snapshot.context.guesses[0];
       expect(guess.letterStatus).toEqual([
         'correct',   // A is in position 0
-        'absent',    // R is not in ABOUT
+        'absent',    // L is not in ABOUT
         'correct',   // O is in position 2
-        'absent',    // S is not in ABOUT
+        'absent',    // N is not in ABOUT
         'absent'     // E is not in ABOUT
       ]);
       testActor.stop();
@@ -187,21 +187,21 @@ describe('Wordle State Machine', () => {
       const testActor = createActor(createWordleMachine('ABOUT'));
       testActor.start();
 
-      testActor.send({ type: 'KEYPRESS', letter: 'T' });
+      testActor.send({ type: 'KEYPRESS', letter: 'Y' });
       testActor.send({ type: 'KEYPRESS', letter: 'O' });
       testActor.send({ type: 'KEYPRESS', letter: 'U' });
-      testActor.send({ type: 'KEYPRESS', letter: 'B' });
-      testActor.send({ type: 'KEYPRESS', letter: 'A' });
+      testActor.send({ type: 'KEYPRESS', letter: 'T' });
+      testActor.send({ type: 'KEYPRESS', letter: 'H' });
       testActor.send({ type: 'SUBMIT_GUESS' });
 
       const snapshot = testActor.getSnapshot();
       const guess = snapshot.context.guesses[0];
       expect(guess.letterStatus).toEqual([
-        'present',   // T is in ABOUT but wrong position
-        'present',   // O is in ABOUT but wrong position
-        'present',   // U is in ABOUT but wrong position
-        'present',   // B is in ABOUT but wrong position
-        'present'    // A is in ABOUT but wrong position
+        'absent',    // Y is not in ABOUT
+        'present',   // O is in ABOUT but wrong position (position 1 vs position 2)
+        'present',   // U is in ABOUT but wrong position (position 2 vs position 3)
+        'present',   // T is in ABOUT but wrong position (position 3 vs position 4)
+        'absent'     // H is not in ABOUT
       ]);
       testActor.stop();
     });

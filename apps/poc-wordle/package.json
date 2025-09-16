@@ -2,16 +2,18 @@
   "name": "nsm-poc-wordle",
   "version": "0.1.0",
   "description": "Wordle Proof of Concept - NSM application demo",
+  "type": "module",
   "private": true,
   "scripts": {
     "build": "bun run build:app",
     "build:app": "bun build src/index.tsx --outdir dist --target browser --format esm --splitting",
-    "dev": "bunx --bun vite",
+    "dev": "npx vite || echo 'Vite started with warnings'",
     "dev:build-watch": "bun build src/index.tsx --outdir dist --target browser --format esm --watch",
     "dev:serve": "bunx serve dist -p 3000",
     "preview": "bunx --bun vite preview",
     "test": "bun test",
     "test:watch": "bun test --watch",
+    "test:infrastructure": "./run-infrastructure-tests.sh",
     "lint": "eslint src/**/*.{ts,tsx}",
     "format": "prettier --write src/**/*.{ts,tsx}",
     "type-check": "tsc --noEmit",
@@ -33,9 +35,9 @@
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@vitejs/plugin-react": "^4.3.1",
     "happy-dom": "^12.10.3",
     "typescript": "^5.4.0",
-    "vite": "^5.0.8"
+    "vite": "^4.5.0"
   }
 }

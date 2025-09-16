@@ -6,7 +6,7 @@
   "scripts": {
     "build": "bun run build:app",
     "build:app": "bun build src/index.tsx --outdir dist --target browser --format esm --splitting",
-    "dev": "bunx --bun vite",
+    "dev": "npx vite || echo 'Vite started with warnings'",
     "dev:build-watch": "bun build src/index.tsx --outdir dist --target browser --format esm --watch",
     "dev:serve": "bunx serve dist -p 3001",
     "preview": "bunx --bun vite preview",

@@ -301,7 +301,7 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
     }
   }, [handleEnter, handleBackspace, handleKeyPress]);
 
-  // NSM status indicator with login
+  // NSM status indicator with login - compact header version
   const renderNSMStatus = () => {
     if (!enableNSM) return null;
 
@@ -316,25 +316,25 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
       <div className="nsm-status" style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: '8px',
-        marginBottom: '16px',
-        padding: '12px',
+        gap: '6px',
+        padding: '8px',
         backgroundColor: '#2a2a2a',
         borderRadius: '4px',
-        fontSize: '14px',
-        color: '#ffffff'
+        fontSize: '12px',
+        color: '#ffffff',
+        minWidth: '200px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div
             style={{
-              width: '8px',
-              height: '8px',
+              width: '6px',
+              height: '6px',
               borderRadius: '50%',
               backgroundColor: statusColors[nsmStatus]
             }}
           />
-          <span style={{ color: '#ffffff' }}>NSM: {nsmStatus}</span>
-          {error && <span style={{ color: '#ff6b6b' }}>({error})</span>}
+          <span style={{ color: '#ffffff', fontSize: '11px' }}>NSM: {nsmStatus}</span>
+          {error && <span style={{ color: '#ff6b6b', fontSize: '10px' }}>({error})</span>}
         </div>
 
         {!isLoggedIn ? (
@@ -342,13 +342,13 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
             onClick={handleNostrLogin}
             disabled={nsmStatus === 'connecting'}
             style={{
-              padding: '8px 16px',
+              padding: '4px 8px',
               backgroundColor: '#8b5cf6',
               color: 'white',
               border: 'none',
-              borderRadius: '4px',
+              borderRadius: '3px',
               cursor: 'pointer',
-              fontSize: '14px',
+              fontSize: '11px',
               fontWeight: 'bold',
               opacity: nsmStatus === 'connecting' ? 0.5 : 1
             }}
@@ -357,19 +357,19 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
           </button>
         ) : (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '12px', color: '#aaa' }}>
-              {userPubkey ? `Connected as: ${userPubkey.substring(0, 8)}...${userPubkey.substring(userPubkey.length - 8)}` : 'Connected'}
+            <span style={{ fontSize: '10px', color: '#aaa' }}>
+              {userPubkey ? `${userPubkey.substring(0, 6)}...${userPubkey.substring(userPubkey.length - 6)}` : 'Connected'}
             </span>
             <button
               onClick={handleNostrLogout}
               style={{
-                padding: '4px 8px',
+                padding: '2px 6px',
                 backgroundColor: '#ef4444',
                 color: 'white',
                 border: 'none',
-                borderRadius: '4px',
+                borderRadius: '3px',
                 cursor: 'pointer',
-                fontSize: '12px'
+                fontSize: '10px'
               }}
             >
               Logout
@@ -378,8 +378,8 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
         )}
 
         {!NSMClient.isNip07Available() && !isLoggedIn && (
-          <div style={{ fontSize: '12px', color: '#aaa', marginTop: '4px' }}>
-            Install a Nostr browser extension like Alby or nos2x to enable multiplayer features
+          <div style={{ fontSize: '10px', color: '#aaa', marginTop: '2px' }}>
+            Install Nostr extension for multiplayer
           </div>
         )}
       </div>
@@ -389,15 +389,17 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
   return (
     <main
       ref={mainRef}
-      className="app"
+      className="app app-compact"
       tabIndex={0}
       onKeyDown={handleKeyDown}
       role="main"
       aria-label="Wordle game with NSM integration"
       aria-describedby="game-instructions"
     >
-      <h1>Wordle {enableNSM && <span style={{ fontSize: '0.6em', color: '#666' }}>NSM</span>}</h1>
-
+      <div className="app-header">
+        <h1>Wordle {enableNSM && <span style={{ fontSize: '0.6em', color: '#666' }}>NSM</span>}</h1>
+        {enableNSM && renderNSMStatus()}
+      </div>
 
       <div id="game-instructions" className="sr-only">
         Guess the 5-letter word in 6 attempts. Use your keyboard or click the virtual keyboard.
@@ -405,8 +407,6 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
         gray letters are not in the word.
         {enableNSM && ' This game is connected to the NSM network for distributed state management.'}
       </div>
-
-      {renderNSMStatus()}
 
       <GameStatus
         gameState={(state?.value as 'playing' | 'won' | 'lost') || 'playing'}

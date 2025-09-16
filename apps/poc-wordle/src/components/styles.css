@@ -27,15 +27,27 @@
   outline: none;
 }
 
+.app-compact {
+  padding: 10px 20px;
+}
+
 /* Enhanced App Header */
 .app-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   width: 100%;
   border-bottom: 1px solid #3a3a3c;
   padding-bottom: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
+}
+
+.app-header h1 {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin: 0;
+  text-align: left;
+  flex: 1;
 }
 
 .app h1 {
@@ -49,6 +61,45 @@
 .header-buttons {
   display: flex;
   gap: 10px;
+}
+
+/* NSM Status Component */
+.nsm-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: #1a1a1b;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #3a3a3c;
+  min-width: 180px;
+  justify-content: space-between;
+}
+
+.nsm-status-text {
+  font-size: 0.8rem;
+  color: #b4b4b4;
+}
+
+.nsm-login-button {
+  background-color: #538d4e;
+  color: #ffffff;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.nsm-login-button:hover {
+  background-color: #4a7c59;
+}
+
+.nsm-login-button:focus {
+  outline: 2px solid #538d4e;
+  outline-offset: 2px;
 }
 
 .icon-button {
@@ -103,9 +154,9 @@
 
 /* Game Status */
 .game-status {
-  margin: 20px 0;
+  margin: 10px 0;
   text-align: center;
-  min-height: 60px;
+  min-height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -155,8 +206,8 @@
   display: grid;
   grid-template-rows: repeat(6, 1fr);
   gap: 5px;
-  margin: 20px 0;
-  padding: 20px;
+  margin: 10px 0;
+  padding: 10px;
   background-color: #121213;
 }
 
@@ -210,7 +261,7 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  margin-top: 20px;
+  margin-top: 10px;
   width: 100%;
 }
 
@@ -301,7 +352,28 @@
 /* Responsive Design */
 @media (max-width: 480px) {
   .app {
-    padding: 10px;
+    padding: 8px;
+  }
+
+  .app-compact {
+    padding: 5px 8px;
+  }
+
+  .app-header {
+    margin-bottom: 8px;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .app-header h1 {
+    font-size: 1.8rem;
+    text-align: center;
+  }
+
+  .nsm-status {
+    min-width: 150px !important;
+    font-size: 10px !important;
   }
 
   .word-cell {

@@ -8,9 +8,18 @@
 import { NSMClient, type NSMApplication, type SubscriptionHandlers } from '../../../packages/nsm-client/src/nsm-client';
 import { wordleMachine } from './wordle-machine';
 import { createActor } from 'xstate';
+import { bundledDictionary } from './bundled-dictionary';
 
-// NSM Definition for Wordle Application
+// NSM Definition for Wordle Application (with fallback word)
 export async function createWordleNSMDefinition(): Promise<NSMApplication> {
+  return createWordleNSMDefinitionWithGameId('default-wordle-game');
+}
+
+// NSM Definition for Wordle Application with deterministic word selection
+export async function createWordleNSMDefinitionWithGameId(gameId: string): Promise<NSMApplication> {
+  // Use bundled dictionary for deterministic word selection
+  const hiddenWord = bundledDictionary.getWordForGame(gameId);
+
   return {
     identifier: 'wordle-game',
     name: 'Wordle Game',
@@ -19,7 +28,7 @@ export async function createWordleNSMDefinition(): Promise<NSMApplication> {
     initialState: {
       value: 'playing',
       context: {
-        hiddenWord: 'HELLO',
+        hiddenWord,
         guesses: [],
         currentGuess: '',
         attemptNumber: 0,
@@ -239,11 +248,19 @@ export class WordleNSMConnector {
   }
 
   private setupInteractionPublishing(): void {
-    // Don't intercept actor.send in demo/local mode to avoid duplicate events
-    // Publishing will be handled through subscriptions instead
+    // Override the actor's send method to publish interactions
+    const originalSend = this.actor.send.bind(this.actor);
 
-    // Subscribe to actor events for publishing (if we implement full NSM later)
-    // For now, we'll just let the local state machine work without publishing
+    this.actor.send = (event: any) => {
+      // Publish interaction first
+      this.publishInteraction(event).catch(error => {
+        // Don't let publishing errors break local gameplay
+        console.warn('Failed to publish interaction:', error);
+      });
+
+      // Then process locally
+      return originalSend(event);
+    };
   }
 
   private async publishInteraction(event: any): Promise<void> {

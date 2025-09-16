@@ -3,12 +3,13 @@
  * Testing bloom filter storage and retrieval through Blossom protocol
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'bun:test';
+import { mock } from 'bun:test';
 import { BloomFilterManager } from '../bloom-filter-manager';
 import { BlossomClient, BlossomUploadResponse } from '../../../../packages/nsm-client-sdk/src/blossom/BlossomClient';
 
 // Mock the BlossomClient
-vi.mock('../../../../packages/nsm-client-sdk/src/blossom/BlossomClient');
+// Note: Bun test uses different mocking syntax
 
 describe('Blossom Integration for Bloom Filter', () => {
   let manager: BloomFilterManager;
@@ -16,9 +17,9 @@ describe('Blossom Integration for Bloom Filter', () => {
 
   beforeEach(() => {
     mockBlossomClient = {
-      upload: vi.fn(),
-      downloadAndVerify: vi.fn(),
-      uploadWithVerification: vi.fn()
+      upload: mock(() => {}),
+      downloadAndVerify: mock(() => {}),
+      uploadWithVerification: mock(() => {})
     };
 
     manager = new BloomFilterManager({

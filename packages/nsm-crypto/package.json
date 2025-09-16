@@ -4,15 +4,13 @@
   "description": "Cryptographic verification utilities for the NSM framework",
   "type": "module",
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
   "scripts": {
-    "build": "bun test > /dev/null && echo 'Crypto package: tests pass, build successful'",
+    "build": "bun build src/index.ts --outdir dist --target node --format esm",
     "test": "bun test",
     "dev": "bun test --watch",
     "typecheck": "bun tsc --noEmit --skipLibCheck"

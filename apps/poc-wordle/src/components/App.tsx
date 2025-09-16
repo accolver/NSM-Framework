@@ -4,6 +4,7 @@ import { wordleMachine } from '../wordle-machine';
 import { WordGrid } from './WordGrid';
 import { Keyboard } from './Keyboard';
 import { GameStatus } from './GameStatus';
+import { NSMStatus } from './NSMStatus';
 import './styles.css';
 
 export const App: React.FC = () => {
@@ -147,7 +148,7 @@ export const App: React.FC = () => {
 
   return (
     <main
-      className="app"
+      className="app app-compact"
       tabIndex={0}
       onKeyDown={handleKeyDown}
       onFocus={() => console.log('🎯 Main element gained focus')}
@@ -158,7 +159,10 @@ export const App: React.FC = () => {
       aria-label="Wordle game"
       aria-describedby="game-instructions"
     >
-      <h1>Wordle</h1>
+      <header className="app-header">
+        <h1>Wordle</h1>
+        <NSMStatus />
+      </header>
 
       <div id="game-instructions" className="sr-only">
         Guess the 5-letter word in 6 attempts. Use your keyboard or click the virtual keyboard.

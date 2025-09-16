@@ -3,7 +3,7 @@
  * Testing bloom filter implementation for word validation
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'bun:test';
 import { BloomFilter } from '../bloom-filter';
 
 describe('BloomFilter', () => {

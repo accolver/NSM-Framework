@@ -39,8 +39,8 @@ export interface RateLimitEntry {
 }
 
 export class RateLimiter extends EventEmitter {
-  private cache = new Map<string, RateLimitEntry>();
-  private options: RateLimitOptions;
+  protected cache = new Map<string, RateLimitEntry>();
+  protected options: RateLimitOptions;
   private cleanupInterval?: NodeJS.Timeout;
 
   constructor(options: RateLimitOptions) {

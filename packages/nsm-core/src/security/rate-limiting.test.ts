@@ -348,9 +348,9 @@ describe('MultiTierRateLimiter', () => {
     await multiLimiter.check('ip', '192.168.1.1', 5);
 
     const status = await multiLimiter.getStatus();
-    expect(status.user.keys).toContain('user123');
-    expect(status.ip.keys).toContain('192.168.1.1');
-    expect(status.global.keys.length).toBe(0);
+    expect(status.user?.keys).toContain('user123');
+    expect(status.ip?.keys).toContain('192.168.1.1');
+    expect(status.global?.keys.length).toBe(0);
   });
 
   it('should reset all tiers', async () => {
@@ -360,8 +360,8 @@ describe('MultiTierRateLimiter', () => {
     multiLimiter.reset();
 
     const status = await multiLimiter.getStatus();
-    expect(status.user.keys.length).toBe(0);
-    expect(status.ip.keys.length).toBe(0);
+    expect(status.user?.keys.length).toBe(0);
+    expect(status.ip?.keys.length).toBe(0);
   });
 
   it('should handle unknown tiers', async () => {
