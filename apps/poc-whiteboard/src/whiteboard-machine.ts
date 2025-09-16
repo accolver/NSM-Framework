@@ -1,5 +1,6 @@
 import { createMachine, assign } from 'xstate';
 import { CollaborationService, createCollaborationService } from './services/collaboration';
+import { RealTimeCollaborationService, createRealTimeCollaborationService, CursorPosition } from './services/realtime-collaboration';
 
 // Types for Whiteboard application
 export type DrawingTool = 'pen' | 'brush' | 'eraser' | 'shape';
@@ -74,6 +75,7 @@ export interface WhiteboardContext {
   userId: string;
   userName: string;
   collaborationService: CollaborationService | null;
+  realTimeCollaborationService: RealTimeCollaborationService | null;
 
   // Canvas state
   canvasSize: { width: number; height: number };
@@ -125,7 +127,15 @@ export type WhiteboardEvent =
   | { type: 'RECEIVE_REMOTE_DELETE'; objectIds: string[] }
   | { type: 'INITIALIZE_COLLABORATION'; userId: string; userName: string }
   | { type: 'SYNC_STATE'; remoteUpdate: Uint8Array }
-  | { type: 'REQUEST_SYNC' };
+  | { type: 'REQUEST_SYNC' }
+
+  // Real-time collaboration events
+  | { type: 'INITIALIZE_REALTIME_COLLABORATION' }
+  | { type: 'UPDATE_REMOTE_CURSOR'; userId: string; position: CursorPosition }
+  | { type: 'START_LIVE_DRAWING'; userId: string; drawingId: string }
+  | { type: 'END_LIVE_DRAWING'; userId: string }
+  | { type: 'PARTICIPANT_JOINED'; userId: string; userName: string }
+  | { type: 'PARTICIPANT_LEFT'; userId: string };
 
 // Helper functions
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -209,31 +219,43 @@ const continueDrawing = assign({
   }
 });
 
-const endDrawing = assign({
-  isDrawing: false,
-  paths: ({ context }) => {
-    if (context.currentPath) {
-      // Sync with collaboration service
-      if (context.collaborationService) {
-        context.collaborationService.addPath(context.currentPath);
-      }
-      return [...context.paths, context.currentPath];
-    }
-    return context.paths;
-  },
-  shapes: ({ context }) => {
-    if (context.currentShape) {
-      // Sync with collaboration service
-      if (context.collaborationService) {
-        context.collaborationService.addShape(context.currentShape);
-      }
-      return [...context.shapes, context.currentShape];
-    }
-    return context.shapes;
-  },
-  currentPath: null,
-  currentShape: null,
-  ...saveToHistory
+const endDrawing = assign(({ context }) => {
+  const newPaths = context.currentPath
+    ? [...context.paths, context.currentPath]
+    : context.paths;
+
+  const newShapes = context.currentShape
+    ? [...context.shapes, context.currentShape]
+    : context.shapes;
+
+  // Create new context for history calculation
+  const newContext = {
+    ...context,
+    paths: newPaths,
+    shapes: newShapes,
+    currentPath: null,
+    currentShape: null,
+    isDrawing: false
+  };
+
+  const historyUpdate = saveToHistory(newContext);
+
+  // Sync with collaboration service
+  if (context.currentPath && context.collaborationService) {
+    context.collaborationService.addPath(context.currentPath);
+  }
+  if (context.currentShape && context.collaborationService) {
+    context.collaborationService.addShape(context.currentShape);
+  }
+
+  return {
+    isDrawing: false,
+    paths: newPaths,
+    shapes: newShapes,
+    currentPath: null,
+    currentShape: null,
+    ...historyUpdate
+  };
 });
 
 const cancelDrawing = assign({
@@ -278,21 +300,38 @@ const deselectAll = assign({
   selectedObjects: []
 });
 
-const deleteSelected = assign({
-  paths: ({ context }) => context.paths.filter(path => !context.selectedObjects.includes(path.id)),
-  shapes: ({ context }) => context.shapes.filter(shape => !context.selectedObjects.includes(shape.id)),
-  selectedObjects: [],
-  ...saveToHistory
+const deleteSelected = assign(({ context }) => {
+  const newPaths = context.paths.filter(path => !context.selectedObjects.includes(path.id));
+  const newShapes = context.shapes.filter(shape => !context.selectedObjects.includes(shape.id));
+
+  const newContext = {
+    ...context,
+    paths: newPaths,
+    shapes: newShapes,
+    selectedObjects: []
+  };
+
+  const historyUpdate = saveToHistory(newContext);
+
+  return {
+    paths: newPaths,
+    shapes: newShapes,
+    selectedObjects: [],
+    ...historyUpdate
+  };
 });
 
-const clearCanvas = assign({
-  paths: [],
-  shapes: [],
-  selectedObjects: [],
-  currentPath: null,
-  currentShape: null,
-  isDrawing: false,
-  ...saveToHistory
+const clearCanvas = assign(({ context }) => {
+  const historyUpdate = saveToHistory(context);
+  return {
+    paths: [],
+    shapes: [],
+    selectedObjects: [],
+    currentPath: null,
+    currentShape: null,
+    isDrawing: false,
+    ...historyUpdate
+  };
 });
 
 const undo = assign({
@@ -360,6 +399,81 @@ const initializeCollaboration = assign({
       return service;
     }
     return context.collaborationService;
+  }
+});
+
+// Real-time collaboration actions
+const initializeRealTimeCollaboration = assign({
+  realTimeCollaborationService: ({ context }) => {
+    if (context.collaborationService) {
+      const eventCallback = (event: any) => {
+        console.log('Real-time collaboration event:', event);
+        // This will be handled by the React component
+      };
+      return createRealTimeCollaborationService(context.collaborationService, eventCallback);
+    }
+    return context.realTimeCollaborationService;
+  }
+});
+
+const updateRemoteCursor = assign({
+  collaborators: ({ context, event }) => {
+    if (event.type === 'UPDATE_REMOTE_CURSOR' && context.realTimeCollaborationService) {
+      context.realTimeCollaborationService.updateCursorPosition(event.userId, event.position);
+
+      // Update collaborators array for display
+      const existingIndex = context.collaborators.findIndex(c => c.id === event.userId);
+      const updatedCollaborators = [...context.collaborators];
+
+      if (existingIndex >= 0) {
+        updatedCollaborators[existingIndex] = {
+          ...updatedCollaborators[existingIndex],
+          cursor: { x: event.position.x, y: event.position.y, timestamp: Date.now() },
+          lastSeen: Date.now()
+        };
+      }
+
+      return updatedCollaborators;
+    }
+    return context.collaborators;
+  }
+});
+
+const startLiveDrawing = assign({
+  // Update the realTimeCollaborationService when a user starts drawing
+  realTimeCollaborationService: ({ context, event }) => {
+    if (event.type === 'START_LIVE_DRAWING' && context.realTimeCollaborationService) {
+      context.realTimeCollaborationService.startLiveDrawing(event.userId, event.drawingId);
+    }
+    return context.realTimeCollaborationService;
+  }
+});
+
+const endLiveDrawing = assign({
+  // Update the realTimeCollaborationService when a user ends drawing
+  realTimeCollaborationService: ({ context, event }) => {
+    if (event.type === 'END_LIVE_DRAWING' && context.realTimeCollaborationService) {
+      context.realTimeCollaborationService.endLiveDrawing(event.userId);
+    }
+    return context.realTimeCollaborationService;
+  }
+});
+
+const addParticipant = assign({
+  realTimeCollaborationService: ({ context, event }) => {
+    if (event.type === 'PARTICIPANT_JOINED' && context.realTimeCollaborationService) {
+      context.realTimeCollaborationService.addParticipant(event.userId, event.userName);
+    }
+    return context.realTimeCollaborationService;
+  }
+});
+
+const removeParticipant = assign({
+  realTimeCollaborationService: ({ context, event }) => {
+    if (event.type === 'PARTICIPANT_LEFT' && context.realTimeCollaborationService) {
+      context.realTimeCollaborationService.removeParticipant(event.userId);
+    }
+    return context.realTimeCollaborationService;
   }
 });
 
@@ -450,6 +564,7 @@ export const createWhiteboardMachine = (initialContext?: Partial<WhiteboardConte
       userId: '',
       userName: '',
       collaborationService: null,
+      realTimeCollaborationService: null,
 
       // Canvas state
       canvasSize: { width: 800, height: 600 },
@@ -490,7 +605,15 @@ export const createWhiteboardMachine = (initialContext?: Partial<WhiteboardConte
           UPDATE_CURSOR: { actions: updateCollaborators },
           INITIALIZE_COLLABORATION: { actions: initializeCollaboration },
           RECEIVE_REMOTE_OBJECT: { actions: receiveRemoteObject },
-          SYNC_STATE: { actions: syncCollaborationState }
+          SYNC_STATE: { actions: syncCollaborationState },
+
+          // Real-time collaboration events
+          INITIALIZE_REALTIME_COLLABORATION: { actions: initializeRealTimeCollaboration },
+          UPDATE_REMOTE_CURSOR: { actions: updateRemoteCursor },
+          START_LIVE_DRAWING: { actions: startLiveDrawing },
+          END_LIVE_DRAWING: { actions: endLiveDrawing },
+          PARTICIPANT_JOINED: { actions: addParticipant },
+          PARTICIPANT_LEFT: { actions: removeParticipant }
         }
       },
       drawing: {

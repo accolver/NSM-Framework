@@ -43,13 +43,28 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     };
 
     send({ type: 'START_DRAWING', point });
+
+    // Notify real-time collaboration about live drawing start
+    if (context.realTimeCollaborationService && context.userId) {
+      const drawingId = `drawing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      context.realTimeCollaborationService.startLiveDrawing(context.userId, drawingId);
+    }
   }, [context.currentTool, send]);
 
   const handlePointerMove = useCallback((e: KonvaEventObject<PointerEvent>) => {
-    if (!isDrawing.current) return;
-
     const pos = e.target.getStage()?.getPointerPosition();
     if (!pos) return;
+
+    // Always update cursor position for real-time collaboration
+    if (context.realTimeCollaborationService && context.userId) {
+      context.realTimeCollaborationService.updateCursorPosition(context.userId, {
+        x: pos.x,
+        y: pos.y
+      });
+    }
+
+    // Continue with drawing logic if currently drawing
+    if (!isDrawing.current) return;
 
     const point: Point = {
       x: pos.x,
@@ -65,7 +80,12 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     if (!isDrawing.current) return;
     isDrawing.current = false;
     send({ type: 'END_DRAWING' });
-  }, [send]);
+
+    // Notify real-time collaboration about live drawing end
+    if (context.realTimeCollaborationService && context.userId) {
+      context.realTimeCollaborationService.endLiveDrawing(context.userId);
+    }
+  }, [send, context.realTimeCollaborationService, context.userId]);
 
   // Handle stage click for deselection
   const handleStageClick = useCallback((e: KonvaEventObject<MouseEvent>) => {
