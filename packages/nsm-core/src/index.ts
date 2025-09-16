@@ -36,6 +36,9 @@ export type {
   ResourceMonitorConfig
 } from './security/resource-monitor';
 
+// Export performance monitoring utilities
+export * from './monitoring/index';
+
 // Package version and metadata
 export const NSM_CORE_VERSION = "0.1.0";
 
