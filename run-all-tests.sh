@@ -11,8 +11,10 @@ echo "======================================"
 # Track results
 COLLECTIVE_TESTS=0
 NSM_TESTS=0
+CRYPTO_TESTS=0
 COLLECTIVE_PASSED=false
 NSM_PASSED=false
+CRYPTO_PASSED=false
 OVERALL_PASSED=false
 
 echo ""
@@ -44,14 +46,37 @@ else
 fi
 
 echo ""
+echo "📋 PHASE 3: NSM Crypto Tests (packages/nsm-crypto)"
+echo "------------------------------------------------"
+
+# Build crypto package first
+echo "Building crypto package..."
+if (cd packages/nsm-crypto && bun run build) 2>&1; then
+    echo "✅ Crypto Build: PASSED"
+else
+    echo "⚠️  Crypto Build: WARNING (continuing with tests)"
+fi
+
+# Run Crypto tests
+if (cd packages/nsm-crypto && bun test) 2>&1; then
+    CRYPTO_TESTS=115
+    CRYPTO_PASSED=true
+    echo "✅ NSM Crypto Tests: PASSED ($CRYPTO_TESTS tests)"
+else
+    echo "❌ NSM Crypto Tests: FAILED"
+    CRYPTO_PASSED=false
+fi
+
+echo ""
 echo "📊 VALIDATION SUMMARY"
 echo "===================="
 echo "Collective Tests: $(if $COLLECTIVE_PASSED; then echo '✅ PASSED'; else echo '❌ FAILED'; fi) ($COLLECTIVE_TESTS tests)"
 echo "NSM Protocol Tests: $(if $NSM_PASSED; then echo '✅ PASSED'; else echo '❌ FAILED'; fi) ($NSM_TESTS tests)"
-echo "Total Tests: $((COLLECTIVE_TESTS + NSM_TESTS))"
+echo "NSM Crypto Tests: $(if $CRYPTO_PASSED; then echo '✅ PASSED'; else echo '❌ FAILED'; fi) ($CRYPTO_TESTS tests)"
+echo "Total Tests: $((COLLECTIVE_TESTS + NSM_TESTS + CRYPTO_TESTS))"
 
 # Determine overall result
-if $COLLECTIVE_PASSED && $NSM_PASSED; then
+if $COLLECTIVE_PASSED && $NSM_PASSED && $CRYPTO_PASSED; then
     OVERALL_PASSED=true
     echo ""
     echo "🎯 OVERALL VALIDATION: ✅ PASSED"

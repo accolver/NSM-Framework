@@ -1,13 +1,13 @@
 {
   "name": "Simple State Machine Creation Baseline",
   "version": "1.0.0",
-  "timestamp": 1757957982161,
+  "timestamp": 1758026183074,
   "metrics": {
-    "avgExecutionTime": 0.00691609099999998,
-    "throughputPerSecond": 144590.34735083775,
-    "memoryUsage": 8588196,
-    "p95Latency": 0.010374136499999971,
-    "p99Latency": 0.01383218199999996
+    "avgExecutionTime": 0.006922485999999986,
+    "throughputPerSecond": 144456.77463269726,
+    "memoryUsage": 9703138,
+    "p95Latency": 0.01038372899999998,
+    "p99Latency": 0.013844971999999973
   },
   "environment": {
     "nodeVersion": "v24.3.0",

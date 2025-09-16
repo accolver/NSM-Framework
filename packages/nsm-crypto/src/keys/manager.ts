@@ -1,0 +1,413 @@
+/**
+ * Secure key management implementation
+ * Handles private key storage, encryption, and key derivation with security best practices
+ */
+
+import { getPublicKey, utils as secp256k1Utils } from '@noble/secp256k1';
+import { pbkdf2 } from '@noble/hashes/pbkdf2';
+import { sha256 } from '@noble/hashes/sha256';
+import { sha512 } from '@noble/hashes/sha512';
+import { randomBytes, bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import type {
+  IKeyManager,
+  KeyDerivationParams,
+  EncryptedPrivateKey,
+  CryptoAuditEntry
+} from '../types.js';
+import { CryptoAuditLogger } from '../audit/logger.js';
+
+/**
+ * AES-GCM encryption/decryption utilities
+ */
+class AESGCMCrypto {
+  /**
+   * Encrypt data using AES-256-GCM
+   */
+  static async encrypt(data: Uint8Array, key: Uint8Array): Promise<{ encrypted: Uint8Array; iv: Uint8Array }> {
+    const iv = crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV for GCM
+
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      key as any as BufferSource,
+      { name: 'AES-GCM' },
+      false,
+      ['encrypt']
+    );
+
+    const encrypted = await crypto.subtle.encrypt(
+      {
+        name: 'AES-GCM',
+        iv: iv as any as BufferSource
+      },
+      cryptoKey,
+      data as any as BufferSource
+    );
+
+    return {
+      encrypted: new Uint8Array(encrypted),
+      iv
+    };
+  }
+
+  /**
+   * Decrypt data using AES-256-GCM
+   */
+  static async decrypt(encryptedData: Uint8Array, key: Uint8Array, iv: Uint8Array): Promise<Uint8Array> {
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      key as any as BufferSource,
+      { name: 'AES-GCM' },
+      false,
+      ['decrypt']
+    );
+
+    const decrypted = await crypto.subtle.decrypt(
+      {
+        name: 'AES-GCM',
+        iv: iv as any as BufferSource
+      },
+      cryptoKey,
+      encryptedData as any as BufferSource
+    );
+
+    return new Uint8Array(decrypted);
+  }
+}
+
+/**
+ * Key manager implementation with secure practices
+ */
+export class KeyManager implements IKeyManager {
+  private auditLogger: CryptoAuditLogger;
+
+  constructor(auditLogger?: CryptoAuditLogger) {
+    this.auditLogger = auditLogger || new CryptoAuditLogger();
+  }
+
+  /**
+   * Generate a new secp256k1 key pair
+   */
+  async generateKeyPair(): Promise<{ privateKey: Uint8Array; publicKey: string }> {
+    try {
+      const privateKey = this.generateRandomBytes(32);
+
+      // Ensure the private key is within the valid secp256k1 range
+      const secp256k1Order = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n;
+      let privateKeyBigInt = BigInt('0x' + bytesToHex(privateKey));
+
+      // If generated key is >= order, regenerate (very unlikely but important for security)
+      while (privateKeyBigInt >= secp256k1Order || privateKeyBigInt === 0n) {
+        const newPrivateKey = this.generateRandomBytes(32);
+        privateKeyBigInt = BigInt('0x' + bytesToHex(newPrivateKey));
+        newPrivateKey.set(hexToBytes(privateKeyBigInt.toString(16).padStart(64, '0')));
+        privateKey.set(newPrivateKey);
+      }
+
+      // Calculate public key
+      const publicKeyBytes = getPublicKey(privateKey, false); // Uncompressed
+      const publicKey = bytesToHex(publicKeyBytes.slice(1, 33)); // Take x-coordinate only for Schnorr
+
+      const auditEntry: CryptoAuditEntry = {
+        timestamp: Date.now(),
+        operation: 'key_generate',
+        success: true,
+        metadata: { publicKey }
+      };
+      this.auditLogger.log(auditEntry);
+
+      return { privateKey, publicKey };
+    } catch (error) {
+      const auditEntry: CryptoAuditEntry = {
+        timestamp: Date.now(),
+        operation: 'key_generate',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown key generation error'
+      };
+      this.auditLogger.log(auditEntry);
+      throw error;
+    }
+  }
+
+  /**
+   * Encrypt a private key using password-based encryption
+   */
+  async encryptPrivateKey(privateKey: Uint8Array, password: string): Promise<EncryptedPrivateKey> {
+    try {
+      // Generate salt for key derivation
+      const salt = this.generateRandomBytes(32);
+      const iterations = 100000; // PBKDF2 iterations
+
+      // Derive encryption key from password
+      const derivedKey = await this.deriveKey({
+        password,
+        salt,
+        iterations,
+        keyLength: 32, // 256-bit key for AES-256
+        hashAlgorithm: 'SHA-256'
+      });
+
+      // Encrypt the private key
+      const { encrypted, iv } = await AESGCMCrypto.encrypt(privateKey, derivedKey);
+
+      // Clear the derived key from memory
+      this.clearSensitiveData(derivedKey);
+
+      const result: EncryptedPrivateKey = {
+        encryptedData: encrypted,
+        salt,
+        iv,
+        algorithm: 'AES-256-GCM',
+        iterations
+      };
+
+      const auditEntry: CryptoAuditEntry = {
+        timestamp: Date.now(),
+        operation: 'key_encrypt',
+        success: true,
+        metadata: { algorithm: 'AES-256-GCM', iterations }
+      };
+      this.auditLogger.log(auditEntry);
+
+      return result;
+    } catch (error) {
+      const auditEntry: CryptoAuditEntry = {
+        timestamp: Date.now(),
+        operation: 'key_encrypt',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown encryption error'
+      };
+      this.auditLogger.log(auditEntry);
+      throw error;
+    }
+  }
+
+  /**
+   * Decrypt a private key using password
+   */
+  async decryptPrivateKey(encrypted: EncryptedPrivateKey, password: string): Promise<Uint8Array> {
+    try {
+      // Verify algorithm
+      if (encrypted.algorithm !== 'AES-256-GCM') {
+        throw new Error(`Unsupported encryption algorithm: ${encrypted.algorithm}`);
+      }
+
+      // Derive decryption key from password
+      const derivedKey = await this.deriveKey({
+        password,
+        salt: encrypted.salt,
+        iterations: encrypted.iterations,
+        keyLength: 32,
+        hashAlgorithm: 'SHA-256'
+      });
+
+      // Decrypt the private key
+      const decryptedKey = await AESGCMCrypto.decrypt(encrypted.encryptedData, derivedKey, encrypted.iv);
+
+      // Clear the derived key from memory
+      this.clearSensitiveData(derivedKey);
+
+      const auditEntry: CryptoAuditEntry = {
+        timestamp: Date.now(),
+        operation: 'key_decrypt',
+        success: true,
+        metadata: { algorithm: encrypted.algorithm, iterations: encrypted.iterations }
+      };
+      this.auditLogger.log(auditEntry);
+
+      return decryptedKey;
+    } catch (error) {
+      const auditEntry: CryptoAuditEntry = {
+        timestamp: Date.now(),
+        operation: 'key_decrypt',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown decryption error'
+      };
+      this.auditLogger.log(auditEntry);
+      throw error;
+    }
+  }
+
+  /**
+   * Derive key from password using PBKDF2
+   */
+  async deriveKey(params: KeyDerivationParams): Promise<Uint8Array> {
+    const {
+      password,
+      salt,
+      iterations = 100000,
+      keyLength = 32,
+      hashAlgorithm = 'SHA-256'
+    } = params;
+
+    const passwordBytes = new TextEncoder().encode(password);
+
+    try {
+      let derivedKey: Uint8Array;
+
+      switch (hashAlgorithm) {
+        case 'SHA-256':
+          derivedKey = pbkdf2(sha256, passwordBytes, salt, { c: iterations, dkLen: keyLength });
+          break;
+        case 'SHA-512':
+          derivedKey = pbkdf2(sha512, passwordBytes, salt, { c: iterations, dkLen: keyLength });
+          break;
+        default:
+          throw new Error(`Unsupported hash algorithm: ${hashAlgorithm}`);
+      }
+
+      // Clear password from memory
+      passwordBytes.fill(0);
+
+      return derivedKey;
+    } catch (error) {
+      // Clear password from memory even on error
+      passwordBytes.fill(0);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate cryptographically secure random bytes
+   */
+  generateRandomBytes(length: number): Uint8Array {
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      // Browser environment
+      return crypto.getRandomValues(new Uint8Array(length));
+    } else {
+      // Use noble-hashes randomBytes which works in Node.js
+      return randomBytes(length);
+    }
+  }
+
+  /**
+   * Clear sensitive data from memory by overwriting with random data
+   */
+  clearSensitiveData(data: Uint8Array): void {
+    try {
+      // Overwrite with random data multiple times
+      const randomData = this.generateRandomBytes(data.length);
+      data.set(randomData);
+
+      // Overwrite with zeros
+      data.fill(0);
+
+      // Overwrite with 0xFF
+      data.fill(0xFF);
+
+      // Final overwrite with zeros
+      data.fill(0);
+    } catch (error) {
+      // If clearing fails, at least try to zero out
+      data.fill(0);
+    }
+  }
+
+  /**
+   * Rotate encryption key for an encrypted private key
+   */
+  async rotateEncryptionKey(
+    encrypted: EncryptedPrivateKey,
+    oldPassword: string,
+    newPassword: string
+  ): Promise<EncryptedPrivateKey> {
+    try {
+      // Decrypt with old password
+      const privateKey = await this.decryptPrivateKey(encrypted, oldPassword);
+
+      // Encrypt with new password
+      const newEncrypted = await this.encryptPrivateKey(privateKey, newPassword);
+
+      // Clear the decrypted private key
+      this.clearSensitiveData(privateKey);
+
+      return newEncrypted;
+    } catch (error) {
+      throw new Error(`Key rotation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Validate private key format and range
+   */
+  validatePrivateKey(privateKey: Uint8Array): boolean {
+    if (privateKey.length !== 32) {
+      return false;
+    }
+
+    // Check that private key is within secp256k1 order
+    const secp256k1Order = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n;
+    const privateKeyBigInt = BigInt('0x' + bytesToHex(privateKey));
+
+    return privateKeyBigInt > 0n && privateKeyBigInt < secp256k1Order;
+  }
+
+  /**
+   * Create key backup data with integrity protection
+   */
+  async createKeyBackup(
+    privateKey: Uint8Array,
+    password: string,
+    metadata?: Record<string, unknown>
+  ): Promise<{
+    encrypted: EncryptedPrivateKey;
+    checksum: string;
+    metadata?: Record<string, unknown>;
+    timestamp: number;
+  }> {
+    const encrypted = await this.encryptPrivateKey(privateKey, password);
+
+    // Create integrity checksum
+    const checksumData = new Uint8Array([
+      ...encrypted.encryptedData,
+      ...encrypted.salt,
+      ...encrypted.iv
+    ]);
+    const checksum = bytesToHex(sha256(checksumData));
+
+    return {
+      encrypted,
+      checksum,
+      metadata,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * Verify and restore key from backup
+   */
+  async restoreFromBackup(
+    backup: {
+      encrypted: EncryptedPrivateKey;
+      checksum: string;
+      metadata?: Record<string, unknown>;
+      timestamp: number;
+    },
+    password: string
+  ): Promise<{ privateKey: Uint8Array; metadata?: Record<string, unknown> }> {
+    // Verify integrity checksum
+    const checksumData = new Uint8Array([
+      ...backup.encrypted.encryptedData,
+      ...backup.encrypted.salt,
+      ...backup.encrypted.iv
+    ]);
+    const computedChecksum = bytesToHex(sha256(checksumData));
+
+    if (computedChecksum !== backup.checksum) {
+      throw new Error('Backup integrity verification failed');
+    }
+
+    // Decrypt private key
+    const privateKey = await this.decryptPrivateKey(backup.encrypted, password);
+
+    // Validate the restored private key
+    if (!this.validatePrivateKey(privateKey)) {
+      this.clearSensitiveData(privateKey);
+      throw new Error('Restored private key is invalid');
+    }
+
+    return {
+      privateKey,
+      metadata: backup.metadata
+    };
+  }
+}

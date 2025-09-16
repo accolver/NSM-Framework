@@ -28,7 +28,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@nsm/core": "workspace:*"
+    "@nsm/core": "workspace:*",
+    "@nsm/crypto": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

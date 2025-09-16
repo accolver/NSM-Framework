@@ -1,13 +1,13 @@
 {
   "name": "Memory Performance Baseline",
   "version": "1.0.0",
-  "timestamp": 1757957988235,
+  "timestamp": 1758026189149,
   "metrics": {
-    "avgExecutionTime": 0.03912083000000002,
-    "throughputPerSecond": 25561.82984870207,
-    "memoryUsage": 23263146,
-    "p95Latency": 0.058681245000000035,
-    "p99Latency": 0.07824166000000005
+    "avgExecutionTime": 0.03798732,
+    "throughputPerSecond": 26324.57356823277,
+    "memoryUsage": 11623087,
+    "p95Latency": 0.05698098,
+    "p99Latency": 0.07597464
   },
   "environment": {
     "nodeVersion": "v24.3.0",

@@ -675,7 +675,7 @@
             "id": 2,
             "title": "Add comprehensive input validation",
             "description": "Implement validation for all Nostr events, state machine definitions, and user inputs",
-            "status": "pending",
+            "status": "done",
             "details": "Validate against schemas, sanitize inputs, and implement rate limiting",
             "testStrategy": "Test with malicious inputs, oversized data, and injection attempts"
           },
@@ -683,7 +683,7 @@
             "id": 3,
             "title": "Implement cryptographic verification",
             "description": "Add signature verification, hash validation, and key management security",
-            "status": "pending",
+            "status": "done",
             "details": "Verify Nostr event signatures, Blossom content hashes, and implement secure key handling",
             "testStrategy": "Test signature verification, hash integrity, and key security"
           },
@@ -844,7 +844,7 @@
     ],
     "metadata": {
       "created": "2025-09-15T12:51:55.799Z",
-      "updated": "2025-09-16T11:15:03.679Z",
+      "updated": "2025-09-16T12:57:40.829Z",
       "description": "Tasks for master context"
     }
   }

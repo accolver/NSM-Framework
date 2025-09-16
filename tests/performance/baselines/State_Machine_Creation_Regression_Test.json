@@ -1,13 +1,13 @@
 {
   "name": "State Machine Creation Regression Test",
   "version": "1.0.0",
-  "timestamp": 1757957988240,
+  "timestamp": 1758026189155,
   "metrics": {
-    "avgExecutionTime": 0.009105277999999991,
-    "throughputPerSecond": 109826.41057197825,
-    "memoryUsage": 23322054,
-    "p95Latency": 0.013657916999999986,
-    "p99Latency": 0.018210555999999982
+    "avgExecutionTime": 0.010284439999999997,
+    "throughputPerSecond": 97234.26846770463,
+    "memoryUsage": 11720437,
+    "p95Latency": 0.015426659999999995,
+    "p99Latency": 0.020568879999999994
   },
   "environment": {
     "nodeVersion": "v24.3.0",

@@ -102,6 +102,7 @@
       "dependencies": {
         "@nostr-dev-kit/ndk": "^2.10.5",
         "@nsm/core": "workspace:*",
+        "@nsm/crypto": "workspace:*",
         "nostr-tools": "^2.10.4",
         "xstate": "^5.19.0",
       },
@@ -115,6 +116,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@nsm/core": "workspace:*",
+        "@nsm/crypto": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^20.11.0",
@@ -126,6 +128,20 @@
       "version": "0.1.0",
       "dependencies": {
         "zod": "^3.22.4",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.0.0",
+        "typescript": "^5.0.0",
+      },
+    },
+    "packages/nsm-crypto": {
+      "name": "@nsm/crypto",
+      "version": "0.1.0",
+      "dependencies": {
+        "@noble/hashes": "^1.4.0",
+        "@noble/secp256k1": "^2.1.0",
+        "@nsm/core": "workspace:*",
+        "nostr-tools": "^2.10.4",
       },
       "devDependencies": {
         "@types/bun": "^1.0.0",
@@ -285,6 +301,8 @@
     "@nsm/client-sdk": ["@nsm/client-sdk@workspace:packages/nsm-client-sdk"],
 
     "@nsm/core": ["@nsm/core@workspace:packages/nsm-core"],
+
+    "@nsm/crypto": ["@nsm/crypto@workspace:packages/nsm-crypto"],
 
     "@nsm/dev-tools": ["@nsm/dev-tools@workspace:packages/nsm-dev-tools"],
 

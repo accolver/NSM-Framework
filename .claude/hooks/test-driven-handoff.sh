@@ -238,17 +238,23 @@ agent_tdd_checkpoint() {
         log "❌ AGENT TDD FAILURE: $agent_name - no test output generated"
         has_test_failures=true
     else
+        # Debug: Show the last few lines of test output for validation debugging
+        log "DEBUG: Last 5 lines of test output for $agent_name:"
+        tail -5 "/tmp/agent-test-$agent_name.log" | while read line; do log "  $line"; done
+
         # Parse comprehensive test results - Check for NSM + Collective success
         # Check for explicit failures first
         if grep -iq "OVERALL VALIDATION: ❌ FAILED" "/tmp/agent-test-$agent_name.log"; then
             log "❌ AGENT TDD FAILURE: $agent_name - comprehensive validation failed"
             has_test_failures=true
-        # Check for comprehensive success
+        # Check for comprehensive success (this is the primary success indicator)
         elif grep -iq "OVERALL VALIDATION: ✅ PASSED" "/tmp/agent-test-$agent_name.log"; then
-            log "✅ AGENT TDD OUTPUT: $agent_name - comprehensive validation passed (NSM + Collective)"
+            log "✅ AGENT TDD SUCCESS: $agent_name - comprehensive validation passed (NSM + Collective)"
+            has_test_failures=false  # Explicitly set to false on success
         # Fallback: Check for individual test suite success patterns
-        elif grep -iqE "✓.*test|Tests.*[0-9]+.*passed|63 pass.*0 fail" "/tmp/agent-test-$agent_name.log"; then
-            log "✅ AGENT TDD OUTPUT: $agent_name - tests show passing results"
+        elif grep -iqE "✓.*test|Tests.*[0-9]+.*passed|[0-9]+ pass.*0 fail" "/tmp/agent-test-$agent_name.log"; then
+            log "✅ AGENT TDD SUCCESS: $agent_name - tests show passing results"
+            has_test_failures=false  # Explicitly set to false on success
         else
             log "❌ AGENT TDD FAILURE: $agent_name - no passing tests detected in output"
             has_test_failures=true

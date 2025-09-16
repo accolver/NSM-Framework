@@ -15,6 +15,23 @@ import {
   validateNSMStateUpdateEvent
 } from "../events/index.js";
 
+// Export comprehensive validation functions
+export {
+  validateNostrEventComprehensive,
+  validateXStateMachine,
+  sanitizeUserInput,
+  validateFileUpload,
+  validateURL,
+  validateJSONWithSchema,
+  RateLimiter,
+  CONTENT_SIZE_LIMITS,
+  RATE_LIMITS,
+  NostrEventSchema,
+  URLSchema,
+  SafeTextSchema,
+  XStateMachineSchema
+} from "./comprehensive.js";
+
 /**
  * Extended validation result with event type information
  */
@@ -236,8 +253,8 @@ export function deserializeNSMEvent(serialized: string): ValidationResult<NSMEve
 }
 
 /**
- * Validates event signature (placeholder implementation)
- * In a real implementation, this would verify the cryptographic signature
+ * Validates event signature (basic format validation)
+ * For full cryptographic verification, use @nsm/crypto package
  */
 export function validateEventSignature(event: INostrEvent): boolean {
   // Basic structure validation
@@ -250,11 +267,10 @@ export function validateEventSignature(event: INostrEvent): boolean {
     return false;
   }
 
-  // TODO: Implement actual cryptographic verification
-  // This would involve:
-  // 1. Recreating the event hash from id, pubkey, created_at, kind, tags, content
-  // 2. Verifying the signature using the public key
-  // For now, return true for basic format validation
+  // Basic format validation only - use @nsm/crypto for full verification
+  // Full cryptographic verification should be done using:
+  // import { verifyNostrEvent } from '@nsm/crypto'
+  // const result = await verifyNostrEvent(event)
   return true;
 }
 
@@ -265,3 +281,5 @@ export type {
   NSMEventType,
   ConflictResolutionPolicy
 } from "../events/index.js";
+
+// Types already exported above with their definitions
