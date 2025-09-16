@@ -1,0 +1,737 @@
+---
+title: 'Collaborative Code Editor'
+description: 'Build a real-time collaborative code editor with live cursors, syntax highlighting, and conflict resolution'
+---
+
+# Collaborative Code Editor
+
+Learn how to build a Google Docs-style collaborative text editor using NSM Framework. This example demonstrates operational transformation, live cursors, and sophisticated conflict resolution.
+
+## Features
+
+- 📝 **Real-time Editing**: Multiple users can edit simultaneously
+- 🖱️ **Live Cursors**: See other users' cursor positions and selections
+- 🎨 **Syntax Highlighting**: Language-aware code highlighting
+- 🔄 **Conflict Resolution**: Automatic resolution of concurrent edits
+- 📚 **Version History**: Complete edit history with diff visualization
+- 👥 **User Awareness**: See who's editing and where
+- 💾 **Auto-save**: Continuous saving with offline support
+
+## Core Implementation
+
+```typescript
+// Editor State Machine
+import { createMachine, assign } from 'xstate';
+
+interface EditorOperation {
+  type: 'insert' | 'delete' | 'retain';
+  length?: number;
+  text?: string;
+  position: number;
+  userId: string;
+  timestamp: number;
+}
+
+interface CursorPosition {
+  userId: string;
+  position: number;
+  selection?: { start: number; end: number };
+  userName: string;
+  color: string;
+}
+
+export const editorMachine = createMachine({
+  id: 'collaborativeEditor',
+  initial: 'loading',
+  context: {
+    content: '',
+    operations: [],
+    cursors: new Map(),
+    users: new Map(),
+    currentUser: null,
+    language: 'javascript',
+    isDirty: false,
+    lastSaved: 0
+  },
+  states: {
+    loading: {
+      on: {
+        LOAD_COMPLETE: {
+          target: 'ready',
+          actions: 'setInitialContent'
+        }
+      }
+    },
+    ready: {
+      on: {
+        TEXT_CHANGE: {
+          actions: ['applyTextChange', 'broadcastOperation']
+        },
+        CURSOR_MOVE: {
+          actions: ['updateCursor', 'broadcastCursor']
+        },
+        REMOTE_OPERATION: {
+          actions: 'applyRemoteOperation'
+        },
+        REMOTE_CURSOR: {
+          actions: 'updateRemoteCursor'
+        },
+        SAVE: {
+          target: 'saving',
+          cond: 'isDirty'
+        }
+      }
+    },
+    saving: {
+      after: {
+        1000: {
+          target: 'ready',
+          actions: 'markSaved'
+        }
+      }
+    }
+  }
+}, {
+  actions: {
+    setInitialContent: assign({
+      content: ({ event }) => event.content,
+      lastSaved: Date.now()
+    }),
+    applyTextChange: assign({
+      content: ({ context, event }) =>
+        applyOperation(context.content, event.operation),
+      operations: ({ context, event }) => [
+        ...context.operations,
+        event.operation
+      ],
+      isDirty: true
+    }),
+    updateCursor: assign({
+      cursors: ({ context, event }) => {
+        const newCursors = new Map(context.cursors);
+        newCursors.set(context.currentUser.id, {
+          userId: context.currentUser.id,
+          position: event.position,
+          selection: event.selection,
+          userName: context.currentUser.name,
+          color: context.currentUser.color
+        });
+        return newCursors;
+      }
+    }),
+    applyRemoteOperation: assign({
+      content: ({ context, event }) => {
+        // Transform operation based on concurrent operations
+        const transformedOp = transformOperation(
+          event.operation,
+          context.operations
+        );
+        return applyOperation(context.content, transformedOp);
+      },
+      operations: ({ context, event }) => [
+        ...context.operations,
+        event.operation
+      ]
+    }),
+    updateRemoteCursor: assign({
+      cursors: ({ context, event }) => {
+        const newCursors = new Map(context.cursors);
+        newCursors.set(event.cursor.userId, event.cursor);
+        return newCursors;
+      }
+    }),
+    markSaved: assign({
+      isDirty: false,
+      lastSaved: Date.now()
+    })
+  },
+  guards: {
+    isDirty: ({ context }) => context.isDirty
+  }
+});
+
+// Operational Transformation helpers
+function applyOperation(content: string, op: EditorOperation): string {
+  switch (op.type) {
+    case 'insert':
+      return (
+        content.slice(0, op.position) +
+        op.text +
+        content.slice(op.position)
+      );
+    case 'delete':
+      return (
+        content.slice(0, op.position) +
+        content.slice(op.position + op.length!)
+      );
+    default:
+      return content;
+  }
+}
+
+function transformOperation(
+  op: EditorOperation,
+  concurrentOps: EditorOperation[]
+): EditorOperation {
+  let transformedOp = { ...op };
+
+  for (const concurrent of concurrentOps) {
+    if (concurrent.timestamp < op.timestamp) {
+      transformedOp = transformAgainst(transformedOp, concurrent);
+    }
+  }
+
+  return transformedOp;
+}
+
+function transformAgainst(
+  op: EditorOperation,
+  against: EditorOperation
+): EditorOperation {
+  if (against.type === 'insert') {
+    if (against.position <= op.position) {
+      return {
+        ...op,
+        position: op.position + (against.text?.length || 0)
+      };
+    }
+  } else if (against.type === 'delete') {
+    if (against.position < op.position) {
+      return {
+        ...op,
+        position: Math.max(against.position, op.position - (against.length || 0))
+      };
+    }
+  }
+
+  return op;
+}
+```
+
+## React Editor Component
+
+```tsx
+// CollaborativeEditor.tsx
+import React, { useState, useRef, useEffect } from 'react';
+import { NSMClient } from '@nsm/client';
+import { createActor } from 'xstate';
+import { editorMachine } from './editor-machine';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
+export const CollaborativeEditor: React.FC = () => {
+  const [client] = useState(() => new NSMClient({ useNip07: true }));
+  const [actor] = useState(() => createActor(editorMachine));
+  const [state, setState] = useState<any>({});
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [cursorPosition, setCursorPosition] = useState(0);
+
+  useEffect(() => {
+    const subscription = actor.subscribe(setState);
+
+    // Initialize editor
+    client.connect().then(async () => {
+      const userPubkey = await client.getUserPublicKey();
+
+      // Set up collaboration
+      setupCollaboration(userPubkey);
+
+      // Load initial content
+      actor.send({
+        type: 'LOAD_COMPLETE',
+        content: '// Welcome to the collaborative editor!\nfunction hello() {\n  console.log("Hello, NSM!");\n}'
+      });
+    });
+
+    actor.start();
+
+    return () => {
+      subscription.unsubscribe();
+      client.disconnect();
+    };
+  }, []);
+
+  const setupCollaboration = (userId: string) => {
+    // Subscribe to editor events
+    client.subscribeToApplication('collaborative-editor', {
+      onInteraction: (interaction) => {
+        const { action, payload } = interaction;
+
+        if (action === 'OPERATION') {
+          actor.send({
+            type: 'REMOTE_OPERATION',
+            operation: payload.operation
+          });
+        } else if (action === 'CURSOR_UPDATE') {
+          actor.send({
+            type: 'REMOTE_CURSOR',
+            cursor: payload.cursor
+          });
+        }
+      },
+      onError: console.error
+    });
+
+    // Set current user
+    actor.send({
+      type: 'SET_USER',
+      user: {
+        id: userId,
+        name: `User-${userId.slice(0, 8)}`,
+        color: generateUserColor(userId)
+      }
+    });
+  };
+
+  const handleTextChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value;
+    const operation = computeOperation(state.context?.content || '', newValue);
+
+    if (operation) {
+      // Apply locally
+      actor.send({
+        type: 'TEXT_CHANGE',
+        operation
+      });
+
+      // Broadcast to others
+      await client.publishInteraction({
+        applicationId: 'collaborative-editor',
+        action: 'OPERATION',
+        payload: { operation }
+      });
+    }
+  };
+
+  const handleCursorChange = async () => {
+    if (!textareaRef.current) return;
+
+    const position = textareaRef.current.selectionStart;
+    const selection = textareaRef.current.selectionStart !== textareaRef.current.selectionEnd
+      ? {
+          start: textareaRef.current.selectionStart,
+          end: textareaRef.current.selectionEnd
+        }
+      : undefined;
+
+    setCursorPosition(position);
+
+    // Update cursor position
+    actor.send({
+      type: 'CURSOR_MOVE',
+      position,
+      selection
+    });
+
+    // Broadcast cursor position
+    await client.publishInteraction({
+      applicationId: 'collaborative-editor',
+      action: 'CURSOR_UPDATE',
+      payload: {
+        cursor: {
+          userId: state.context?.currentUser?.id,
+          position,
+          selection,
+          userName: state.context?.currentUser?.name,
+          color: state.context?.currentUser?.color
+        }
+      }
+    });
+  };
+
+  const computeOperation = (oldText: string, newText: string): EditorOperation | null => {
+    // Simple diff algorithm - in production, use a proper diff library
+    let i = 0;
+    while (i < Math.min(oldText.length, newText.length) && oldText[i] === newText[i]) {
+      i++;
+    }
+
+    let j = 0;
+    while (
+      j < Math.min(oldText.length - i, newText.length - i) &&
+      oldText[oldText.length - 1 - j] === newText[newText.length - 1 - j]
+    ) {
+      j++;
+    }
+
+    const deleteLength = oldText.length - i - j;
+    const insertText = newText.slice(i, newText.length - j);
+
+    if (deleteLength === 0 && insertText.length === 0) {
+      return null;
+    }
+
+    if (deleteLength > 0 && insertText.length > 0) {
+      // Replace operation - treat as delete then insert
+      return {
+        type: 'insert',
+        position: i,
+        text: insertText,
+        userId: state.context?.currentUser?.id,
+        timestamp: Date.now()
+      };
+    } else if (insertText.length > 0) {
+      return {
+        type: 'insert',
+        position: i,
+        text: insertText,
+        userId: state.context?.currentUser?.id,
+        timestamp: Date.now()
+      };
+    } else {
+      return {
+        type: 'delete',
+        position: i,
+        length: deleteLength,
+        userId: state.context?.currentUser?.id,
+        timestamp: Date.now()
+      };
+    }
+  };
+
+  const generateUserColor = (userId: string): string => {
+    const colors = [
+      '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
+      '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+    ];
+    const hash = userId.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  const renderCursors = () => {
+    if (!state.context?.cursors) return null;
+
+    return Array.from(state.context.cursors.values()).map((cursor: any) => {
+      if (cursor.userId === state.context.currentUser?.id) return null;
+
+      return (
+        <div
+          key={cursor.userId}
+          className="cursor"
+          style={{
+            position: 'absolute',
+            left: calculateCursorPosition(cursor.position).x,
+            top: calculateCursorPosition(cursor.position).y,
+            borderLeft: `2px solid ${cursor.color}`,
+            height: '1.2em',
+            pointerEvents: 'none'
+          }}
+        >
+          <div
+            className="cursor-label"
+            style={{
+              background: cursor.color,
+              color: 'white',
+              padding: '2px 4px',
+              borderRadius: '2px',
+              fontSize: '0.8em',
+              whiteSpace: 'nowrap',
+              position: 'absolute',
+              top: '-1.5em'
+            }}
+          >
+            {cursor.userName}
+          </div>
+        </div>
+      );
+    });
+  };
+
+  const calculateCursorPosition = (position: number) => {
+    // Simplified cursor position calculation
+    // In a real editor, you'd need more sophisticated text measurement
+    const lineHeight = 20;
+    const charWidth = 8;
+    const text = state.context?.content || '';
+
+    let line = 0;
+    let column = 0;
+
+    for (let i = 0; i < Math.min(position, text.length); i++) {
+      if (text[i] === '\n') {
+        line++;
+        column = 0;
+      } else {
+        column++;
+      }
+    }
+
+    return {
+      x: column * charWidth,
+      y: line * lineHeight
+    };
+  };
+
+  return (
+    <div className="collaborative-editor">
+      <header className="editor-header">
+        <h1>📝 Collaborative Editor</h1>
+        <div className="editor-status">
+          <span className={`status ${state.context?.isDirty ? 'dirty' : 'saved'}`}>
+            {state.context?.isDirty ? 'Unsaved changes' : 'All changes saved'}
+          </span>
+          <div className="active-users">
+            {state.context?.cursors && Array.from(state.context.cursors.values()).map((cursor: any) => (
+              <div
+                key={cursor.userId}
+                className="user-indicator"
+                style={{ backgroundColor: cursor.color }}
+                title={cursor.userName}
+              >
+                {cursor.userName[0]}
+              </div>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      <div className="editor-container">
+        <div className="editor-main">
+          <div className="code-mirror-wrapper">
+            <textarea
+              ref={textareaRef}
+              value={state.context?.content || ''}
+              onChange={handleTextChange}
+              onSelect={handleCursorChange}
+              onKeyUp={handleCursorChange}
+              onClick={handleCursorChange}
+              className="code-editor"
+              placeholder="Start typing to collaborate..."
+              spellCheck={false}
+            />
+
+            {/* Syntax highlighting overlay */}
+            <div className="syntax-overlay">
+              <SyntaxHighlighter
+                language={state.context?.language || 'javascript'}
+                style={vscDarkPlus}
+                customStyle={{
+                  background: 'transparent',
+                  margin: 0,
+                  padding: '1rem'
+                }}
+              >
+                {state.context?.content || ''}
+              </SyntaxHighlighter>
+            </div>
+
+            {/* Cursor overlays */}
+            <div className="cursor-layer">
+              {renderCursors()}
+            </div>
+          </div>
+        </div>
+
+        <aside className="editor-sidebar">
+          <div className="collaboration-info">
+            <h3>👥 Collaborators</h3>
+            {state.context?.cursors && Array.from(state.context.cursors.values()).map((cursor: any) => (
+              <div key={cursor.userId} className="collaborator">
+                <div
+                  className="user-avatar"
+                  style={{ backgroundColor: cursor.color }}
+                >
+                  {cursor.userName[0]}
+                </div>
+                <span>{cursor.userName}</span>
+                <span className="user-status">
+                  {cursor.position ? `Line ${Math.floor(cursor.position / 50) + 1}` : 'Idle'}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="editor-settings">
+            <h3>⚙️ Settings</h3>
+            <label>
+              Language:
+              <select
+                value={state.context?.language || 'javascript'}
+                onChange={(e) => actor.send({
+                  type: 'SET_LANGUAGE',
+                  language: e.target.value
+                })}
+              >
+                <option value="javascript">JavaScript</option>
+                <option value="typescript">TypeScript</option>
+                <option value="python">Python</option>
+                <option value="rust">Rust</option>
+                <option value="go">Go</option>
+              </select>
+            </label>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+};
+```
+
+## Styling
+
+```css
+.collaborative-editor {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: 'Monaco', 'Consolas', monospace;
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #333;
+  background: #2d2d30;
+}
+
+.editor-status {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.status {
+  font-size: 0.9rem;
+}
+
+.status.dirty {
+  color: #f1c232;
+}
+
+.status.saved {
+  color: #34a853;
+}
+
+.active-users {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.user-indicator {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
+.editor-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.editor-main {
+  flex: 1;
+  position: relative;
+}
+
+.code-mirror-wrapper {
+  position: relative;
+  height: 100%;
+}
+
+.code-editor {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: transparent;
+  caret-color: #d4d4d4;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  padding: 1rem;
+  position: relative;
+  z-index: 2;
+}
+
+.syntax-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.cursor-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 3;
+  padding: 1rem;
+}
+
+.editor-sidebar {
+  width: 300px;
+  background: #252526;
+  border-left: 1px solid #333;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.collaboration-info h3,
+.editor-settings h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  color: #cccccc;
+}
+
+.collaborator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  background: #2d2d30;
+}
+
+.user-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+.user-status {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.editor-settings select {
+  background: #3c3c3c;
+  border: 1px solid #555;
+  color: #d4d4d4;
+  padding: 0.25rem;
+  border-radius: 2px;
+  margin-left: 0.5rem;
+}
+```
+
+This collaborative editor demonstrates advanced NSM patterns including operational transformation for conflict-free collaborative editing, real-time cursor tracking, and sophisticated state synchronization across multiple concurrent users.

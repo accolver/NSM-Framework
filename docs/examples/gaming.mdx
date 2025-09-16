@@ -1,0 +1,723 @@
+---
+title: 'Multiplayer Game with NSM'
+description: 'Build a turn-based multiplayer game demonstrating game state management, player coordination, and real-time gameplay'
+---
+
+# Multiplayer Game with NSM
+
+Create an engaging turn-based multiplayer game using NSM Framework. This example demonstrates game state management, player coordination, real-time moves, and spectator functionality using the existing Wordle implementation as a foundation.
+
+## Features
+
+- 🎮 **Turn-based Gameplay**: Fair turn management across players
+- 🏆 **Game Sessions**: Create and join game rooms
+- 👥 **Player Management**: Handle joining, leaving, and reconnections
+- 📺 **Spectator Mode**: Watch games in progress
+- 💫 **Real-time Updates**: Instant move synchronization
+- 📊 **Game Statistics**: Track wins, losses, and performance
+- 🎯 **Multiple Game Types**: Extensible for different game mechanics
+
+## Core Game Engine
+
+```typescript
+// Game State Machine
+import { createMachine, assign } from 'xstate';
+
+interface Player {
+  id: string;
+  name: string;
+  isReady: boolean;
+  score: number;
+  lastMove?: any;
+}
+
+interface GameState {
+  id: string;
+  type: 'wordle' | 'chess' | 'tic-tac-toe';
+  players: Player[];
+  maxPlayers: number;
+  currentTurn: number;
+  status: 'waiting' | 'playing' | 'finished';
+  gameData: any; // Game-specific state
+  spectators: string[];
+  moves: GameMove[];
+  startedAt?: number;
+  finishedAt?: number;
+}
+
+interface GameMove {
+  playerId: string;
+  moveData: any;
+  timestamp: number;
+  turnNumber: number;
+}
+
+export const gameRoomMachine = createMachine({
+  id: 'gameRoom',
+  initial: 'waiting',
+  context: {
+    gameId: '',
+    gameType: 'wordle',
+    players: [],
+    maxPlayers: 2,
+    currentTurn: 0,
+    host: null,
+    gameData: {},
+    spectators: [],
+    moves: []
+  },
+  states: {
+    waiting: {
+      on: {
+        PLAYER_JOIN: {
+          actions: 'addPlayer',
+          target: 'ready',
+          cond: 'canStartGame'
+        },
+        PLAYER_JOIN: {
+          actions: 'addPlayer'
+        },
+        START_GAME: {
+          target: 'playing',
+          cond: 'allPlayersReady',
+          actions: 'initializeGame'
+        }
+      }
+    },
+    ready: {
+      on: {
+        PLAYER_READY: {
+          actions: 'setPlayerReady'
+        },
+        START_GAME: {
+          target: 'playing',
+          cond: 'allPlayersReady',
+          actions: 'initializeGame'
+        },
+        PLAYER_LEAVE: {
+          actions: 'removePlayer',
+          target: 'waiting'
+        }
+      }
+    },
+    playing: {
+      on: {
+        MAKE_MOVE: {
+          actions: ['recordMove', 'updateGameState', 'nextTurn'],
+          target: 'finished',
+          cond: 'isGameFinished'
+        },
+        MAKE_MOVE: {
+          actions: ['recordMove', 'updateGameState', 'nextTurn']
+        },
+        PLAYER_DISCONNECT: {
+          actions: 'handleDisconnect'
+        }
+      }
+    },
+    finished: {
+      on: {
+        NEW_GAME: {
+          target: 'waiting',
+          actions: 'resetGame'
+        }
+      }
+    }
+  }
+}, {
+  actions: {
+    addPlayer: assign({
+      players: ({ context, event }) => {
+        const existingPlayer = context.players.find(p => p.id === event.player.id);
+        if (existingPlayer) return context.players;
+
+        return [...context.players, {
+          ...event.player,
+          isReady: false,
+          score: 0
+        }];
+      }
+    }),
+    setPlayerReady: assign({
+      players: ({ context, event }) =>
+        context.players.map(player =>
+          player.id === event.playerId
+            ? { ...player, isReady: true }
+            : player
+        )
+    }),
+    initializeGame: assign({
+      gameData: ({ context }) => initializeGameData(context.gameType),
+      startedAt: Date.now(),
+      currentTurn: 0
+    }),
+    recordMove: assign({
+      moves: ({ context, event }) => [...context.moves, {
+        playerId: event.playerId,
+        moveData: event.moveData,
+        timestamp: Date.now(),
+        turnNumber: context.moves.length
+      }]
+    }),
+    updateGameState: assign({
+      gameData: ({ context, event }) =>
+        applyMove(context.gameData, event.moveData, context.gameType)
+    }),
+    nextTurn: assign({
+      currentTurn: ({ context }) => (context.currentTurn + 1) % context.players.length
+    }),
+    removePlayer: assign({
+      players: ({ context, event }) =>
+        context.players.filter(p => p.id !== event.playerId)
+    })
+  },
+  guards: {
+    canStartGame: ({ context }) => context.players.length >= 2,
+    allPlayersReady: ({ context }) =>
+      context.players.length >= 2 && context.players.every(p => p.isReady),
+    isGameFinished: ({ context }) =>
+      checkGameFinished(context.gameData, context.gameType)
+  }
+});
+
+// Game-specific logic
+function initializeGameData(gameType: string): any {
+  switch (gameType) {
+    case 'wordle':
+      return {
+        targetWord: selectRandomWord(),
+        guesses: {},
+        maxGuesses: 6
+      };
+    case 'tic-tac-toe':
+      return {
+        board: Array(9).fill(null),
+        symbols: { 0: 'X', 1: 'O' }
+      };
+    default:
+      return {};
+  }
+}
+
+function applyMove(gameData: any, moveData: any, gameType: string): any {
+  switch (gameType) {
+    case 'wordle':
+      return {
+        ...gameData,
+        guesses: {
+          ...gameData.guesses,
+          [moveData.playerId]: [
+            ...(gameData.guesses[moveData.playerId] || []),
+            moveData.guess
+          ]
+        }
+      };
+    case 'tic-tac-toe':
+      const newBoard = [...gameData.board];
+      newBoard[moveData.position] = moveData.symbol;
+      return { ...gameData, board: newBoard };
+    default:
+      return gameData;
+  }
+}
+
+function checkGameFinished(gameData: any, gameType: string): boolean {
+  switch (gameType) {
+    case 'wordle':
+      return Object.values(gameData.guesses).some((guesses: any) =>
+        guesses.includes(gameData.targetWord) || guesses.length >= gameData.maxGuesses
+      );
+    case 'tic-tac-toe':
+      return checkTicTacToeWin(gameData.board) || !gameData.board.includes(null);
+    default:
+      return false;
+  }
+}
+```
+
+## React Game Components
+
+```tsx
+// Game Room Component
+import React, { useState, useEffect } from 'react';
+import { NSMClient } from '@nsm/client';
+import { createActor } from 'xstate';
+import { gameRoomMachine } from './game-machine';
+import { WordleGame } from './games/WordleGame';
+import { TicTacToeGame } from './games/TicTacToeGame';
+
+export const GameRoom: React.FC = () => {
+  const [client] = useState(() => new NSMClient({ useNip07: true }));
+  const [actor] = useState(() => createActor(gameRoomMachine));
+  const [state, setState] = useState<any>({});
+  const [playerName, setPlayerName] = useState('');
+
+  useEffect(() => {
+    const subscription = actor.subscribe(setState);
+
+    client.connect().then(async () => {
+      const userId = await client.getUserPublicKey();
+
+      // Set up game room collaboration
+      client.subscribeToApplication('game-rooms', {
+        onInteraction: handleGameAction,
+        onStateUpdate: handleGameSync
+      });
+
+      actor.start();
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleGameAction = (interaction: any) => {
+    const { action, payload } = interaction;
+    actor.send({ type: action, ...payload });
+  };
+
+  const handleGameSync = (stateUpdate: any) => {
+    // Sync complete game state
+    if (stateUpdate.gameState) {
+      actor.send({
+        type: 'SYNC_GAME_STATE',
+        gameState: stateUpdate.gameState
+      });
+    }
+  };
+
+  const joinGame = async (gameId: string) => {
+    const userId = await client.getUserPublicKey();
+
+    actor.send({
+      type: 'PLAYER_JOIN',
+      player: {
+        id: userId,
+        name: playerName || `Player-${userId.slice(0, 8)}`
+      }
+    });
+
+    await client.publishInteraction({
+      applicationId: 'game-rooms',
+      action: 'PLAYER_JOIN',
+      payload: {
+        gameId,
+        player: {
+          id: userId,
+          name: playerName || `Player-${userId.slice(0, 8)}`
+        }
+      }
+    });
+  };
+
+  const makeMove = async (moveData: any) => {
+    const userId = await client.getUserPublicKey();
+
+    actor.send({
+      type: 'MAKE_MOVE',
+      playerId: userId,
+      moveData
+    });
+
+    await client.publishInteraction({
+      applicationId: 'game-rooms',
+      action: 'MAKE_MOVE',
+      payload: {
+        gameId: state.context.gameId,
+        playerId: userId,
+        moveData
+      }
+    });
+  };
+
+  const currentPlayer = state.context?.players?.[state.context.currentTurn];
+  const isMyTurn = currentPlayer?.id === state.context?.currentUser?.id;
+
+  return (
+    <div className="game-room">
+      <header className="game-header">
+        <h1>🎮 Multiplayer Games</h1>
+        <div className="game-info">
+          <span>Game: {state.context?.gameType}</span>
+          <span>Turn: {currentPlayer?.name || 'Waiting...'}</span>
+        </div>
+      </header>
+
+      <div className="game-content">
+        <aside className="players-panel">
+          <h3>👥 Players ({state.context?.players?.length}/{state.context?.maxPlayers})</h3>
+
+          {state.context?.players?.map((player: any) => (
+            <div key={player.id} className={`player ${player.id === currentPlayer?.id ? 'current-turn' : ''}`}>
+              <div className="player-info">
+                <span className="player-name">{player.name}</span>
+                <span className="player-score">Score: {player.score}</span>
+              </div>
+              <div className="player-status">
+                {player.isReady ? '✅' : '⏳'}
+              </div>
+            </div>
+          ))}
+
+          {state.context?.spectators?.length > 0 && (
+            <div className="spectators">
+              <h4>👀 Spectators</h4>
+              {state.context.spectators.map((spectator: string) => (
+                <div key={spectator} className="spectator">
+                  {spectator}
+                </div>
+              ))}
+            </div>
+          )}
+        </aside>
+
+        <main className="game-area">
+          {state.matches('waiting') && (
+            <div className="game-lobby">
+              <h2>Waiting for Players</h2>
+              <p>Waiting for more players to join...</p>
+
+              {!state.context?.players?.find((p: any) => p.id === state.context?.currentUser?.id) && (
+                <div className="join-form">
+                  <input
+                    type="text"
+                    placeholder="Your name"
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                  />
+                  <button onClick={() => joinGame(state.context.gameId)}>
+                    Join Game
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {state.matches('ready') && (
+            <div className="game-ready">
+              <h2>Ready to Start!</h2>
+              <p>All players ready. Starting game...</p>
+              <button
+                onClick={() => actor.send({ type: 'START_GAME' })}
+                disabled={!state.context?.allPlayersReady}
+              >
+                Start Game
+              </button>
+            </div>
+          )}
+
+          {state.matches('playing') && (
+            <div className="active-game">
+              {renderGameComponent(state.context, makeMove, isMyTurn)}
+            </div>
+          )}
+
+          {state.matches('finished') && (
+            <div className="game-finished">
+              <h2>🎉 Game Over!</h2>
+              <div className="final-scores">
+                {state.context?.players
+                  ?.sort((a: any, b: any) => b.score - a.score)
+                  .map((player: any, index: number) => (
+                    <div key={player.id} className={`score-item rank-${index + 1}`}>
+                      <span className="rank">#{index + 1}</span>
+                      <span className="name">{player.name}</span>
+                      <span className="score">{player.score}</span>
+                    </div>
+                  ))}
+              </div>
+              <button onClick={() => actor.send({ type: 'NEW_GAME' })}>
+                Play Again
+              </button>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+};
+
+function renderGameComponent(context: any, onMove: (move: any) => void, isMyTurn: boolean) {
+  switch (context.gameType) {
+    case 'wordle':
+      return (
+        <WordleGame
+          gameData={context.gameData}
+          playerId={context.currentUser?.id}
+          isMyTurn={isMyTurn}
+          onGuess={onMove}
+        />
+      );
+    case 'tic-tac-toe':
+      return (
+        <TicTacToeGame
+          board={context.gameData.board}
+          currentPlayer={context.currentTurn}
+          isMyTurn={isMyTurn}
+          onMove={onMove}
+        />
+      );
+    default:
+      return <div>Unknown game type</div>;
+  }
+}
+```
+
+## Wordle Multiplayer Implementation
+
+```tsx
+// Multiplayer Wordle Game
+export const WordleGame: React.FC<{
+  gameData: any;
+  playerId: string;
+  isMyTurn: boolean;
+  onGuess: (guess: string) => void;
+}> = ({ gameData, playerId, isMyTurn, onGuess }) => {
+  const [currentGuess, setCurrentGuess] = useState('');
+  const playerGuesses = gameData.guesses[playerId] || [];
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (currentGuess.length === 5 && isMyTurn) {
+      onGuess({ guess: currentGuess, playerId });
+      setCurrentGuess('');
+    }
+  };
+
+  const getLetterStatus = (letter: string, position: number, guess: string) => {
+    if (guess === gameData.targetWord) return 'correct';
+    if (gameData.targetWord.includes(letter)) {
+      return gameData.targetWord[position] === letter ? 'correct' : 'present';
+    }
+    return 'absent';
+  };
+
+  return (
+    <div className="wordle-game">
+      <h3>🎯 Multiplayer Wordle</h3>
+
+      <div className="game-grid">
+        {Array(gameData.maxGuesses).fill(null).map((_, rowIndex) => (
+          <div key={rowIndex} className="guess-row">
+            {Array(5).fill(null).map((_, colIndex) => {
+              const guess = playerGuesses[rowIndex];
+              const letter = guess ? guess[colIndex] : '';
+              const status = guess ? getLetterStatus(letter, colIndex, guess) : '';
+
+              return (
+                <div key={colIndex} className={`letter-cell ${status}`}>
+                  {letter}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {isMyTurn && playerGuesses.length < gameData.maxGuesses && (
+        <form onSubmit={handleSubmit} className="guess-form">
+          <input
+            type="text"
+            value={currentGuess}
+            onChange={(e) => setCurrentGuess(e.target.value.toUpperCase())}
+            maxLength={5}
+            placeholder="Your guess..."
+            pattern="[A-Za-z]{5}"
+            required
+          />
+          <button type="submit" disabled={currentGuess.length !== 5}>
+            Submit Guess
+          </button>
+        </form>
+      )}
+
+      {!isMyTurn && (
+        <div className="waiting-turn">
+          ⏳ Waiting for your turn...
+        </div>
+      )}
+
+      {/* Show other players' progress */}
+      <div className="other-players">
+        {Object.entries(gameData.guesses)
+          .filter(([id]) => id !== playerId)
+          .map(([id, guesses]) => (
+            <div key={id} className="player-progress">
+              <h4>Player {id.slice(0, 8)}</h4>
+              <div className="mini-grid">
+                {(guesses as string[]).map((guess, i) => (
+                  <div key={i} className="mini-row">
+                    {guess.split('').map((letter, j) => (
+                      <div
+                        key={j}
+                        className={`mini-cell ${getLetterStatus(letter, j, guess)}`}
+                      >
+                        {letter}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+      </div>
+    </div>
+  );
+};
+```
+
+## Styling
+
+```css
+.game-room {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f3f4f6;
+}
+
+.game-header {
+  background: white;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.game-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.players-panel {
+  width: 300px;
+  background: white;
+  padding: 1.5rem;
+  border-right: 1px solid #e5e7eb;
+  overflow-y: auto;
+}
+
+.player {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: 6px;
+  background: #f9fafb;
+}
+
+.player.current-turn {
+  background: #dbeafe;
+  border: 2px solid #3b82f6;
+}
+
+.game-area {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.wordle-game {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.game-grid {
+  display: grid;
+  gap: 0.25rem;
+  margin: 2rem 0;
+}
+
+.guess-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.25rem;
+}
+
+.letter-cell {
+  width: 50px;
+  height: 50px;
+  border: 2px solid #d1d5db;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.25rem;
+  text-transform: uppercase;
+}
+
+.letter-cell.correct {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+.letter-cell.present {
+  background: #f59e0b;
+  color: white;
+  border-color: #f59e0b;
+}
+
+.letter-cell.absent {
+  background: #6b7280;
+  color: white;
+  border-color: #6b7280;
+}
+
+.guess-form {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin: 2rem 0;
+}
+
+.guess-form input {
+  padding: 0.75rem;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  text-align: center;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  width: 200px;
+}
+
+.other-players {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.player-progress {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.mini-grid {
+  display: grid;
+  gap: 2px;
+}
+
+.mini-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px;
+}
+
+.mini-cell {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: bold;
+  border-radius: 2px;
+}
+```
+
+This multiplayer game example demonstrates how NSM Framework enables complex real-time game mechanics with turn management, player coordination, and spectator functionality, all running on a decentralized network without requiring dedicated game servers.

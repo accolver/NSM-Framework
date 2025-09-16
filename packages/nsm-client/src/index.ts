@@ -35,3 +35,32 @@ export type {
   HashVerificationOptions,
   CryptoAuditEntry
 } from '@nsm/crypto';
+
+// Export DoS protection components
+export {
+  DoSProtection,
+  DoSViolationType
+} from './security/dos-protection';
+export type {
+  DoSProtectionConfig,
+  DoSCheckResult,
+  DoSMetrics,
+  ResourceUsage,
+  RateLimitConfig,
+  EventFilterConfig,
+  ResourceMonitorConfig,
+  ThrottlingConfig
+} from './security/dos-protection';
+
+// Export security sandbox components
+export {
+  SecuritySandbox,
+  SecurityError,
+  CSPManager,
+  securitySandbox
+} from './security/sandbox';
+export type {
+  SecurityPolicy,
+  ExecutionContext,
+  SecurityMetrics
+} from './security/sandbox';

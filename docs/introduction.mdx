@@ -18,6 +18,32 @@ description: 'Welcome to NSM Framework - Building deterministic, multi-user appl
 
 NSM (Nostr State Machine) Framework is a powerful toolkit for building **deterministic, multi-user applications** on the Nostr protocol. By combining state machines with Nostr's decentralized messaging, NSM enables developers to create collaborative applications that are both predictable and resilient.
 
+### Key Concepts
+
+**Nostr State Machines** combine three powerful paradigms:
+
+1. **State Machines**: Predictable, deterministic state transitions using XState v5
+2. **Nostr Protocol**: Decentralized, censorship-resistant communication layer
+3. **Event Sourcing**: Complete audit trail of all state changes over time
+
+This unique combination enables applications where multiple users can collaborate in real-time while maintaining data integrity and consistency across a decentralized network.
+
+### Why NSM Framework?
+
+Traditional collaborative applications face several challenges:
+
+- **Centralized servers** create single points of failure and censorship risk
+- **Inconsistent state** between users leads to conflicts and data loss
+- **Complex synchronization** logic is hard to implement and maintain
+- **Poor offline experience** when network connectivity is unreliable
+
+NSM Framework solves these problems by:
+
+- **Decentralizing communication** through Nostr relays
+- **Ensuring deterministic behavior** with state machines
+- **Providing conflict resolution** through event ordering and canonical state
+- **Enabling offline-first design** with eventual consistency
+
 <CardGroup cols={2}>
   <Card
     title="Deterministic State"
@@ -106,27 +132,73 @@ NSM Framework is perfect for building:
 
 ## Architecture Overview
 
-NSM Framework consists of several key components:
+NSM Framework consists of several key components working together to enable decentralized, collaborative applications:
 
 ```mermaid
 graph TB
-    A[NSM Client] --> B[State Machine]
-    A --> C[Nostr Adapter]
-    B --> D[XState Integration]
-    C --> E[Nostr Network]
+    A[NSM Client] --> B[State Machine Engine]
+    A --> C[Nostr Communication Layer]
+    A --> H[Security Sandbox]
+    B --> D[XState v5 Integration]
+    B --> I[State Reconciliation]
+    C --> E[Nostr Relays Network]
+    C --> J[Blossom Storage]
     F[Event Store] --> A
-    G[Collaboration Engine] --> A
-    H[Security Layer] --> A
+    G[Real-time Collaboration] --> A
+    K[Developer Tools] --> A
+
+    subgraph "NSM Event Types"
+        L[Definition Events<br/>Kind: 30079]
+        M[Interaction Events<br/>Kind: 7000-7999]
+        N[State Update Events<br/>Kind: 10079]
+    end
+
+    E --> L
+    E --> M
+    E --> N
 ```
 
 ### Core Components
 
-1. **NSM Client** - Main entry point for applications
-2. **State Machine** - Deterministic state management with XState
-3. **Nostr Adapter** - Integration with Nostr protocol
-4. **Event Store** - Persistent event storage and replay
-5. **Collaboration Engine** - Multi-user state synchronization
-6. **Security Layer** - Cryptographic verification and access control
+1. **NSM Client** - Main entry point providing high-level API for building applications
+   - Application discovery and loading
+   - Event publishing and subscription
+   - State management and synchronization
+
+2. **State Machine Engine** - Deterministic state management with sandboxed execution
+   - XState v5 integration for state machine definition and interpretation
+   - Secure sandbox for executing untrusted state machine code
+   - Optimistic updates with conflict resolution
+
+3. **Nostr Communication Layer** - Integration with Nostr protocol and Blossom storage
+   - NDK-based Nostr client with relay management
+   - Blossom integration for large asset storage (state machine code, media files)
+   - Cryptographic verification and signature handling
+
+4. **Security Sandbox** - Isolated execution environment for untrusted code
+   - Web Worker-based isolation
+   - Resource constraints and timeout management
+   - Code injection prevention and validation
+
+5. **Event Store** - Persistent event storage with replay capabilities
+   - Complete audit trail of all state changes
+   - Time-travel debugging and state reconstruction
+   - Event filtering and subscription management
+
+6. **Real-time Collaboration Engine** - Multi-user state synchronization
+   - Deterministic conflict resolution
+   - User presence and cursor tracking
+   - Session management and participant coordination
+
+### NSM Protocol Specification
+
+NSM Framework uses three specialized Nostr event kinds:
+
+- **Kind 30079**: NSM Definition Events - Define state machine applications with metadata, initial state, and interaction schemas
+- **Kind 7000-7999**: NSM Interaction Events - User actions and state machine inputs with application addressing
+- **Kind 10079**: NSM State Update Events - Canonical state snapshots for synchronization and recovery
+
+Each event type includes comprehensive validation, cryptographic verification, and integration with existing Nostr infrastructure.
 
 ## Community & Support
 

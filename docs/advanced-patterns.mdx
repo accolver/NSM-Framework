@@ -1,0 +1,1102 @@
+---
+title: 'Advanced Patterns & Best Practices'
+description: 'Master advanced NSM Framework patterns for complex collaborative applications'
+---
+
+# Advanced NSM Framework Patterns
+
+This guide covers advanced patterns and best practices for building sophisticated collaborative applications with the NSM Framework. Learn how to implement complex state coordination, optimize performance, and handle enterprise-scale requirements.
+
+## Multi-Machine Coordination
+
+For complex applications, you may need multiple state machines working together. NSM Framework supports sophisticated orchestration patterns.
+
+### Parent-Child Machine Pattern
+
+```typescript
+import { createMachine, assign, spawn, ActorRefFrom } from 'xstate';
+
+// Child machine for individual chat rooms
+const chatRoomMachine = createMachine({
+  id: 'chatRoom',
+  initial: 'active',
+  context: {
+    roomId: '',
+    messages: [],
+    participants: [],
+    isArchived: false
+  },
+  states: {
+    active: {
+      on: {
+        SEND_MESSAGE: {
+          actions: 'addMessage'
+        },
+        USER_JOINED: {
+          actions: 'addParticipant'
+        },
+        USER_LEFT: {
+          actions: 'removeParticipant'
+        },
+        ARCHIVE_ROOM: {
+          target: 'archived'
+        }
+      }
+    },
+    archived: {
+      on: {
+        REACTIVATE_ROOM: {
+          target: 'active'
+        }
+      }
+    }
+  }
+}, {
+  actions: {
+    addMessage: assign({
+      messages: ({ context, event }) => [
+        ...context.messages,
+        {
+          id: generateId(),
+          text: event.text,
+          sender: event.userId,
+          timestamp: Date.now()
+        }
+      ]
+    }),
+    addParticipant: assign({
+      participants: ({ context, event }) =>
+        context.participants.includes(event.userId)
+          ? context.participants
+          : [...context.participants, event.userId]
+    }),
+    removeParticipant: assign({
+      participants: ({ context, event }) =>
+        context.participants.filter(id => id !== event.userId)
+    })
+  }
+});
+
+// Parent machine coordinating multiple chat rooms
+const chatAppMachine = createMachine({
+  id: 'chatApp',
+  initial: 'initializing',
+  context: {
+    currentUser: null,
+    activeRooms: new Map(),
+    currentRoomId: null,
+    globalSettings: {}
+  },
+  states: {
+    initializing: {
+      on: {
+        USER_AUTHENTICATED: {
+          target: 'ready',
+          actions: 'setCurrentUser'
+        }
+      }
+    },
+    ready: {
+      on: {
+        CREATE_ROOM: {
+          actions: 'createRoom'
+        },
+        JOIN_ROOM: {
+          actions: 'joinRoom'
+        },
+        LEAVE_ROOM: {
+          actions: 'leaveRoom'
+        },
+        SET_CURRENT_ROOM: {
+          actions: 'setCurrentRoom'
+        },
+        CLOSE_ROOM: {
+          actions: 'closeRoom'
+        }
+      }
+    }
+  }
+}, {
+  actions: {
+    setCurrentUser: assign({
+      currentUser: ({ event }) => event.userId
+    }),
+    createRoom: assign({
+      activeRooms: ({ context, event }) => {
+        const roomId = event.roomId || generateId();
+        const roomActor = spawn(chatRoomMachine.provide({
+          input: { roomId, createdBy: context.currentUser }
+        }), roomId);
+
+        const newRooms = new Map(context.activeRooms);
+        newRooms.set(roomId, roomActor);
+        return newRooms;
+      }
+    }),
+    joinRoom: ({ context, event }) => {
+      const roomActor = context.activeRooms.get(event.roomId);
+      if (roomActor) {
+        roomActor.send({
+          type: 'USER_JOINED',
+          userId: context.currentUser
+        });
+      }
+    },
+    leaveRoom: ({ context, event }) => {
+      const roomActor = context.activeRooms.get(event.roomId);
+      if (roomActor) {
+        roomActor.send({
+          type: 'USER_LEFT',
+          userId: context.currentUser
+        });
+      }
+    },
+    setCurrentRoom: assign({
+      currentRoomId: ({ event }) => event.roomId
+    }),
+    closeRoom: assign({
+      activeRooms: ({ context, event }) => {
+        const newRooms = new Map(context.activeRooms);
+        const roomActor = newRooms.get(event.roomId);
+        if (roomActor) {
+          roomActor.stop();
+          newRooms.delete(event.roomId);
+        }
+        return newRooms;
+      },
+      currentRoomId: ({ context, event }) =>
+        context.currentRoomId === event.roomId ? null : context.currentRoomId
+    })
+  }
+});
+```
+
+### Machine Communication Hub
+
+```typescript
+// Central communication hub for coordinating multiple machines
+class NSMMachineHub {
+  private machines: Map<string, any> = new Map();
+  private subscriptions: Map<string, any> = new Map();
+  private eventBus: EventEmitter = new EventEmitter();
+
+  registerMachine(id: string, machine: any, nsmService: any) {
+    const actor = createActor(machine);
+
+    // Subscribe to machine events
+    const subscription = actor.subscribe((state) => {
+      // Broadcast state changes to other machines
+      this.eventBus.emit('machineStateChange', {
+        machineId: id,
+        state: state.context,
+        changed: state.changed
+      });
+
+      // Sync with NSM network
+      if (state.changed && nsmService) {
+        this.syncMachineState(id, state.context, nsmService);
+      }
+    });
+
+    this.machines.set(id, actor);
+    this.subscriptions.set(id, subscription);
+
+    actor.start();
+    return actor;
+  }
+
+  sendToMachine(machineId: string, event: any) {
+    const machine = this.machines.get(machineId);
+    if (machine) {
+      machine.send(event);
+    }
+  }
+
+  broadcastEvent(event: any, excludeMachine?: string) {
+    this.machines.forEach((machine, id) => {
+      if (id !== excludeMachine) {
+        machine.send(event);
+      }
+    });
+  }
+
+  private async syncMachineState(machineId: string, state: any, nsmService: any) {
+    try {
+      await nsmService.publishStateUpdate({
+        applicationId: `multi-machine-${machineId}`,
+        state: {
+          machineId,
+          state,
+          timestamp: Date.now()
+        }
+      });
+    } catch (error) {
+      console.error(`Failed to sync machine ${machineId}:`, error);
+    }
+  }
+
+  onMachineStateChange(callback: (data: any) => void) {
+    this.eventBus.on('machineStateChange', callback);
+  }
+
+  dispose() {
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+    this.machines.forEach(machine => machine.stop());
+    this.machines.clear();
+    this.subscriptions.clear();
+    this.eventBus.removeAllListeners();
+  }
+}
+```
+
+## Advanced State Reconciliation
+
+### Custom Conflict Resolution Strategies
+
+```typescript
+interface ConflictResolutionStrategy {
+  resolve<T>(
+    localState: T,
+    remoteState: T,
+    lastKnownState: T,
+    metadata: ConflictMetadata
+  ): T;
+}
+
+interface ConflictMetadata {
+  localTimestamp: number;
+  remoteTimestamp: number;
+  localUser: string;
+  remoteUser: string;
+  conflictType: 'concurrent' | 'ordering' | 'structural';
+}
+
+class LastWriterWinsStrategy implements ConflictResolutionStrategy {
+  resolve<T>(localState: T, remoteState: T, lastKnownState: T, metadata: ConflictMetadata): T {
+    return metadata.remoteTimestamp > metadata.localTimestamp ? remoteState : localState;
+  }
+}
+
+class OperationalTransformStrategy implements ConflictResolutionStrategy {
+  resolve<T>(localState: T, remoteState: T, lastKnownState: T, metadata: ConflictMetadata): T {
+    // Implement operational transformation for specific data types
+    if (this.isTextEdit(localState, remoteState)) {
+      return this.transformTextEdits(localState, remoteState, lastKnownState) as T;
+    }
+
+    if (this.isArrayOperation(localState, remoteState)) {
+      return this.transformArrayOperations(localState, remoteState, lastKnownState) as T;
+    }
+
+    // Fallback to timestamp-based resolution
+    return metadata.remoteTimestamp > metadata.localTimestamp ? remoteState : localState;
+  }
+
+  private isTextEdit(local: any, remote: any): boolean {
+    return typeof local === 'string' && typeof remote === 'string';
+  }
+
+  private isArrayOperation(local: any, remote: any): boolean {
+    return Array.isArray(local) && Array.isArray(remote);
+  }
+
+  private transformTextEdits(local: any, remote: any, lastKnown: any): string {
+    // Simplified operational transform for text
+    // In production, use libraries like ShareJS or Yjs
+    const localDiff = this.computeTextDiff(lastKnown, local);
+    const remoteDiff = this.computeTextDiff(lastKnown, remote);
+
+    return this.applyTextTransforms(lastKnown, [localDiff, remoteDiff]);
+  }
+
+  private transformArrayOperations(local: any[], remote: any[], lastKnown: any[]): any[] {
+    // Implement array operational transformation
+    const localOps = this.computeArrayDiff(lastKnown, local);
+    const remoteOps = this.computeArrayDiff(lastKnown, remote);
+
+    return this.applyArrayTransforms(lastKnown, this.transformOps(localOps, remoteOps));
+  }
+
+  private computeTextDiff(old: string, new_: string): any {
+    // Implementation would use a proper diff algorithm
+    return { type: 'text-diff', old, new: new_ };
+  }
+
+  private computeArrayDiff(old: any[], new_: any[]): any[] {
+    // Implementation would compute array operations
+    return [];
+  }
+
+  private applyTextTransforms(base: string, transforms: any[]): string {
+    // Apply transformed operations
+    return base;
+  }
+
+  private applyArrayTransforms(base: any[], operations: any[]): any[] {
+    // Apply transformed operations
+    return base;
+  }
+
+  private transformOps(localOps: any[], remoteOps: any[]): any[] {
+    // Transform operations against each other
+    return [...localOps, ...remoteOps];
+  }
+}
+
+// Advanced state reconciliation service
+class AdvancedStateReconciler {
+  private strategy: ConflictResolutionStrategy;
+  private stateHistory: Map<string, any[]> = new Map();
+
+  constructor(strategy: ConflictResolutionStrategy = new LastWriterWinsStrategy()) {
+    this.strategy = strategy;
+  }
+
+  reconcileState<T>(
+    machineId: string,
+    localState: T,
+    remoteState: T,
+    metadata: ConflictMetadata
+  ): T {
+    // Get last known common state
+    const history = this.stateHistory.get(machineId) || [];
+    const lastKnownState = history.length > 0 ? history[history.length - 1] : localState;
+
+    // Detect conflict type
+    const conflictType = this.detectConflictType(localState, remoteState, lastKnownState);
+
+    const enhancedMetadata = { ...metadata, conflictType };
+
+    // Apply resolution strategy
+    const resolvedState = this.strategy.resolve(
+      localState,
+      remoteState,
+      lastKnownState,
+      enhancedMetadata
+    );
+
+    // Update history
+    this.updateStateHistory(machineId, resolvedState);
+
+    return resolvedState;
+  }
+
+  private detectConflictType(local: any, remote: any, lastKnown: any): ConflictMetadata['conflictType'] {
+    // Simplified conflict detection
+    if (JSON.stringify(local) === JSON.stringify(remote)) {
+      return 'concurrent';
+    }
+
+    // Check for structural changes
+    if (this.hasStructuralChanges(local, remote)) {
+      return 'structural';
+    }
+
+    return 'ordering';
+  }
+
+  private hasStructuralChanges(local: any, remote: any): boolean {
+    // Detect structural differences
+    const localKeys = Object.keys(local || {});
+    const remoteKeys = Object.keys(remote || {});
+
+    return localKeys.length !== remoteKeys.length ||
+           !localKeys.every(key => remoteKeys.includes(key));
+  }
+
+  private updateStateHistory(machineId: string, state: any): void {
+    const history = this.stateHistory.get(machineId) || [];
+    history.push(state);
+
+    // Keep only recent history (last 10 states)
+    if (history.length > 10) {
+      history.shift();
+    }
+
+    this.stateHistory.set(machineId, history);
+  }
+}
+```
+
+## Performance Optimization Patterns
+
+### State Diff and Minimal Updates
+
+```typescript
+class OptimizedNSMService {
+  private lastState: any = null;
+  private pendingUpdates: Set<string> = new Set();
+  private updateQueue: Array<{ path: string; value: any }> = [];
+
+  constructor(private baseService: any) {}
+
+  // Optimize state updates with diffing
+  async updateState(newState: any): Promise<void> {
+    if (!this.lastState) {
+      this.lastState = newState;
+      return this.baseService.updateState(newState);
+    }
+
+    const diff = this.computeStateDiff(this.lastState, newState);
+    if (diff.length === 0) return; // No changes
+
+    // Send only the diff
+    await this.baseService.updateStateDiff(diff);
+    this.lastState = newState;
+  }
+
+  private computeStateDiff(oldState: any, newState: any, path: string = ''): any[] {
+    const changes: any[] = [];
+
+    if (typeof newState !== 'object' || newState === null) {
+      if (oldState !== newState) {
+        changes.push({ path, value: newState, type: 'update' });
+      }
+      return changes;
+    }
+
+    // Handle arrays
+    if (Array.isArray(newState)) {
+      if (!Array.isArray(oldState)) {
+        changes.push({ path, value: newState, type: 'replace' });
+        return changes;
+      }
+
+      // Array diff
+      const maxLength = Math.max(oldState.length, newState.length);
+      for (let i = 0; i < maxLength; i++) {
+        const itemPath = `${path}[${i}]`;
+        if (i >= oldState.length) {
+          changes.push({ path: itemPath, value: newState[i], type: 'insert' });
+        } else if (i >= newState.length) {
+          changes.push({ path: itemPath, type: 'delete' });
+        } else {
+          changes.push(...this.computeStateDiff(oldState[i], newState[i], itemPath));
+        }
+      }
+      return changes;
+    }
+
+    // Handle objects
+    const allKeys = new Set([...Object.keys(oldState || {}), ...Object.keys(newState)]);
+
+    for (const key of allKeys) {
+      const keyPath = path ? `${path}.${key}` : key;
+      const oldValue = oldState?.[key];
+      const newValue = newState[key];
+
+      if (!(key in oldState)) {
+        changes.push({ path: keyPath, value: newValue, type: 'insert' });
+      } else if (!(key in newState)) {
+        changes.push({ path: keyPath, type: 'delete' });
+      } else {
+        changes.push(...this.computeStateDiff(oldValue, newValue, keyPath));
+      }
+    }
+
+    return changes;
+  }
+}
+
+// Batched network operations
+class BatchedNetworkService {
+  private pendingOperations: any[] = [];
+  private batchTimeout: NodeJS.Timeout | null = null;
+  private readonly BATCH_SIZE = 50;
+  private readonly BATCH_DELAY = 100; // ms
+
+  constructor(private networkService: any) {}
+
+  async queueOperation(operation: any): Promise<void> {
+    this.pendingOperations.push(operation);
+
+    if (this.pendingOperations.length >= this.BATCH_SIZE) {
+      await this.flushBatch();
+    } else if (!this.batchTimeout) {
+      this.batchTimeout = setTimeout(() => this.flushBatch(), this.BATCH_DELAY);
+    }
+  }
+
+  private async flushBatch(): Promise<void> {
+    if (this.pendingOperations.length === 0) return;
+
+    const batch = [...this.pendingOperations];
+    this.pendingOperations = [];
+
+    if (this.batchTimeout) {
+      clearTimeout(this.batchTimeout);
+      this.batchTimeout = null;
+    }
+
+    try {
+      await this.networkService.sendBatch(batch);
+    } catch (error) {
+      console.error('Batch operation failed:', error);
+      // Implement retry logic here
+    }
+  }
+
+  async flush(): Promise<void> {
+    await this.flushBatch();
+  }
+}
+```
+
+### Memory-Efficient Event Storage
+
+```typescript
+class CircularEventBuffer {
+  private buffer: any[];
+  private size: number;
+  private head: number = 0;
+  private tail: number = 0;
+  private count: number = 0;
+
+  constructor(maxSize: number = 1000) {
+    this.size = maxSize;
+    this.buffer = new Array(maxSize);
+  }
+
+  push(event: any): void {
+    this.buffer[this.tail] = event;
+    this.tail = (this.tail + 1) % this.size;
+
+    if (this.count < this.size) {
+      this.count++;
+    } else {
+      this.head = (this.head + 1) % this.size;
+    }
+  }
+
+  getEvents(limit?: number): any[] {
+    const actualLimit = Math.min(limit || this.count, this.count);
+    const events: any[] = [];
+
+    for (let i = 0; i < actualLimit; i++) {
+      const index = (this.head + i) % this.size;
+      events.push(this.buffer[index]);
+    }
+
+    return events;
+  }
+
+  getRecentEvents(limit: number = 100): any[] {
+    const startIndex = Math.max(0, this.count - limit);
+    return this.getEvents().slice(startIndex);
+  }
+
+  clear(): void {
+    this.head = 0;
+    this.tail = 0;
+    this.count = 0;
+  }
+
+  size(): number {
+    return this.count;
+  }
+}
+
+class CompressedEventStore {
+  private compressionThreshold: number = 100;
+  private compressionRatio: number = 0.1; // Keep 10% of events when compressing
+
+  constructor(private buffer: CircularEventBuffer) {}
+
+  addEvent(event: any): void {
+    this.buffer.push(event);
+
+    if (this.buffer.size() > this.compressionThreshold) {
+      this.compressHistory();
+    }
+  }
+
+  private compressHistory(): void {
+    const events = this.buffer.getEvents();
+    const keepCount = Math.floor(events.length * this.compressionRatio);
+
+    // Keep recent events and important snapshots
+    const importantEvents = this.selectImportantEvents(events, keepCount);
+
+    this.buffer.clear();
+    importantEvents.forEach(event => this.buffer.push(event));
+  }
+
+  private selectImportantEvents(events: any[], keepCount: number): any[] {
+    // Strategy: Keep recent events and state snapshots
+    const recentEvents = events.slice(-keepCount / 2);
+    const snapshots = events.filter(event => event.type === 'STATE_SNAPSHOT');
+    const importantMarkers = events.filter(event => event.important);
+
+    const combined = [...snapshots, ...importantMarkers, ...recentEvents];
+
+    // Remove duplicates and sort by timestamp
+    const unique = Array.from(new Map(combined.map(e => [e.id, e])).values())
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    return unique.slice(-keepCount);
+  }
+}
+```
+
+## Security Patterns
+
+### Permission-Based Access Control
+
+```typescript
+interface Permission {
+  action: string;
+  resource: string;
+  conditions?: Record<string, any>;
+}
+
+interface Role {
+  name: string;
+  permissions: Permission[];
+}
+
+interface User {
+  id: string;
+  roles: string[];
+  attributes: Record<string, any>;
+}
+
+class NSMPermissionManager {
+  private roles: Map<string, Role> = new Map();
+  private users: Map<string, User> = new Map();
+
+  defineRole(role: Role): void {
+    this.roles.set(role.name, role);
+  }
+
+  assignUserRole(userId: string, roleName: string): void {
+    const user = this.users.get(userId) || { id: userId, roles: [], attributes: {} };
+    if (!user.roles.includes(roleName)) {
+      user.roles.push(roleName);
+      this.users.set(userId, user);
+    }
+  }
+
+  checkPermission(userId: string, action: string, resource: string, context?: any): boolean {
+    const user = this.users.get(userId);
+    if (!user) return false;
+
+    for (const roleName of user.roles) {
+      const role = this.roles.get(roleName);
+      if (!role) continue;
+
+      for (const permission of role.permissions) {
+        if (this.matchesPermission(permission, action, resource, user, context)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  private matchesPermission(
+    permission: Permission,
+    action: string,
+    resource: string,
+    user: User,
+    context?: any
+  ): boolean {
+    // Check action match (supports wildcards)
+    if (!this.matchesPattern(permission.action, action)) {
+      return false;
+    }
+
+    // Check resource match (supports wildcards)
+    if (!this.matchesPattern(permission.resource, resource)) {
+      return false;
+    }
+
+    // Check conditions
+    if (permission.conditions) {
+      return this.evaluateConditions(permission.conditions, user, context);
+    }
+
+    return true;
+  }
+
+  private matchesPattern(pattern: string, value: string): boolean {
+    if (pattern === '*') return true;
+    if (pattern === value) return true;
+
+    // Simple wildcard matching
+    const regex = new RegExp(pattern.replace('*', '.*'));
+    return regex.test(value);
+  }
+
+  private evaluateConditions(conditions: Record<string, any>, user: User, context?: any): boolean {
+    for (const [key, expectedValue] of Object.entries(conditions)) {
+      if (key.startsWith('user.')) {
+        const userAttr = key.substring(5);
+        if (user.attributes[userAttr] !== expectedValue) {
+          return false;
+        }
+      } else if (key.startsWith('context.') && context) {
+        const contextAttr = key.substring(8);
+        if (context[contextAttr] !== expectedValue) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+}
+
+// Integration with NSM machines
+const createSecureNSMService = (permissionManager: NSMPermissionManager) => {
+  return class SecureNSMService extends NSMService {
+    async sendEvent(event: any, userId: string): Promise<void> {
+      // Check permission before processing event
+      const canPerform = permissionManager.checkPermission(
+        userId,
+        event.type,
+        this.applicationId,
+        { event, timestamp: Date.now() }
+      );
+
+      if (!canPerform) {
+        throw new Error(`Permission denied: User ${userId} cannot perform ${event.type}`);
+      }
+
+      return super.sendEvent(event, userId);
+    }
+
+    async updateState(state: any, userId: string): Promise<void> {
+      const canUpdate = permissionManager.checkPermission(
+        userId,
+        'UPDATE_STATE',
+        this.applicationId,
+        { state }
+      );
+
+      if (!canUpdate) {
+        throw new Error(`Permission denied: User ${userId} cannot update state`);
+      }
+
+      return super.updateState(state, userId);
+    }
+  };
+};
+```
+
+### Rate Limiting and DoS Protection
+
+```typescript
+class RateLimiter {
+  private windows: Map<string, { count: number; resetTime: number }> = new Map();
+  private readonly windowSize: number;
+  private readonly maxRequests: number;
+
+  constructor(maxRequests: number, windowSizeMs: number) {
+    this.maxRequests = maxRequests;
+    this.windowSize = windowSizeMs;
+  }
+
+  checkLimit(key: string): boolean {
+    const now = Date.now();
+    const window = this.windows.get(key);
+
+    if (!window || now > window.resetTime) {
+      // New window or expired window
+      this.windows.set(key, {
+        count: 1,
+        resetTime: now + this.windowSize
+      });
+      return true;
+    }
+
+    if (window.count >= this.maxRequests) {
+      return false; // Rate limit exceeded
+    }
+
+    window.count++;
+    return true;
+  }
+
+  getRemainingRequests(key: string): number {
+    const window = this.windows.get(key);
+    if (!window || Date.now() > window.resetTime) {
+      return this.maxRequests;
+    }
+    return Math.max(0, this.maxRequests - window.count);
+  }
+
+  cleanup(): void {
+    const now = Date.now();
+    for (const [key, window] of this.windows.entries()) {
+      if (now > window.resetTime) {
+        this.windows.delete(key);
+      }
+    }
+  }
+}
+
+class NSMDoSProtection {
+  private eventRateLimit: RateLimiter;
+  private stateUpdateRateLimit: RateLimiter;
+  private suspiciousUsers: Set<string> = new Set();
+
+  constructor() {
+    // 100 events per minute per user
+    this.eventRateLimit = new RateLimiter(100, 60000);
+    // 10 state updates per minute per user
+    this.stateUpdateRateLimit = new RateLimiter(10, 60000);
+  }
+
+  checkEventRate(userId: string): boolean {
+    const allowed = this.eventRateLimit.checkLimit(userId);
+
+    if (!allowed) {
+      this.markSuspicious(userId);
+    }
+
+    return allowed;
+  }
+
+  checkStateUpdateRate(userId: string): boolean {
+    const allowed = this.stateUpdateRateLimit.checkLimit(userId);
+
+    if (!allowed) {
+      this.markSuspicious(userId);
+    }
+
+    return allowed;
+  }
+
+  private markSuspicious(userId: string): void {
+    this.suspiciousUsers.add(userId);
+
+    // Clean up after 1 hour
+    setTimeout(() => {
+      this.suspiciousUsers.delete(userId);
+    }, 3600000);
+  }
+
+  isSuspicious(userId: string): boolean {
+    return this.suspiciousUsers.has(userId);
+  }
+
+  cleanup(): void {
+    this.eventRateLimit.cleanup();
+    this.stateUpdateRateLimit.cleanup();
+  }
+}
+```
+
+## Testing Patterns
+
+### Deterministic Test Utilities
+
+```typescript
+class NSMTestHarness {
+  private service: NSMService;
+  private mockTime: number = Date.now();
+  private eventHistory: any[] = [];
+
+  constructor(machine: any) {
+    this.service = new NSMService(machine);
+    this.setupMocks();
+  }
+
+  private setupMocks(): void {
+    // Mock time for deterministic tests
+    jest.spyOn(Date, 'now').mockImplementation(() => this.mockTime);
+
+    // Mock random ID generation
+    let idCounter = 0;
+    jest.spyOn(global, 'generateId').mockImplementation(() => `test-id-${idCounter++}`);
+  }
+
+  async simulateUserAction(userId: string, action: any): Promise<void> {
+    const event = { ...action, userId, timestamp: this.mockTime };
+    this.eventHistory.push(event);
+
+    await this.service.sendEvent(event, userId);
+  }
+
+  async simulateMultiUserScenario(scenario: any[]): Promise<void> {
+    for (const step of scenario) {
+      this.advanceTime(step.delay || 0);
+      await this.simulateUserAction(step.userId, step.action);
+    }
+  }
+
+  advanceTime(ms: number): void {
+    this.mockTime += ms;
+  }
+
+  getState(): any {
+    return this.service.getSnapshot().context;
+  }
+
+  getEventHistory(): any[] {
+    return [...this.eventHistory];
+  }
+
+  assertStateEquals(expected: any): void {
+    const current = this.getState();
+    expect(current).toEqual(expected);
+  }
+
+  assertEventSequence(expectedEvents: any[]): void {
+    const actualTypes = this.eventHistory.map(e => e.type);
+    const expectedTypes = expectedEvents.map(e => e.type);
+    expect(actualTypes).toEqual(expectedTypes);
+  }
+
+  reset(): void {
+    this.eventHistory = [];
+    this.mockTime = Date.now();
+    this.service.reset();
+  }
+}
+
+// Example test using the harness
+describe('Collaborative Todo App', () => {
+  let harness: NSMTestHarness;
+
+  beforeEach(() => {
+    harness = new NSMTestHarness(todoMachine);
+  });
+
+  test('should handle concurrent todo additions', async () => {
+    const scenario = [
+      { userId: 'alice', action: { type: 'ADD_TODO', text: 'Alice todo' }, delay: 0 },
+      { userId: 'bob', action: { type: 'ADD_TODO', text: 'Bob todo' }, delay: 10 },
+      { userId: 'alice', action: { type: 'ADD_TODO', text: 'Another Alice todo' }, delay: 20 }
+    ];
+
+    await harness.simulateMultiUserScenario(scenario);
+
+    const state = harness.getState();
+    expect(state.todos).toHaveLength(3);
+    expect(state.todos.map(t => t.text)).toContain('Alice todo');
+    expect(state.todos.map(t => t.text)).toContain('Bob todo');
+    expect(state.todos.map(t => t.text)).toContain('Another Alice todo');
+  });
+
+  test('should maintain deterministic order with concurrent operations', async () => {
+    // Test the same scenario multiple times
+    for (let i = 0; i < 10; i++) {
+      harness.reset();
+
+      await harness.simulateMultiUserScenario([
+        { userId: 'user1', action: { type: 'ADD_TODO', text: 'Todo 1' }, delay: 0 },
+        { userId: 'user2', action: { type: 'ADD_TODO', text: 'Todo 2' }, delay: 0 },
+        { userId: 'user3', action: { type: 'ADD_TODO', text: 'Todo 3' }, delay: 0 }
+      ]);
+
+      const state = harness.getState();
+      const todoTexts = state.todos.map(t => t.text);
+
+      // Should always be the same order due to deterministic timestamps
+      expect(todoTexts).toEqual(['Todo 1', 'Todo 2', 'Todo 3']);
+    }
+  });
+});
+```
+
+## Deployment Patterns
+
+### Production Configuration
+
+```typescript
+// Production-ready NSM service configuration
+const createProductionNSMService = () => {
+  const config = {
+    relayUrls: [
+      'wss://relay.damus.io',
+      'wss://nos.lol',
+      'wss://relay.nostr.band',
+      'wss://nostr.wine',
+      'wss://relay.snort.social'
+    ],
+    retryPolicy: {
+      maxRetries: 3,
+      baseDelay: 1000,
+      maxDelay: 10000,
+      backoffFactor: 2
+    },
+    performance: {
+      batchSize: 50,
+      batchDelay: 100,
+      maxMemoryEvents: 1000,
+      compressionThreshold: 500
+    },
+    security: {
+      rateLimits: {
+        events: { max: 100, window: 60000 },
+        stateUpdates: { max: 10, window: 60000 }
+      },
+      enableSuspiciousUserTracking: true,
+      maxEventSize: 65536 // 64KB
+    },
+    monitoring: {
+      metricsEnabled: true,
+      errorTracking: true,
+      performanceMonitoring: true
+    }
+  };
+
+  return new NSMService(config);
+};
+
+// Health monitoring
+class NSMHealthMonitor {
+  private metrics = {
+    eventsProcessed: 0,
+    stateUpdates: 0,
+    errors: 0,
+    averageLatency: 0,
+    activeConnections: 0
+  };
+
+  recordEvent(type: string, latency: number): void {
+    this.metrics.eventsProcessed++;
+    this.updateAverageLatency(latency);
+  }
+
+  recordError(error: Error): void {
+    this.metrics.errors++;
+    console.error('NSM Error:', error);
+  }
+
+  recordStateUpdate(): void {
+    this.metrics.stateUpdates++;
+  }
+
+  private updateAverageLatency(newLatency: number): void {
+    const count = this.metrics.eventsProcessed;
+    this.metrics.averageLatency =
+      (this.metrics.averageLatency * (count - 1) + newLatency) / count;
+  }
+
+  getHealthReport(): any {
+    return {
+      ...this.metrics,
+      timestamp: Date.now(),
+      status: this.getOverallHealth()
+    };
+  }
+
+  private getOverallHealth(): 'healthy' | 'warning' | 'critical' {
+    if (this.metrics.errors / this.metrics.eventsProcessed > 0.05) {
+      return 'critical';
+    }
+
+    if (this.metrics.averageLatency > 1000) {
+      return 'warning';
+    }
+
+    return 'healthy';
+  }
+}
+```
+
+These advanced patterns provide the foundation for building enterprise-grade collaborative applications with NSM Framework. They address complex requirements like multi-machine coordination, sophisticated conflict resolution, performance optimization, security, and production deployment.
+
+For more detailed examples and specific use cases, explore our [API documentation](/api) and [examples collection](/examples).

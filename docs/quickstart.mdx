@@ -13,126 +13,283 @@ This guide will help you create your first NSM application - a simple collaborat
 
     <CodeGroup>
       ```bash npm
-      npm install nsm-core
+      npm install @nsm/client @nsm/core
       ```
 
       ```bash yarn
-      yarn add nsm-core
+      yarn add @nsm/client @nsm/core
       ```
 
       ```bash pnpm
-      pnpm add nsm-core
+      pnpm add @nsm/client @nsm/core
       ```
 
       ```bash bun
-      bun add nsm-core
+      bun add @nsm/client @nsm/core
       ```
     </CodeGroup>
+
+    <Note>
+      You'll also need to install XState v5 for state machine functionality:
+      ```bash
+      npm install xstate@^5.0.0
+      ```
+    </Note>
   </Step>
 
   <Step title="Create a State Machine">
-    Define your application's state machine using NSM's XState integration:
+    Define your application's state machine using XState v5 with NSM integration:
 
     ```typescript
-    import { createMachine } from 'nsm-core';
+    // counter-machine.ts
+    import { createMachine, assign } from 'xstate';
 
     interface CounterContext {
       count: number;
       lastUpdatedBy?: string;
+      participants: string[];
     }
 
     type CounterEvent =
       | { type: 'INCREMENT'; userId: string }
       | { type: 'DECREMENT'; userId: string }
-      | { type: 'RESET'; userId: string };
+      | { type: 'RESET'; userId: string }
+      | { type: 'USER_JOINED'; userId: string }
+      | { type: 'USER_LEFT'; userId: string };
 
     export const counterMachine = createMachine({
-      id: 'counter',
+      /** @xstate-layout N4IgpgJg5mDOIC5QCMCGBXAXMAYBIUA2AZBUA */
+      id: 'collaborativeCounter',
       initial: 'active',
       context: {
-        count: 0
-      },
+        count: 0,
+        lastUpdatedBy: undefined,
+        participants: []
+      } satisfies CounterContext,
       states: {
         active: {
           on: {
             INCREMENT: {
               actions: assign({
-                count: (context) => context.count + 1,
-                lastUpdatedBy: (_, event) => event.userId
+                count: ({ context }) => context.count + 1,
+                lastUpdatedBy: ({ event }) => event.userId
               })
             },
             DECREMENT: {
               actions: assign({
-                count: (context) => Math.max(0, context.count - 1),
-                lastUpdatedBy: (_, event) => event.userId
+                count: ({ context }) => Math.max(0, context.count - 1),
+                lastUpdatedBy: ({ event }) => event.userId
               })
             },
             RESET: {
               actions: assign({
                 count: 0,
-                lastUpdatedBy: (_, event) => event.userId
+                lastUpdatedBy: ({ event }) => event.userId
+              })
+            },
+            USER_JOINED: {
+              actions: assign({
+                participants: ({ context, event }) =>
+                  context.participants.includes(event.userId)
+                    ? context.participants
+                    : [...context.participants, event.userId]
+              })
+            },
+            USER_LEFT: {
+              actions: assign({
+                participants: ({ context, event }) =>
+                  context.participants.filter(id => id !== event.userId)
               })
             }
           }
         }
+      }
+    }, {
+      // XState v5 type definitions
+      types: {
+        context: {} as CounterContext,
+        events: {} as CounterEvent
       }
     });
     ```
   </Step>
 
   <Step title="Initialize NSM Client">
-    Create an NSM client instance with your machine and configuration:
+    Create an NSM client instance and set up the collaborative application:
 
     ```typescript
-    import { createNSMClient } from 'nsm-core';
-    import { counterMachine } from './counterMachine';
+    // counter-app.ts
+    import { NSMClient } from '@nsm/client';
+    import { createActor } from 'xstate';
+    import { counterMachine } from './counter-machine';
 
-    const client = createNSMClient({
-      machine: counterMachine,
-      nostrConfig: {
-        relays: ['wss://relay.damus.io', 'wss://nos.lol'],
-        // Your Nostr private key (keep this secure!)
-        privateKey: 'your-private-key-here'
-      },
-      roomId: 'counter-demo-room'
-    });
+    class CounterApp {
+      private client: NSMClient;
+      private actor: any;
+      private applicationId = 'collaborative-counter';
+
+      constructor() {
+        // Initialize NSM client with Nostr configuration
+        this.client = new NSMClient({
+          relayUrls: [
+            'wss://relay.damus.io',
+            'wss://nos.lol',
+            'wss://relay.nostr.band'
+          ],
+          // Option 1: Use NIP-07 browser extension for signing
+          useNip07: true,
+
+          // Option 2: Use private key (for development only!)
+          // privateKey: process.env.NOSTR_PRIVATE_KEY,
+
+          autoConnect: true
+        });
+
+        // Create XState actor for local state management
+        this.actor = createActor(counterMachine);
+      }
+
+      async initialize() {
+        // Connect to Nostr network
+        await this.client.connect();
+
+        // Set up state synchronization
+        this.setupStateSynchronization();
+
+        // Start the state machine
+        this.actor.start();
+
+        console.log('Counter app initialized!');
+      }
+
+      private setupStateSynchronization() {
+        // Subscribe to remote state updates
+        this.client.subscribeToApplication(this.applicationId, {
+          onInteraction: (interaction) => {
+            // Forward remote interactions to local state machine
+            this.actor.send(interaction);
+          },
+          onStateUpdate: (stateUpdate) => {
+            // Handle canonical state updates
+            console.log('Received state update:', stateUpdate);
+          },
+          onError: (error) => {
+            console.error('Subscription error:', error);
+          }
+        });
+
+        // Listen for local state changes and broadcast them
+        this.actor.subscribe((state) => {
+          console.log('Local state updated:', state.context);
+          // Update UI based on state changes
+          this.updateUI(state.context);
+        });
+      }
+
+      // Public methods for UI interaction
+      async increment() {
+        const userId = await this.client.getUserPublicKey() || 'anonymous';
+        const event = { type: 'INCREMENT', userId } as const;
+
+        // Send to local state machine
+        this.actor.send(event);
+
+        // Broadcast to network
+        await this.client.publishInteraction({
+          applicationId: this.applicationId,
+          action: event.type,
+          payload: { userId: event.userId }
+        });
+      }
+
+      async decrement() {
+        const userId = await this.client.getUserPublicKey() || 'anonymous';
+        const event = { type: 'DECREMENT', userId } as const;
+
+        this.actor.send(event);
+        await this.client.publishInteraction({
+          applicationId: this.applicationId,
+          action: event.type,
+          payload: { userId: event.userId }
+        });
+      }
+
+      async reset() {
+        const userId = await this.client.getUserPublicKey() || 'anonymous';
+        const event = { type: 'RESET', userId } as const;
+
+        this.actor.send(event);
+        await this.client.publishInteraction({
+          applicationId: this.applicationId,
+          action: event.type,
+          payload: { userId: event.userId }
+        });
+      }
+
+      private updateUI(context: any) {
+        // Update DOM elements with new state
+        const counterEl = document.getElementById('counter-value');
+        const participantsEl = document.getElementById('participants');
+        const lastUpdatedEl = document.getElementById('last-updated');
+
+        if (counterEl) counterEl.textContent = context.count.toString();
+        if (participantsEl) participantsEl.textContent = context.participants.length.toString();
+        if (lastUpdatedEl) lastUpdatedEl.textContent = context.lastUpdatedBy || 'none';
+      }
+    }
+
+    // Export for use in HTML
+    export { CounterApp };
     ```
 
     <Warning>
-      Never hardcode private keys in production! Use environment variables or secure key management.
+      Never hardcode private keys in production! Use environment variables, NIP-07 browser extensions, or secure key management systems.
     </Warning>
   </Step>
 
   <Step title="Connect and Interact">
-    Start the client and begin sending events:
+    Initialize the application and connect user interactions:
 
     ```typescript
+    // main.ts
+    import { CounterApp } from './counter-app';
+
     async function startCounterApp() {
-      // Connect to the network
-      await client.connect();
+      const app = new CounterApp();
 
-      // Listen for state updates
-      client.onStateChange((state) => {
-        console.log('Counter updated:', state.context.count);
-        console.log('Last updated by:', state.context.lastUpdatedBy);
-        updateUI(state.context);
+      try {
+        // Initialize the application
+        await app.initialize();
+
+        // Set up UI event handlers
+        setupUIHandlers(app);
+
+        console.log('Collaborative counter is ready!');
+      } catch (error) {
+        console.error('Failed to start counter app:', error);
+      }
+    }
+
+    function setupUIHandlers(app: CounterApp) {
+      const incrementBtn = document.getElementById('increment-btn');
+      const decrementBtn = document.getElementById('decrement-btn');
+      const resetBtn = document.getElementById('reset-btn');
+
+      incrementBtn?.addEventListener('click', () => {
+        app.increment().catch(console.error);
       });
 
-      // Send events
-      document.getElementById('increment')?.addEventListener('click', () => {
-        client.sendEvent({ type: 'INCREMENT', userId: 'user1' });
+      decrementBtn?.addEventListener('click', () => {
+        app.decrement().catch(console.error);
       });
 
-      document.getElementById('decrement')?.addEventListener('click', () => {
-        client.sendEvent({ type: 'DECREMENT', userId: 'user1' });
-      });
-
-      document.getElementById('reset')?.addEventListener('click', () => {
-        client.sendEvent({ type: 'RESET', userId: 'user1' });
+      resetBtn?.addEventListener('click', () => {
+        app.reset().catch(console.error);
       });
     }
 
-    startCounterApp();
+    // Start the app when the page loads
+    document.addEventListener('DOMContentLoaded', startCounterApp);
     ```
   </Step>
 
@@ -141,34 +298,127 @@ This guide will help you create your first NSM application - a simple collaborat
 
     ```html
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
-      <title>NSM Counter Demo</title>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>NSM Collaborative Counter</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+          max-width: 600px;
+          margin: 2rem auto;
+          padding: 2rem;
+          background: #f8fafc;
+          color: #334155;
+        }
+        .card {
+          background: white;
+          border-radius: 12px;
+          padding: 2rem;
+          box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+          text-align: center;
+        }
+        .counter-value {
+          font-size: 4rem;
+          font-weight: bold;
+          color: #6366f1;
+          margin: 1rem 0;
+        }
+        .meta-info {
+          display: flex;
+          justify-content: space-between;
+          margin: 1.5rem 0;
+          padding: 1rem;
+          background: #f1f5f9;
+          border-radius: 8px;
+          font-size: 0.875rem;
+        }
+        .buttons {
+          display: flex;
+          gap: 1rem;
+          justify-content: center;
+          margin-top: 2rem;
+        }
+        button {
+          background: #6366f1;
+          color: white;
+          border: none;
+          padding: 0.75rem 1.5rem;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 1rem;
+          transition: background 0.2s;
+        }
+        button:hover {
+          background: #4f46e5;
+        }
+        button:active {
+          transform: translateY(1px);
+        }
+        .reset-btn {
+          background: #ef4444;
+        }
+        .reset-btn:hover {
+          background: #dc2626;
+        }
+        .status {
+          margin-top: 1rem;
+          padding: 0.5rem;
+          border-radius: 4px;
+          font-size: 0.875rem;
+        }
+        .status.connected {
+          background: #dcfce7;
+          color: #166534;
+        }
+        .status.connecting {
+          background: #fef3c7;
+          color: #92400e;
+        }
+        .status.error {
+          background: #fee2e2;
+          color: #991b1b;
+        }
+      </style>
     </head>
     <body>
-      <div id="app">
-        <h1>Collaborative Counter</h1>
-        <div id="counter-display">Count: 0</div>
-        <div id="last-updated">Last updated by: none</div>
+      <div class="card">
+        <h1>🔢 Collaborative Counter</h1>
+        <p>A real-time collaborative counter powered by NSM Framework</p>
 
-        <button id="increment">+</button>
-        <button id="decrement">-</button>
-        <button id="reset">Reset</button>
+        <div class="counter-value" id="counter-value">0</div>
+
+        <div class="meta-info">
+          <div>
+            <strong>Participants:</strong>
+            <span id="participants">0</span>
+          </div>
+          <div>
+            <strong>Last updated by:</strong>
+            <span id="last-updated">none</span>
+          </div>
+        </div>
+
+        <div class="buttons">
+          <button id="increment-btn">➕ Increment</button>
+          <button id="decrement-btn">➖ Decrement</button>
+          <button id="reset-btn" class="reset-btn">🔄 Reset</button>
+        </div>
+
+        <div class="status connecting" id="status">
+          🔄 Connecting to Nostr network...
+        </div>
       </div>
 
-      <script src="./counter-app.js"></script>
+      <script type="module" src="./main.js"></script>
     </body>
     </html>
     ```
 
-    ```javascript
-    function updateUI(context) {
-      document.getElementById('counter-display').textContent =
-        `Count: ${context.count}`;
-      document.getElementById('last-updated').textContent =
-        `Last updated by: ${context.lastUpdatedBy || 'none'}`;
-    }
-    ```
+    <Note>
+      This HTML provides a complete, responsive UI for your collaborative counter with real-time status updates and visual feedback.
+    </Note>
   </Step>
 </Steps>
 

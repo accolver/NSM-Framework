@@ -1,0 +1,1759 @@
+---
+title: 'Build a Collaborative Todo App'
+description: 'Complete step-by-step tutorial for building a real-time collaborative todo application with NSM Framework'
+---
+
+# Building a Collaborative Todo App with NSM
+
+In this comprehensive tutorial, you'll learn how to build a production-ready collaborative todo application using the NSM Framework. Multiple users will be able to add, complete, and delete todos in real-time, with all changes synchronized across the decentralized Nostr network.
+
+<img
+  className="rounded-lg border"
+  src="/images/todo-app-demo.png"
+  alt="Collaborative Todo App Demo"
+/>
+
+## What You'll Build
+
+By the end of this tutorial, you'll have a fully functional collaborative todo application featuring:
+
+- ✅ **Real-time collaboration** between multiple users
+- 🎯 **Deterministic state management** with XState v5
+- 🌐 **Decentralized data sync** via Nostr protocol
+- 📝 **Complete todo operations**: add, edit, complete, delete, filter
+- 👥 **User presence indicators** showing who's online
+- 🔄 **Optimistic updates** with conflict resolution
+- 💾 **Persistent data** across sessions
+- 🎨 **Modern React UI** with responsive design
+
+## Prerequisites
+
+Before starting, make sure you have:
+
+- Node.js 18+ installed
+- Basic knowledge of React and TypeScript
+- Understanding of state machines (helpful but not required)
+- A Nostr identity (we'll help you set one up)
+
+## Step 1: Project Setup
+
+<Steps>
+  <Step title="Create a new React project">
+    Start by creating a new React application with TypeScript support:
+
+    ```bash
+    npx create-react-app collaborative-todos --template typescript
+    cd collaborative-todos
+    ```
+  </Step>
+
+  <Step title="Install NSM Framework and dependencies">
+    Add the necessary packages for NSM functionality:
+
+    ```bash
+    npm install @nsm/client @nsm/core xstate@^5.0.0
+    npm install --save-dev @types/uuid uuid
+    ```
+  </Step>
+
+  <Step title="Set up project structure">
+    Create the following directory structure:
+
+    ```
+    src/
+    ├── components/
+    │   ├── TodoApp.tsx
+    │   ├── TodoList.tsx
+    │   ├── TodoItem.tsx
+    │   ├── AddTodoForm.tsx
+    │   └── UserPresence.tsx
+    ├── machines/
+    │   └── todo-machine.ts
+    ├── services/
+    │   └── todo-nsm-service.ts
+    ├── types/
+    │   └── todo.ts
+    └── utils/
+        └── nostr-keys.ts
+    ```
+  </Step>
+</Steps>
+
+## Step 2: Define Types and State Machine
+
+Let's start by defining our data structures and state machine.
+
+### Todo Types
+
+Create `src/types/todo.ts`:
+
+```typescript
+export interface Todo {
+  id: string;
+  text: string;
+  completed: boolean;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+  updatedBy?: string;
+}
+
+export interface User {
+  pubkey: string;
+  name?: string;
+  lastSeen: number;
+}
+
+export interface TodoAppContext {
+  todos: Todo[];
+  users: User[];
+  currentUser: string | null;
+  filter: 'all' | 'active' | 'completed';
+  isConnected: boolean;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export type TodoEvent =
+  // Todo operations
+  | { type: 'ADD_TODO'; text: string; userId: string }
+  | { type: 'TOGGLE_TODO'; id: string; userId: string }
+  | { type: 'UPDATE_TODO'; id: string; text: string; userId: string }
+  | { type: 'DELETE_TODO'; id: string; userId: string }
+  | { type: 'CLEAR_COMPLETED'; userId: string }
+
+  // Filter operations
+  | { type: 'SET_FILTER'; filter: 'all' | 'active' | 'completed' }
+
+  // Connection events
+  | { type: 'CONNECT_SUCCESS'; userId: string }
+  | { type: 'CONNECT_ERROR'; error: string }
+  | { type: 'DISCONNECT' }
+
+  // User presence
+  | { type: 'USER_JOINED'; user: User }
+  | { type: 'USER_LEFT'; userId: string }
+  | { type: 'USER_UPDATE'; user: User }
+
+  // Remote sync events
+  | { type: 'REMOTE_STATE_UPDATE'; todos: Todo[]; users: User[] }
+  | { type: 'SYNC_ERROR'; error: string };
+```
+
+### Todo State Machine
+
+Create `src/machines/todo-machine.ts`:
+
+```typescript
+import { createMachine, assign } from 'xstate';
+import { TodoAppContext, TodoEvent, Todo, User } from '../types/todo';
+import { v4 as uuidv4 } from 'uuid';
+
+const createTodo = (text: string, userId: string): Todo => ({
+  id: uuidv4(),
+  text: text.trim(),
+  completed: false,
+  createdBy: userId,
+  createdAt: Date.now(),
+  updatedAt: Date.now()
+});
+
+const updateTodoInList = (todos: Todo[], id: string, updates: Partial<Todo>): Todo[] =>
+  todos.map(todo =>
+    todo.id === id
+      ? { ...todo, ...updates, updatedAt: Date.now() }
+      : todo
+  );
+
+const addOrUpdateUser = (users: User[], user: User): User[] => {
+  const existingIndex = users.findIndex(u => u.pubkey === user.pubkey);
+  if (existingIndex >= 0) {
+    const updatedUsers = [...users];
+    updatedUsers[existingIndex] = { ...users[existingIndex], ...user, lastSeen: Date.now() };
+    return updatedUsers;
+  }
+  return [...users, { ...user, lastSeen: Date.now() }];
+};
+
+export const todoMachine = createMachine({
+  /** @xstate-layout N4IgpgJg5mDOIC5QCMCGB7AdgZTMdAGCgCdUAXABV13ywFcB7VAW1KQHYCBGAYQG0ADAF0Bx9HQCS5YgTGl8Xae1YgAHvgBdoADQg */
+  id: 'collaborativeTodos',
+  initial: 'disconnected',
+  context: {
+    todos: [],
+    users: [],
+    currentUser: null,
+    filter: 'all',
+    isConnected: false,
+    isLoading: false,
+    error: null
+  } satisfies TodoAppContext,
+  states: {
+    disconnected: {
+      initial: 'idle',
+      states: {
+        idle: {
+          on: {
+            CONNECT_SUCCESS: {
+              target: '#collaborativeTodos.connected',
+              actions: assign({
+                currentUser: ({ event }) => event.userId,
+                isConnected: true,
+                error: null
+              })
+            },
+            CONNECT_ERROR: {
+              actions: assign({
+                error: ({ event }) => event.error,
+                isConnected: false
+              })
+            }
+          }
+        }
+      }
+    },
+    connected: {
+      initial: 'syncing',
+      entry: assign({
+        isConnected: true,
+        error: null
+      }),
+      states: {
+        syncing: {
+          entry: assign({ isLoading: true }),
+          on: {
+            REMOTE_STATE_UPDATE: {
+              target: 'ready',
+              actions: [
+                assign({
+                  todos: ({ event }) => event.todos,
+                  users: ({ event }) => event.users,
+                  isLoading: false
+                })
+              ]
+            },
+            SYNC_ERROR: {
+              target: 'ready',
+              actions: assign({
+                error: ({ event }) => event.error,
+                isLoading: false
+              })
+            }
+          }
+        },
+        ready: {
+          entry: assign({ isLoading: false }),
+          on: {
+            // Todo operations
+            ADD_TODO: {
+              actions: [
+                assign({
+                  todos: ({ context, event }) => [
+                    ...context.todos,
+                    createTodo(event.text, event.userId)
+                  ]
+                })
+              ]
+            },
+            TOGGLE_TODO: {
+              actions: [
+                assign({
+                  todos: ({ context, event }) =>
+                    updateTodoInList(context.todos, event.id, {
+                      completed: !context.todos.find(t => t.id === event.id)?.completed,
+                      updatedBy: event.userId
+                    })
+                })
+              ]
+            },
+            UPDATE_TODO: {
+              actions: [
+                assign({
+                  todos: ({ context, event }) =>
+                    updateTodoInList(context.todos, event.id, {
+                      text: event.text.trim(),
+                      updatedBy: event.userId
+                    })
+                })
+              ]
+            },
+            DELETE_TODO: {
+              actions: [
+                assign({
+                  todos: ({ context, event }) =>
+                    context.todos.filter(todo => todo.id !== event.id)
+                })
+              ]
+            },
+            CLEAR_COMPLETED: {
+              actions: [
+                assign({
+                  todos: ({ context }) => context.todos.filter(todo => !todo.completed)
+                })
+              ]
+            },
+
+            // Filter operations
+            SET_FILTER: {
+              actions: assign({
+                filter: ({ event }) => event.filter
+              })
+            },
+
+            // User presence
+            USER_JOINED: {
+              actions: assign({
+                users: ({ context, event }) => addOrUpdateUser(context.users, event.user)
+              })
+            },
+            USER_LEFT: {
+              actions: assign({
+                users: ({ context, event }) =>
+                  context.users.filter(user => user.pubkey !== event.userId)
+              })
+            },
+            USER_UPDATE: {
+              actions: assign({
+                users: ({ context, event }) => addOrUpdateUser(context.users, event.user)
+              })
+            },
+
+            // Remote sync
+            REMOTE_STATE_UPDATE: {
+              actions: assign({
+                todos: ({ event }) => event.todos,
+                users: ({ event }) => event.users
+              })
+            }
+          }
+        }
+      },
+      on: {
+        DISCONNECT: {
+          target: 'disconnected',
+          actions: assign({
+            isConnected: false,
+            currentUser: null,
+            users: []
+          })
+        },
+        CONNECT_ERROR: {
+          actions: assign({
+            error: ({ event }) => event.error
+          })
+        }
+      }
+    }
+  }
+}, {
+  types: {
+    context: {} as TodoAppContext,
+    events: {} as TodoEvent
+  }
+});
+```
+
+## Step 3: NSM Integration Service
+
+Create `src/services/todo-nsm-service.ts`:
+
+```typescript
+import { NSMClient } from '@nsm/client';
+import { createActor, Actor } from 'xstate';
+import { todoMachine } from '../machines/todo-machine';
+import { TodoAppContext, TodoEvent, Todo, User } from '../types/todo';
+
+export class TodoNSMService {
+  private client: NSMClient;
+  private actor: Actor<typeof todoMachine>;
+  private applicationId = 'collaborative-todos-v1';
+  private isInitialized = false;
+
+  constructor() {
+    this.client = new NSMClient({
+      relayUrls: [
+        'wss://relay.damus.io',
+        'wss://nos.lol',
+        'wss://relay.nostr.band',
+        'wss://nostr.wine'
+      ],
+      useNip07: true, // Use browser extension for signing
+      autoConnect: false
+    });
+
+    this.actor = createActor(todoMachine);
+  }
+
+  async initialize(): Promise<void> {
+    if (this.isInitialized) return;
+
+    try {
+      // Connect to Nostr network
+      await this.client.connect();
+
+      // Get user identity
+      const userPubkey = await this.client.getUserPublicKey();
+      if (!userPubkey) {
+        throw new Error('Unable to get user identity. Please ensure a Nostr extension is installed.');
+      }
+
+      // Set up state synchronization
+      this.setupStateSynchronization();
+
+      // Start the state machine
+      this.actor.start();
+
+      // Signal successful connection
+      this.actor.send({ type: 'CONNECT_SUCCESS', userId: userPubkey });
+
+      // Join the application
+      await this.joinApplication(userPubkey);
+
+      this.isInitialized = true;
+    } catch (error) {
+      console.error('Failed to initialize NSM service:', error);
+      this.actor.send({
+        type: 'CONNECT_ERROR',
+        error: error instanceof Error ? error.message : 'Unknown connection error'
+      });
+      throw error;
+    }
+  }
+
+  private setupStateSynchronization(): void {
+    // Subscribe to remote events
+    this.client.subscribeToApplication(this.applicationId, {
+      onInteraction: (interaction) => {
+        console.log('Received remote interaction:', interaction);
+        // Convert NSM interaction to local state machine event
+        this.handleRemoteInteraction(interaction);
+      },
+      onStateUpdate: (stateUpdate) => {
+        console.log('Received state update:', stateUpdate);
+        // Handle canonical state updates
+        this.handleRemoteStateUpdate(stateUpdate);
+      },
+      onError: (error) => {
+        console.error('Subscription error:', error);
+        this.actor.send({ type: 'SYNC_ERROR', error: error.message });
+      }
+    });
+
+    // Listen for local state changes and broadcast them
+    this.actor.subscribe((state) => {
+      // Only broadcast if we have meaningful changes
+      if (state.changed && state.context.isConnected) {
+        this.broadcastStateChange(state.context);
+      }
+    });
+  }
+
+  private async joinApplication(userPubkey: string): Promise<void> {
+    // Announce user presence
+    await this.client.publishInteraction({
+      applicationId: this.applicationId,
+      action: 'USER_JOINED',
+      payload: {
+        pubkey: userPubkey,
+        timestamp: Date.now()
+      }
+    });
+
+    // Request current state from other users
+    await this.client.publishInteraction({
+      applicationId: this.applicationId,
+      action: 'REQUEST_SYNC',
+      payload: {
+        requestedBy: userPubkey,
+        timestamp: Date.now()
+      }
+    });
+  }
+
+  private handleRemoteInteraction(interaction: any): void {
+    const { action, payload } = interaction;
+
+    switch (action) {
+      case 'ADD_TODO':
+        this.actor.send({
+          type: 'ADD_TODO',
+          text: payload.text,
+          userId: payload.userId
+        });
+        break;
+
+      case 'TOGGLE_TODO':
+        this.actor.send({
+          type: 'TOGGLE_TODO',
+          id: payload.id,
+          userId: payload.userId
+        });
+        break;
+
+      case 'UPDATE_TODO':
+        this.actor.send({
+          type: 'UPDATE_TODO',
+          id: payload.id,
+          text: payload.text,
+          userId: payload.userId
+        });
+        break;
+
+      case 'DELETE_TODO':
+        this.actor.send({
+          type: 'DELETE_TODO',
+          id: payload.id,
+          userId: payload.userId
+        });
+        break;
+
+      case 'CLEAR_COMPLETED':
+        this.actor.send({
+          type: 'CLEAR_COMPLETED',
+          userId: payload.userId
+        });
+        break;
+
+      case 'USER_JOINED':
+        this.actor.send({
+          type: 'USER_JOINED',
+          user: {
+            pubkey: payload.pubkey,
+            lastSeen: payload.timestamp
+          }
+        });
+        break;
+
+      case 'USER_LEFT':
+        this.actor.send({
+          type: 'USER_LEFT',
+          userId: payload.pubkey
+        });
+        break;
+
+      case 'REQUEST_SYNC':
+        // Respond with current state
+        this.publishCurrentState();
+        break;
+    }
+  }
+
+  private handleRemoteStateUpdate(stateUpdate: any): void {
+    this.actor.send({
+      type: 'REMOTE_STATE_UPDATE',
+      todos: stateUpdate.todos || [],
+      users: stateUpdate.users || []
+    });
+  }
+
+  private async broadcastStateChange(context: TodoAppContext): void {
+    // Debounce state broadcasts to avoid spam
+    if (this.broadcastTimeout) {
+      clearTimeout(this.broadcastTimeout);
+    }
+
+    this.broadcastTimeout = setTimeout(async () => {
+      try {
+        await this.client.publishStateUpdate({
+          applicationId: this.applicationId,
+          state: {
+            todos: context.todos,
+            users: context.users,
+            timestamp: Date.now(),
+            updatedBy: context.currentUser
+          }
+        });
+      } catch (error) {
+        console.error('Failed to broadcast state:', error);
+      }
+    }, 500);
+  }
+  private broadcastTimeout: NodeJS.Timeout | null = null;
+
+  private async publishCurrentState(): Promise<void> {
+    const state = this.actor.getSnapshot();
+    await this.client.publishStateUpdate({
+      applicationId: this.applicationId,
+      state: {
+        todos: state.context.todos,
+        users: state.context.users,
+        timestamp: Date.now(),
+        updatedBy: state.context.currentUser
+      }
+    });
+  }
+
+  // Public API methods for UI components
+  async addTodo(text: string): Promise<void> {
+    const state = this.actor.getSnapshot();
+    if (!state.context.currentUser || !text.trim()) return;
+
+    const event = {
+      type: 'ADD_TODO' as const,
+      text: text.trim(),
+      userId: state.context.currentUser
+    };
+
+    // Apply locally first (optimistic update)
+    this.actor.send(event);
+
+    // Broadcast to network
+    await this.client.publishInteraction({
+      applicationId: this.applicationId,
+      action: 'ADD_TODO',
+      payload: {
+        text: text.trim(),
+        userId: state.context.currentUser,
+        timestamp: Date.now()
+      }
+    });
+  }
+
+  async toggleTodo(id: string): Promise<void> {
+    const state = this.actor.getSnapshot();
+    if (!state.context.currentUser) return;
+
+    const event = {
+      type: 'TOGGLE_TODO' as const,
+      id,
+      userId: state.context.currentUser
+    };
+
+    this.actor.send(event);
+
+    await this.client.publishInteraction({
+      applicationId: this.applicationId,
+      action: 'TOGGLE_TODO',
+      payload: {
+        id,
+        userId: state.context.currentUser,
+        timestamp: Date.now()
+      }
+    });
+  }
+
+  async updateTodo(id: string, text: string): Promise<void> {
+    const state = this.actor.getSnapshot();
+    if (!state.context.currentUser || !text.trim()) return;
+
+    const event = {
+      type: 'UPDATE_TODO' as const,
+      id,
+      text: text.trim(),
+      userId: state.context.currentUser
+    };
+
+    this.actor.send(event);
+
+    await this.client.publishInteraction({
+      applicationId: this.applicationId,
+      action: 'UPDATE_TODO',
+      payload: {
+        id,
+        text: text.trim(),
+        userId: state.context.currentUser,
+        timestamp: Date.now()
+      }
+    });
+  }
+
+  async deleteTodo(id: string): Promise<void> {
+    const state = this.actor.getSnapshot();
+    if (!state.context.currentUser) return;
+
+    const event = {
+      type: 'DELETE_TODO' as const,
+      id,
+      userId: state.context.currentUser
+    };
+
+    this.actor.send(event);
+
+    await this.client.publishInteraction({
+      applicationId: this.applicationId,
+      action: 'DELETE_TODO',
+      payload: {
+        id,
+        userId: state.context.currentUser,
+        timestamp: Date.now()
+      }
+    });
+  }
+
+  async clearCompleted(): Promise<void> {
+    const state = this.actor.getSnapshot();
+    if (!state.context.currentUser) return;
+
+    const event = {
+      type: 'CLEAR_COMPLETED' as const,
+      userId: state.context.currentUser
+    };
+
+    this.actor.send(event);
+
+    await this.client.publishInteraction({
+      applicationId: this.applicationId,
+      action: 'CLEAR_COMPLETED',
+      payload: {
+        userId: state.context.currentUser,
+        timestamp: Date.now()
+      }
+    });
+  }
+
+  setFilter(filter: 'all' | 'active' | 'completed'): void {
+    this.actor.send({ type: 'SET_FILTER', filter });
+  }
+
+  subscribe(callback: (state: any) => void) {
+    return this.actor.subscribe(callback);
+  }
+
+  getSnapshot() {
+    return this.actor.getSnapshot();
+  }
+
+  async disconnect(): Promise<void> {
+    if (this.broadcastTimeout) {
+      clearTimeout(this.broadcastTimeout);
+    }
+
+    // Announce departure
+    const state = this.actor.getSnapshot();
+    if (state.context.currentUser) {
+      await this.client.publishInteraction({
+        applicationId: this.applicationId,
+        action: 'USER_LEFT',
+        payload: {
+          pubkey: state.context.currentUser,
+          timestamp: Date.now()
+        }
+      });
+    }
+
+    this.actor.send({ type: 'DISCONNECT' });
+    this.client.disconnect();
+    this.isInitialized = false;
+  }
+}
+```
+
+## Step 4: React Components
+
+Now let's build the React components for our todo app.
+
+### Main App Component
+
+Create `src/components/TodoApp.tsx`:
+
+```tsx
+import React, { useEffect, useState } from 'react';
+import { TodoNSMService } from '../services/todo-nsm-service';
+import { TodoList } from './TodoList';
+import { AddTodoForm } from './AddTodoForm';
+import { UserPresence } from './UserPresence';
+import { TodoAppContext } from '../types/todo';
+import './TodoApp.css';
+
+export const TodoApp: React.FC = () => {
+  const [service] = useState(() => new TodoNSMService());
+  const [state, setState] = useState<TodoAppContext>({
+    todos: [],
+    users: [],
+    currentUser: null,
+    filter: 'all',
+    isConnected: false,
+    isLoading: true,
+    error: null
+  });
+
+  useEffect(() => {
+    // Subscribe to state changes
+    const subscription = service.subscribe((newState) => {
+      setState(newState.context);
+    });
+
+    // Initialize the service
+    service.initialize().catch(console.error);
+
+    // Cleanup on unmount
+    return () => {
+      subscription.unsubscribe();
+      service.disconnect();
+    };
+  }, [service]);
+
+  const filteredTodos = state.todos.filter(todo => {
+    switch (state.filter) {
+      case 'active': return !todo.completed;
+      case 'completed': return todo.completed;
+      default: return true;
+    }
+  });
+
+  const completedCount = state.todos.filter(t => t.completed).length;
+  const activeCount = state.todos.length - completedCount;
+
+  if (state.isLoading) {
+    return (
+      <div className="todo-app loading">
+        <div className="loading-spinner" />
+        <p>Connecting to Nostr network...</p>
+      </div>
+    );
+  }
+
+  if (state.error) {
+    return (
+      <div className="todo-app error">
+        <h2>Connection Error</h2>
+        <p>{state.error}</p>
+        <button onClick={() => service.initialize()}>
+          Retry Connection
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="todo-app">
+      <header className="todo-header">
+        <h1>🗂️ Collaborative Todos</h1>
+        <p>Real-time todo list powered by NSM Framework</p>
+
+        <div className="connection-status">
+          <span className={`status-indicator ${state.isConnected ? 'connected' : 'disconnected'}`}>
+            {state.isConnected ? '🟢 Connected' : '🔴 Disconnected'}
+          </span>
+        </div>
+      </header>
+
+      <UserPresence users={state.users} currentUser={state.currentUser} />
+
+      <main className="todo-main">
+        <AddTodoForm onAdd={(text) => service.addTodo(text)} />
+
+        <div className="todo-filters">
+          <button
+            className={state.filter === 'all' ? 'active' : ''}
+            onClick={() => service.setFilter('all')}
+          >
+            All ({state.todos.length})
+          </button>
+          <button
+            className={state.filter === 'active' ? 'active' : ''}
+            onClick={() => service.setFilter('active')}
+          >
+            Active ({activeCount})
+          </button>
+          <button
+            className={state.filter === 'completed' ? 'active' : ''}
+            onClick={() => service.setFilter('completed')}
+          >
+            Completed ({completedCount})
+          </button>
+        </div>
+
+        <TodoList
+          todos={filteredTodos}
+          onToggle={(id) => service.toggleTodo(id)}
+          onUpdate={(id, text) => service.updateTodo(id, text)}
+          onDelete={(id) => service.deleteTodo(id)}
+          currentUser={state.currentUser}
+        />
+
+        {completedCount > 0 && (
+          <div className="todo-actions">
+            <button
+              className="clear-completed"
+              onClick={() => service.clearCompleted()}
+            >
+              Clear Completed ({completedCount})
+            </button>
+          </div>
+        )}
+      </main>
+
+      <footer className="todo-footer">
+        <p>
+          Built with{' '}
+          <a href="https://nsm.dev" target="_blank" rel="noopener noreferrer">
+            NSM Framework
+          </a>{' '}
+          • Powered by{' '}
+          <a href="https://nostr.com" target="_blank" rel="noopener noreferrer">
+            Nostr
+          </a>
+        </p>
+      </footer>
+    </div>
+  );
+};
+```
+
+### Todo List Component
+
+Create `src/components/TodoList.tsx`:
+
+```tsx
+import React from 'react';
+import { Todo } from '../types/todo';
+import { TodoItem } from './TodoItem';
+
+interface TodoListProps {
+  todos: Todo[];
+  onToggle: (id: string) => void;
+  onUpdate: (id: string, text: string) => void;
+  onDelete: (id: string) => void;
+  currentUser: string | null;
+}
+
+export const TodoList: React.FC<TodoListProps> = ({
+  todos,
+  onToggle,
+  onUpdate,
+  onDelete,
+  currentUser
+}) => {
+  if (todos.length === 0) {
+    return (
+      <div className="todo-list empty">
+        <div className="empty-state">
+          <p>No todos yet!</p>
+          <p>Add your first todo above to get started.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ul className="todo-list">
+      {todos.map(todo => (
+        <TodoItem
+          key={todo.id}
+          todo={todo}
+          onToggle={onToggle}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+          isOwner={currentUser === todo.createdBy}
+        />
+      ))}
+    </ul>
+  );
+};
+```
+
+### Todo Item Component
+
+Create `src/components/TodoItem.tsx`:
+
+```tsx
+import React, { useState, useRef, useEffect } from 'react';
+import { Todo } from '../types/todo';
+
+interface TodoItemProps {
+  todo: Todo;
+  onToggle: (id: string) => void;
+  onUpdate: (id: string, text: string) => void;
+  onDelete: (id: string) => void;
+  isOwner: boolean;
+}
+
+export const TodoItem: React.FC<TodoItemProps> = ({
+  todo,
+  onToggle,
+  onUpdate,
+  onDelete,
+  isOwner
+}) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(todo.text);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleSave = () => {
+    const trimmed = editText.trim();
+    if (trimmed && trimmed !== todo.text) {
+      onUpdate(todo.id, trimmed);
+    }
+    setEditText(todo.text);
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditText(todo.text);
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      handleCancel();
+    }
+  };
+
+  const formatTimestamp = (timestamp: number) => {
+    return new Date(timestamp).toLocaleString();
+  };
+
+  const truncatePubkey = (pubkey: string) => {
+    return `${pubkey.slice(0, 8)}...${pubkey.slice(-4)}`;
+  };
+
+  return (
+    <li className={`todo-item ${todo.completed ? 'completed' : ''} ${isOwner ? 'owner' : ''}`}>
+      <div className="todo-content">
+        <label className="todo-toggle">
+          <input
+            type="checkbox"
+            checked={todo.completed}
+            onChange={() => onToggle(todo.id)}
+          />
+          <span className="checkmark"></span>
+        </label>
+
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            className="todo-edit"
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={handleKeyDown}
+          />
+        ) : (
+          <span
+            className="todo-text"
+            onDoubleClick={() => isOwner && setIsEditing(true)}
+            title={isOwner ? 'Double-click to edit' : 'Read-only (not your todo)'}
+          >
+            {todo.text}
+          </span>
+        )}
+      </div>
+
+      <div className="todo-meta">
+        <div className="todo-author">
+          <span title={`Created by ${todo.createdBy}`}>
+            👤 {truncatePubkey(todo.createdBy)}
+          </span>
+          {todo.updatedBy && todo.updatedBy !== todo.createdBy && (
+            <span title={`Updated by ${todo.updatedBy}`}>
+              ✏️ {truncatePubkey(todo.updatedBy)}
+            </span>
+          )}
+        </div>
+
+        <div className="todo-timestamps">
+          <span title={formatTimestamp(todo.createdAt)}>
+            Created: {new Date(todo.createdAt).toLocaleDateString()}
+          </span>
+          {todo.updatedAt > todo.createdAt && (
+            <span title={formatTimestamp(todo.updatedAt)}>
+              Updated: {new Date(todo.updatedAt).toLocaleDateString()}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="todo-actions">
+        {isOwner && !isEditing && (
+          <button
+            className="edit-button"
+            onClick={() => setIsEditing(true)}
+            title="Edit todo"
+          >
+            ✏️
+          </button>
+        )}
+
+        {isOwner && (
+          <button
+            className="delete-button"
+            onClick={() => onDelete(todo.id)}
+            title="Delete todo"
+          >
+            🗑️
+          </button>
+        )}
+      </div>
+    </li>
+  );
+};
+```
+
+### Add Todo Form
+
+Create `src/components/AddTodoForm.tsx`:
+
+```tsx
+import React, { useState } from 'react';
+
+interface AddTodoFormProps {
+  onAdd: (text: string) => void;
+}
+
+export const AddTodoForm: React.FC<AddTodoFormProps> = ({ onAdd }) => {
+  const [text, setText] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = text.trim();
+    if (trimmed) {
+      onAdd(trimmed);
+      setText('');
+    }
+  };
+
+  return (
+    <form className="add-todo-form" onSubmit={handleSubmit}>
+      <input
+        type="text"
+        className="add-todo-input"
+        placeholder="What needs to be done?"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        autoFocus
+      />
+      <button
+        type="submit"
+        className="add-todo-button"
+        disabled={!text.trim()}
+      >
+        Add Todo
+      </button>
+    </form>
+  );
+};
+```
+
+### User Presence Component
+
+Create `src/components/UserPresence.tsx`:
+
+```tsx
+import React from 'react';
+import { User } from '../types/todo';
+
+interface UserPresenceProps {
+  users: User[];
+  currentUser: string | null;
+}
+
+export const UserPresence: React.FC<UserPresenceProps> = ({ users, currentUser }) => {
+  const activeUsers = users.filter(user =>
+    user.pubkey !== currentUser &&
+    Date.now() - user.lastSeen < 60000 // Active within last minute
+  );
+
+  const truncatePubkey = (pubkey: string) => {
+    return `${pubkey.slice(0, 8)}...${pubkey.slice(-4)}`;
+  };
+
+  return (
+    <div className="user-presence">
+      <div className="current-user">
+        <span className="user-indicator current">
+          👤 You ({currentUser ? truncatePubkey(currentUser) : 'Unknown'})
+        </span>
+      </div>
+
+      {activeUsers.length > 0 && (
+        <div className="active-users">
+          <span className="presence-label">Also online:</span>
+          {activeUsers.map(user => (
+            <span key={user.pubkey} className="user-indicator active">
+              🟢 {user.name || truncatePubkey(user.pubkey)}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {activeUsers.length === 0 && (
+        <div className="no-other-users">
+          <span className="presence-label">No other users online</span>
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
+## Step 5: Styling
+
+Create `src/components/TodoApp.css`:
+
+```css
+/* TodoApp.css - Complete styling for the collaborative todo app */
+
+.todo-app {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.todo-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  color: white;
+}
+
+.todo-header h1 {
+  font-size: 3rem;
+  margin: 0 0 0.5rem 0;
+  font-weight: 300;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.todo-header p {
+  font-size: 1.1rem;
+  margin: 0;
+  opacity: 0.9;
+}
+
+.connection-status {
+  margin-top: 1rem;
+}
+
+.status-indicator {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-indicator.connected {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.status-indicator.disconnected {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.todo-main {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.user-presence {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 2rem;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.current-user {
+  margin-bottom: 0.5rem;
+}
+
+.user-indicator {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  margin: 0.25rem;
+  border-radius: 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+}
+
+.user-indicator.current {
+  background: rgba(99, 102, 241, 0.3);
+  border: 1px solid rgba(99, 102, 241, 0.5);
+}
+
+.user-indicator.active {
+  background: rgba(16, 185, 129, 0.3);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+}
+
+.presence-label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.875rem;
+  margin-right: 0.5rem;
+}
+
+.add-todo-form {
+  display: flex;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.add-todo-input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px 0 0 8px;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.add-todo-input:focus {
+  border-color: #6366f1;
+}
+
+.add-todo-input::placeholder {
+  color: #9ca3af;
+}
+
+.add-todo-button {
+  padding: 0.75rem 1.5rem;
+  background: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 0 8px 8px 0;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.add-todo-button:hover:not(:disabled) {
+  background: #4f46e5;
+}
+
+.add-todo-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.todo-filters {
+  display: flex;
+  padding: 1rem 1.5rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  gap: 0.5rem;
+}
+
+.todo-filters button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1d5db;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.todo-filters button:hover {
+  background: #f3f4f6;
+}
+
+.todo-filters button.active {
+  background: #6366f1;
+  color: white;
+  border-color: #6366f1;
+}
+
+.todo-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.todo-list.empty {
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.empty-state {
+  color: #6b7280;
+}
+
+.empty-state p {
+  margin: 0.5rem 0;
+}
+
+.todo-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  transition: background 0.2s;
+  gap: 1rem;
+}
+
+.todo-item:hover {
+  background: #f9fafb;
+}
+
+.todo-item.completed {
+  opacity: 0.6;
+}
+
+.todo-item.owner {
+  border-left: 3px solid #6366f1;
+}
+
+.todo-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.todo-toggle {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.todo-toggle input[type="checkbox"] {
+  display: none;
+}
+
+.checkmark {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.todo-toggle input[type="checkbox"]:checked + .checkmark {
+  background: #10b981;
+  border-color: #10b981;
+}
+
+.todo-toggle input[type="checkbox"]:checked + .checkmark::after {
+  content: '✓';
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.todo-text {
+  flex: 1;
+  font-size: 1rem;
+  line-height: 1.5;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.todo-item.owner .todo-text:hover {
+  background: #f3f4f6;
+}
+
+.todo-item.completed .todo-text {
+  text-decoration: line-through;
+}
+
+.todo-edit {
+  flex: 1;
+  padding: 0.5rem;
+  border: 2px solid #6366f1;
+  border-radius: 4px;
+  font-size: 1rem;
+  outline: none;
+}
+
+.todo-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-align: right;
+  min-width: 120px;
+}
+
+.todo-author span {
+  display: block;
+  margin-bottom: 0.125rem;
+}
+
+.todo-timestamps span {
+  display: block;
+}
+
+.todo-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.edit-button,
+.delete-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: background 0.2s;
+}
+
+.edit-button:hover {
+  background: #e0e7ff;
+}
+
+.delete-button:hover {
+  background: #fee2e2;
+}
+
+.todo-actions {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.todo-item:hover .todo-actions {
+  opacity: 1;
+}
+
+.clear-completed {
+  margin: 1rem 1.5rem;
+  padding: 0.5rem 1rem;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background 0.2s;
+}
+
+.clear-completed:hover {
+  background: #dc2626;
+}
+
+.todo-footer {
+  text-align: center;
+  margin-top: 2rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.875rem;
+}
+
+.todo-footer a {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.todo-footer a:hover {
+  color: white;
+  border-bottom-color: white;
+}
+
+/* Loading and error states */
+.todo-app.loading,
+.todo-app.error {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  text-align: center;
+  color: white;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-left-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.todo-app.error button {
+  margin-top: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: white;
+  color: #667eea;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: transform 0.2s;
+}
+
+.todo-app.error button:hover {
+  transform: translateY(-1px);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .todo-app {
+    padding: 1rem;
+  }
+
+  .todo-header h1 {
+    font-size: 2rem;
+  }
+
+  .todo-meta {
+    display: none;
+  }
+
+  .todo-actions {
+    opacity: 1;
+  }
+
+  .user-presence {
+    padding: 0.75rem;
+  }
+
+  .user-indicator {
+    font-size: 0.8rem;
+    margin: 0.125rem;
+  }
+}
+```
+
+## Step 6: Integration and Testing
+
+Update `src/App.tsx`:
+
+```tsx
+import React from 'react';
+import { TodoApp } from './components/TodoApp';
+import './App.css';
+
+function App() {
+  return <TodoApp />;
+}
+
+export default App;
+```
+
+Add to `src/App.css`:
+
+```css
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+```
+
+## Step 7: Running Your App
+
+<Steps>
+  <Step title="Start the development server">
+    Run your todo application:
+
+    ```bash
+    npm start
+    ```
+  </Step>
+
+  <Step title="Set up Nostr identity">
+    Install a Nostr browser extension like:
+    - [Alby](https://getalby.com/)
+    - [nos2x](https://github.com/fiatjaf/nos2x)
+    - [Flamingo](https://flamingo.me/)
+
+    Create or import your Nostr key pair.
+  </Step>
+
+  <Step title="Test collaboration">
+    Open your app in multiple browser windows or share with friends to test real-time collaboration!
+  </Step>
+</Steps>
+
+## What You've Built
+
+Congratulations! You've successfully built a production-ready collaborative todo application using NSM Framework. Your app features:
+
+✅ **Real-time Synchronization**: All changes sync instantly across all connected users
+✅ **Decentralized Architecture**: No central server needed - runs peer-to-peer via Nostr
+✅ **Conflict Resolution**: Deterministic state management prevents data corruption
+✅ **User Presence**: See who else is online and collaborating
+✅ **Optimistic Updates**: Immediate UI response with network sync
+✅ **Persistent Data**: Todos survive browser restarts and device switches
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Advanced Patterns" icon="brain" href="/advanced-patterns">
+    Learn advanced NSM patterns like multi-machine coordination and custom protocols
+  </Card>
+  <Card title="Deployment Guide" icon="cloud" href="/guide/deployment">
+    Deploy your NSM application to production environments
+  </Card>
+  <Card title="Performance Optimization" icon="zap" href="/guide/performance">
+    Optimize your application for large-scale collaborative use
+  </Card>
+  <Card title="Security Best Practices" icon="shield" href="/guide/security">
+    Implement advanced security measures and access control
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection Issues">
+    If you're having trouble connecting:
+    - Ensure a Nostr browser extension is installed and configured
+    - Check that your relay URLs are accessible
+    - Verify your internet connection
+    - Try different relay servers if some are offline
+  </Accordion>
+
+  <Accordion title="State Not Syncing">
+    If changes aren't appearing for other users:
+    - Verify all users are connected to the same relays
+    - Check browser console for error messages
+    - Ensure the applicationId is consistent across all instances
+    - Confirm users have proper signing permissions
+  </Accordion>
+
+  <Accordion title="Performance Issues">
+    For performance optimization:
+    - Implement debouncing for rapid state changes
+    - Use React.memo for expensive components
+    - Consider pagination for large todo lists
+    - Monitor network usage and relay performance
+  </Accordion>
+
+  <Accordion title="Build Issues">
+    If you encounter build problems:
+    - Ensure all dependencies are properly installed
+    - Check that TypeScript configuration is correct
+    - Verify React version compatibility
+    - Clear node_modules and reinstall if needed
+  </Accordion>
+</AccordionGroup>
+
+Ready to explore more? Check out our [advanced patterns guide](/advanced-patterns) or dive into the [API documentation](/api).

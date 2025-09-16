@@ -11,6 +11,31 @@ export * from "./events/index.js";
 // Export validation utilities
 export * from "./validation/index.js";
 
+// Export security utilities
+export {
+  RateLimiter,
+  MultiTierRateLimiter,
+  DistributedRateLimiter,
+  RateLimitAlgorithm
+} from './security/rate-limiting';
+export type {
+  RateLimitOptions,
+  RateLimitResult,
+  RateLimitEntry,
+  DistributedRateLimitBackend
+} from './security/rate-limiting';
+
+export {
+  ResourceMonitor
+} from './security/resource-monitor';
+export type {
+  ResourceLimits,
+  AlertThresholds,
+  ResourceMetrics,
+  AlertEvent,
+  ResourceMonitorConfig
+} from './security/resource-monitor';
+
 // Package version and metadata
 export const NSM_CORE_VERSION = "0.1.0";
 

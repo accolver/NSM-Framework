@@ -1,0 +1,583 @@
+---
+title: 'Team Task Manager'
+description: 'Build a collaborative task management application with real-time updates, assignments, and progress tracking'
+---
+
+# Team Task Manager
+
+Build a comprehensive task management application using NSM Framework. This example demonstrates project organization, task assignments, real-time progress tracking, and team collaboration features.
+
+## Features
+
+- 📋 **Project Organization**: Multiple projects with task lists
+- 👤 **Task Assignment**: Assign tasks to team members
+- 🏷️ **Labels & Priorities**: Color-coded organization system
+- ⏰ **Due Dates**: Deadline tracking with notifications
+- 💬 **Comments**: Task-specific discussions
+- 📈 **Progress Tracking**: Visual progress indicators
+- 🔔 **Notifications**: Real-time updates for assignments and changes
+
+## Quick Implementation
+
+```typescript
+// Task Manager State Machine
+import { createMachine, assign } from 'xstate';
+
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  assignee?: string;
+  creator: string;
+  status: 'todo' | 'in-progress' | 'review' | 'done';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  labels: string[];
+  dueDate?: number;
+  createdAt: number;
+  updatedAt: number;
+  comments: Comment[];
+}
+
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+  owner: string;
+  members: string[];
+  tasks: Task[];
+  createdAt: number;
+}
+
+export const taskManagerMachine = createMachine({
+  id: 'taskManager',
+  initial: 'loading',
+  context: {
+    projects: new Map(),
+    currentProjectId: null,
+    currentUser: null,
+    filter: { status: 'all', assignee: 'all' },
+    notifications: []
+  },
+  states: {
+    loading: {
+      on: {
+        LOAD_SUCCESS: {
+          target: 'ready',
+          actions: 'setInitialData'
+        }
+      }
+    },
+    ready: {
+      on: {
+        CREATE_PROJECT: {
+          actions: 'createProject'
+        },
+        SELECT_PROJECT: {
+          actions: 'selectProject'
+        },
+        CREATE_TASK: {
+          actions: 'createTask'
+        },
+        UPDATE_TASK: {
+          actions: 'updateTask'
+        },
+        ASSIGN_TASK: {
+          actions: 'assignTask'
+        },
+        CHANGE_STATUS: {
+          actions: 'changeTaskStatus'
+        },
+        ADD_COMMENT: {
+          actions: 'addComment'
+        },
+        SET_FILTER: {
+          actions: 'setFilter'
+        }
+      }
+    }
+  }
+}, {
+  actions: {
+    setInitialData: assign({
+      currentUser: ({ event }) => event.user,
+      projects: ({ event }) => new Map(event.projects || [])
+    }),
+    createProject: assign({
+      projects: ({ context, event }) => {
+        const project: Project = {
+          id: generateId(),
+          name: event.name,
+          description: event.description,
+          owner: context.currentUser.id,
+          members: [context.currentUser.id],
+          tasks: [],
+          createdAt: Date.now()
+        };
+        const newProjects = new Map(context.projects);
+        newProjects.set(project.id, project);
+        return newProjects;
+      }
+    }),
+    selectProject: assign({
+      currentProjectId: ({ event }) => event.projectId
+    }),
+    createTask: assign({
+      projects: ({ context, event }) => {
+        const project = context.projects.get(context.currentProjectId);
+        if (!project) return context.projects;
+
+        const task: Task = {
+          id: generateId(),
+          title: event.title,
+          description: event.description || '',
+          creator: context.currentUser.id,
+          status: 'todo',
+          priority: event.priority || 'medium',
+          labels: event.labels || [],
+          dueDate: event.dueDate,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          comments: []
+        };
+
+        const updatedProject = {
+          ...project,
+          tasks: [...project.tasks, task]
+        };
+
+        const newProjects = new Map(context.projects);
+        newProjects.set(project.id, updatedProject);
+        return newProjects;
+      }
+    }),
+    assignTask: assign({
+      projects: ({ context, event }) => {
+        const project = context.projects.get(context.currentProjectId);
+        if (!project) return context.projects;
+
+        const updatedTasks = project.tasks.map(task =>
+          task.id === event.taskId
+            ? { ...task, assignee: event.assignee, updatedAt: Date.now() }
+            : task
+        );
+
+        const updatedProject = { ...project, tasks: updatedTasks };
+        const newProjects = new Map(context.projects);
+        newProjects.set(project.id, updatedProject);
+        return newProjects;
+      }
+    }),
+    changeTaskStatus: assign({
+      projects: ({ context, event }) => {
+        const project = context.projects.get(context.currentProjectId);
+        if (!project) return context.projects;
+
+        const updatedTasks = project.tasks.map(task =>
+          task.id === event.taskId
+            ? { ...task, status: event.status, updatedAt: Date.now() }
+            : task
+        );
+
+        const updatedProject = { ...project, tasks: updatedTasks };
+        const newProjects = new Map(context.projects);
+        newProjects.set(project.id, updatedProject);
+        return newProjects;
+      }
+    })
+  }
+});
+```
+
+```tsx
+// Task Manager Component
+import React, { useState, useEffect } from 'react';
+import { NSMClient } from '@nsm/client';
+import { createActor } from 'xstate';
+import { taskManagerMachine } from './task-manager-machine';
+
+export const TaskManager: React.FC = () => {
+  const [client] = useState(() => new NSMClient({ useNip07: true }));
+  const [actor] = useState(() => createActor(taskManagerMachine));
+  const [state, setState] = useState<any>({});
+
+  useEffect(() => {
+    const subscription = actor.subscribe(setState);
+
+    client.connect().then(async () => {
+      const userId = await client.getUserPublicKey();
+
+      // Set up collaboration
+      client.subscribeToApplication('task-manager', {
+        onInteraction: handleRemoteAction,
+        onStateUpdate: handleStateSync
+      });
+
+      actor.send({
+        type: 'LOAD_SUCCESS',
+        user: { id: userId, name: `User-${userId.slice(0, 8)}` }
+      });
+    });
+
+    actor.start();
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleRemoteAction = (interaction: any) => {
+    const { action, payload } = interaction;
+    actor.send({ type: action, ...payload });
+  };
+
+  const handleStateSync = (stateUpdate: any) => {
+    // Sync project data
+    if (stateUpdate.projects) {
+      actor.send({
+        type: 'SYNC_PROJECTS',
+        projects: stateUpdate.projects
+      });
+    }
+  };
+
+  const createTask = async (taskData: any) => {
+    actor.send({ type: 'CREATE_TASK', ...taskData });
+
+    await client.publishInteraction({
+      applicationId: 'task-manager',
+      action: 'CREATE_TASK',
+      payload: { ...taskData, projectId: state.context.currentProjectId }
+    });
+  };
+
+  const updateTaskStatus = async (taskId: string, status: string) => {
+    actor.send({ type: 'CHANGE_STATUS', taskId, status });
+
+    await client.publishInteraction({
+      applicationId: 'task-manager',
+      action: 'CHANGE_STATUS',
+      payload: { taskId, status }
+    });
+  };
+
+  const currentProject = state.context?.currentProjectId
+    ? state.context.projects.get(state.context.currentProjectId)
+    : null;
+
+  const filteredTasks = currentProject?.tasks.filter((task: any) => {
+    const filter = state.context.filter;
+    if (filter.status !== 'all' && task.status !== filter.status) return false;
+    if (filter.assignee !== 'all' && task.assignee !== filter.assignee) return false;
+    return true;
+  }) || [];
+
+  return (
+    <div className="task-manager">
+      <header className="tm-header">
+        <h1>📋 Team Tasks</h1>
+        <div className="project-selector">
+          <select
+            value={state.context?.currentProjectId || ''}
+            onChange={(e) => actor.send({
+              type: 'SELECT_PROJECT',
+              projectId: e.target.value
+            })}
+          >
+            <option value="">Select Project</option>
+            {state.context?.projects && Array.from(state.context.projects.values()).map((project: any) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </select>
+          <button onClick={() => createProject()}>+ New Project</button>
+        </div>
+      </header>
+
+      {currentProject && (
+        <main className="tm-main">
+          <div className="task-filters">
+            <div className="filter-group">
+              <label>Status:</label>
+              <select
+                value={state.context.filter.status}
+                onChange={(e) => actor.send({
+                  type: 'SET_FILTER',
+                  filter: { ...state.context.filter, status: e.target.value }
+                })}
+              >
+                <option value="all">All</option>
+                <option value="todo">To Do</option>
+                <option value="in-progress">In Progress</option>
+                <option value="review">Review</option>
+                <option value="done">Done</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="task-board">
+            {['todo', 'in-progress', 'review', 'done'].map(status => (
+              <div key={status} className="task-column">
+                <h3>{status.replace('-', ' ').toUpperCase()}</h3>
+
+                {filteredTasks
+                  .filter((task: any) => task.status === status)
+                  .map((task: any) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onStatusChange={(newStatus) =>
+                        updateTaskStatus(task.id, newStatus)
+                      }
+                    />
+                  ))
+                }
+
+                {status === 'todo' && (
+                  <button
+                    className="add-task-btn"
+                    onClick={() => setShowTaskForm(true)}
+                  >
+                    + Add Task
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </main>
+      )}
+    </div>
+  );
+};
+
+const TaskCard: React.FC<{
+  task: any;
+  onStatusChange: (status: string) => void;
+}> = ({ task, onStatusChange }) => {
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'low': return '#22c55e';
+      case 'medium': return '#f59e0b';
+      case 'high': return '#f97316';
+      case 'urgent': return '#ef4444';
+      default: return '#6b7280';
+    }
+  };
+
+  const isOverdue = task.dueDate && task.dueDate < Date.now();
+
+  return (
+    <div className={`task-card ${isOverdue ? 'overdue' : ''}`}>
+      <div className="task-header">
+        <h4>{task.title}</h4>
+        <div
+          className="priority-indicator"
+          style={{ backgroundColor: getPriorityColor(task.priority) }}
+          title={`${task.priority} priority`}
+        />
+      </div>
+
+      {task.description && (
+        <p className="task-description">{task.description}</p>
+      )}
+
+      <div className="task-meta">
+        {task.assignee && (
+          <div className="assignee">
+            👤 {task.assignee}
+          </div>
+        )}
+
+        {task.dueDate && (
+          <div className="due-date">
+            📅 {new Date(task.dueDate).toLocaleDateString()}
+          </div>
+        )}
+
+        {task.labels.length > 0 && (
+          <div className="labels">
+            {task.labels.map((label: string) => (
+              <span key={label} className="label">
+                {label}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="task-actions">
+        <select
+          value={task.status}
+          onChange={(e) => onStatusChange(e.target.value)}
+          className="status-selector"
+        >
+          <option value="todo">To Do</option>
+          <option value="in-progress">In Progress</option>
+          <option value="review">Review</option>
+          <option value="done">Done</option>
+        </select>
+      </div>
+    </div>
+  );
+};
+```
+
+## Styling
+
+```css
+.task-manager {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+}
+
+.tm-header {
+  background: white;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.project-selector {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.tm-main {
+  flex: 1;
+  padding: 2rem;
+  overflow: hidden;
+}
+
+.task-filters {
+  margin-bottom: 2rem;
+  display: flex;
+  gap: 2rem;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.task-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  height: calc(100vh - 200px);
+}
+
+.task-column {
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.task-column h3 {
+  margin: 0 0 1rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  text-align: center;
+}
+
+.task-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  cursor: grab;
+  transition: box-shadow 0.2s;
+}
+
+.task-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.task-card.overdue {
+  border-left: 4px solid #ef4444;
+}
+
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.task-header h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.priority-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.task-description {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0.5rem 0;
+  line-height: 1.4;
+}
+
+.task-meta {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-bottom: 0.75rem;
+}
+
+.task-meta > div {
+  margin-bottom: 0.25rem;
+}
+
+.labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.label {
+  background: #e2e8f0;
+  color: #475569;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+}
+
+.status-selector {
+  width: 100%;
+  padding: 0.25rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  background: white;
+}
+
+.add-task-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background: #ddd6fe;
+  border: 2px dashed #a78bfa;
+  border-radius: 6px;
+  color: #7c3aed;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background 0.2s;
+}
+
+.add-task-btn:hover {
+  background: #c4b5fd;
+}
+```
+
+This task management example showcases project organization, real-time collaboration, and sophisticated filtering capabilities, all built on the NSM Framework's decentralized architecture.
