@@ -106,7 +106,9 @@
         "protocol/nip-nsm",
         "protocol/event-specs",
         "protocol/implementation",
-        "protocol/reference"
+        "protocol/reference",
+        "protocol/architecture-overview",
+        "protocol/wordle-example"
       ]
     }
   ],

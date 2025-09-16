@@ -1,0 +1,753 @@
+---
+title: 'NSM Architecture Overview'
+description: 'Comprehensive architectural guide for the Nostr State Machine protocol'
+---
+
+# NSM Architecture Overview
+
+This document provides a comprehensive architectural overview of the Nostr State Machine (NSM) protocol, its components, and how they interact to create decentralized, collaborative applications.
+
+## System Architecture
+
+### Core Components
+
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        C1[Web Client]
+        C2[Mobile Client]
+        C3[Desktop Client]
+    end
+
+    subgraph "Protocol Layer"
+        NSM[NSM Protocol]
+        NE[Nostr Events]
+        SM[State Machine Engine]
+    end
+
+    subgraph "Network Layer"
+        R1[Relay 1]
+        R2[Relay 2]
+        R3[Relay N]
+    end
+
+    subgraph "Arbiter Layer"
+        A1[Primary Arbiter]
+        A2[Backup Arbiter]
+        CR[Conflict Resolver]
+    end
+
+    C1 --> NSM
+    C2 --> NSM
+    C3 --> NSM
+
+    NSM --> NE
+    NSM --> SM
+
+    NE --> R1
+    NE --> R2
+    NE --> R3
+
+    R1 --> A1
+    R2 --> A1
+    R3 --> A1
+
+    A1 --> CR
+    A2 --> CR
+
+    CR --> R1
+    CR --> R2
+    CR --> R3
+```
+
+### Component Responsibilities
+
+#### 1. Client Layer
+- **User Interface**: Renders application UI and handles user interactions
+- **State Management**: Maintains local application state
+- **Event Creation**: Generates NSM events from user actions
+- **Synchronization**: Syncs local state with network state
+
+#### 2. Protocol Layer
+- **Event Validation**: Validates all NSM events against schemas
+- **State Transitions**: Executes state machine transitions
+- **Cryptographic Operations**: Signs and verifies events
+- **Schema Management**: Manages application schemas
+
+#### 3. Network Layer
+- **Event Distribution**: Broadcasts events to participants
+- **Subscription Management**: Handles real-time subscriptions
+- **Data Persistence**: Stores events for retrieval
+- **Geographic Distribution**: Provides global availability
+
+#### 4. Arbiter Layer
+- **Conflict Resolution**: Resolves concurrent state modifications
+- **State Authority**: Maintains canonical application state
+- **Event Ordering**: Ensures correct event processing order
+- **State Publication**: Publishes authoritative state updates
+
+## Data Flow Architecture
+
+### Event Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant C as Client
+    participant V as Validator
+    participant S as Signer
+    participant R as Relay
+    participant A as Arbiter
+    participant N as Network
+
+    U->>C: User Action
+    C->>V: Validate Action
+    V->>C: Validation Result
+
+    alt Valid Action
+        C->>S: Sign Event
+        S->>C: Signed Event
+        C->>R: Publish Event
+        R->>N: Broadcast
+        N->>A: Notify Arbiter
+        A->>A: Process Event
+        A->>R: State Update
+        R->>N: Broadcast State
+        N->>C: Sync State
+        C->>U: Update UI
+    else Invalid Action
+        V->>U: Show Error
+    end
+```
+
+### State Synchronization Flow
+
+```mermaid
+flowchart LR
+    subgraph "Local State"
+        LS[Local State Machine]
+        LC[Local Cache]
+        LV[Local Version]
+    end
+
+    subgraph "Network State"
+        NS[Network State]
+        NV[Network Version]
+        NE[Network Events]
+    end
+
+    subgraph "Synchronization"
+        SC[State Comparator]
+        SM[State Merger]
+        SU[State Updater]
+    end
+
+    LV --> SC
+    NV --> SC
+    SC -->|Outdated| SM
+    SC -->|Current| LS
+
+    SM --> NE
+    NE --> SU
+    SU --> LS
+    SU --> LC
+
+    LS --> NS
+```
+
+## Event Architecture
+
+### Event Type Hierarchy
+
+```mermaid
+graph TD
+    E[NSM Events]
+    E --> D[Definition<br/>Kind 30079]
+    E --> I[Interaction<br/>Kinds 7000-7999]
+    E --> S[State Update<br/>Kind 10079]
+
+    D --> DM[Metadata]
+    D --> DS[Schemas]
+    D --> DI[Initial State]
+
+    I --> IA[Actions]
+    I --> IP[Payloads]
+    I --> IM[Metadata]
+
+    S --> SS[State Snapshot]
+    S --> SV[Version Info]
+    S --> SC[Conflict Data]
+```
+
+### Event Processing Pipeline
+
+```mermaid
+flowchart TB
+    E[Incoming Event]
+
+    E --> V1{Signature Valid?}
+    V1 -->|No| R1[Reject]
+    V1 -->|Yes| V2{Schema Valid?}
+
+    V2 -->|No| R2[Reject]
+    V2 -->|Yes| V3{Timestamp Valid?}
+
+    V3 -->|No| R3[Reject]
+    V3 -->|Yes| B[Buffer Event]
+
+    B --> O[Order Events]
+    O --> CR{Conflicts?}
+
+    CR -->|Yes| RS[Resolve]
+    CR -->|No| A[Apply]
+
+    RS --> A
+    A --> ST[State Transition]
+    ST --> P[Publish Update]
+```
+
+## State Machine Architecture
+
+### State Machine Components
+
+```mermaid
+graph TB
+    subgraph "State Machine Engine"
+        SMD[State Machine Definition]
+        SMC[Current State]
+        SMT[Transition Function]
+        SMV[Validator]
+    end
+
+    subgraph "Input Processing"
+        IE[Interaction Event]
+        IP[Payload Parser]
+        IV[Input Validator]
+    end
+
+    subgraph "State Management"
+        SS[State Storage]
+        SH[State History]
+        SR[State Rollback]
+    end
+
+    IE --> IP
+    IP --> IV
+    IV --> SMT
+
+    SMD --> SMT
+    SMC --> SMT
+    SMT --> SMV
+
+    SMV -->|Valid| SS
+    SMV -->|Invalid| SR
+
+    SS --> SH
+    SS --> SMC
+```
+
+### Transition Validation
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle: Initialize
+
+    Idle --> Validating: Receive Event
+    Validating --> Processing: Valid Event
+    Validating --> Rejected: Invalid Event
+
+    Processing --> ApplyingTransition: No Conflicts
+    Processing --> ResolvingConflicts: Conflicts Detected
+
+    ResolvingConflicts --> ApplyingTransition: Resolved
+
+    ApplyingTransition --> UpdatedState: Success
+    ApplyingTransition --> ErrorState: Failure
+
+    UpdatedState --> Publishing: State Changed
+    Publishing --> Idle: Published
+
+    ErrorState --> Rollback: Revert
+    Rollback --> Idle: Restored
+
+    Rejected --> Idle: Log Error
+```
+
+## Conflict Resolution Architecture
+
+### Resolution Strategy Selection
+
+```mermaid
+flowchart TD
+    C[Conflict Detected]
+
+    C --> T{Check Type}
+
+    T -->|Concurrent Edits| TS[Timestamp Strategy]
+    T -->|Resource Conflict| OW[Owner Strategy]
+    T -->|Logic Conflict| CU[Custom Strategy]
+    T -->|Order Dependent| ID[ID Strategy]
+
+    TS --> R[Resolve]
+    OW --> R
+    CU --> R
+    ID --> R
+
+    R --> A[Apply Resolution]
+    A --> V[Validate Result]
+
+    V -->|Valid| S[Success]
+    V -->|Invalid| F[Fallback Strategy]
+```
+
+### Multi-Arbiter Coordination
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant R as Relay
+    participant PA as Primary Arbiter
+    participant BA as Backup Arbiter
+    participant L as Leader Election
+
+    C->>R: Interaction Event
+    R->>PA: Forward Event
+    R->>BA: Forward Event
+
+    PA->>L: Request Leadership
+    BA->>L: Request Leadership
+
+    L->>PA: Grant Leadership
+    L->>BA: Deny (Standby)
+
+    PA->>PA: Process Event
+    PA->>R: State Update
+
+    Note over BA: Monitor Primary
+
+    alt Primary Fails
+        BA->>L: Request Leadership
+        L->>BA: Grant Leadership
+        BA->>BA: Process Pending
+        BA->>R: State Update
+    end
+```
+
+## Security Architecture
+
+### Trust Model
+
+```mermaid
+graph TD
+    subgraph "Trust Boundaries"
+        U[User]
+        C[Client]
+        N[Network]
+        A[Arbiter]
+    end
+
+    subgraph "Verification Points"
+        V1[Signature Verification]
+        V2[Schema Validation]
+        V3[Permission Check]
+        V4[Rate Limiting]
+    end
+
+    U -->|Signs| C
+    C -->|Verifies| V1
+    V1 -->|Validates| V2
+    V2 -->|Checks| V3
+    V3 -->|Limits| V4
+    V4 -->|Publishes| N
+    N -->|Verifies| A
+```
+
+### Cryptographic Chain of Trust
+
+```mermaid
+flowchart LR
+    subgraph "Event Creation"
+        PK[Private Key]
+        E[Event Data]
+        H[Hash Event]
+        S[Sign Hash]
+    end
+
+    subgraph "Event Verification"
+        PUB[Public Key]
+        SIG[Signature]
+        VH[Verify Hash]
+        VS[Verify Signature]
+    end
+
+    PK --> S
+    E --> H
+    H --> S
+    S --> SIG
+
+    SIG --> VS
+    PUB --> VS
+    E --> VH
+    VH --> VS
+
+    VS -->|Valid| A[Accept]
+    VS -->|Invalid| R[Reject]
+```
+
+## Performance Architecture
+
+### Optimization Layers
+
+```mermaid
+graph TB
+    subgraph "Client Optimizations"
+        CO1[Event Batching]
+        CO2[State Caching]
+        CO3[Optimistic Updates]
+        CO4[Lazy Loading]
+    end
+
+    subgraph "Network Optimizations"
+        NO1[Connection Pooling]
+        NO2[Compression]
+        NO3[CDN Distribution]
+        NO4[Geographic Routing]
+    end
+
+    subgraph "Arbiter Optimizations"
+        AO1[Event Buffering]
+        AO2[Parallel Processing]
+        AO3[State Snapshots]
+        AO4[Incremental Updates]
+    end
+
+    CO1 --> NO1
+    CO2 --> NO2
+    CO3 --> NO3
+    CO4 --> NO4
+
+    NO1 --> AO1
+    NO2 --> AO2
+    NO3 --> AO3
+    NO4 --> AO4
+```
+
+### Caching Strategy
+
+```mermaid
+flowchart TD
+    R[Request]
+
+    R --> L1{L1 Cache<br/>Memory}
+    L1 -->|Hit| RES1[Return]
+    L1 -->|Miss| L2{L2 Cache<br/>Local Storage}
+
+    L2 -->|Hit| U1[Update L1]
+    U1 --> RES2[Return]
+    L2 -->|Miss| L3{L3 Cache<br/>CDN}
+
+    L3 -->|Hit| U2[Update L1+L2]
+    U2 --> RES3[Return]
+    L3 -->|Miss| N[Network Fetch]
+
+    N --> U3[Update All Caches]
+    U3 --> RES4[Return]
+```
+
+## Scalability Architecture
+
+### Horizontal Scaling
+
+```mermaid
+graph TB
+    subgraph "Load Balancer"
+        LB[Geographic Load Balancer]
+    end
+
+    subgraph "Relay Clusters"
+        subgraph "US West"
+            RW1[Relay 1]
+            RW2[Relay 2]
+        end
+
+        subgraph "US East"
+            RE1[Relay 1]
+            RE2[Relay 2]
+        end
+
+        subgraph "Europe"
+            EU1[Relay 1]
+            EU2[Relay 2]
+        end
+    end
+
+    subgraph "Arbiter Pools"
+        subgraph "Pool A"
+            A1[Arbiter 1]
+            A2[Arbiter 2]
+        end
+
+        subgraph "Pool B"
+            B1[Arbiter 1]
+            B2[Arbiter 2]
+        end
+    end
+
+    LB --> RW1
+    LB --> RE1
+    LB --> EU1
+
+    RW1 --> A1
+    RW2 --> A1
+    RE1 --> B1
+    RE2 --> B1
+    EU1 --> A2
+    EU2 --> B2
+```
+
+### Sharding Strategy
+
+```mermaid
+graph TD
+    subgraph "Application Sharding"
+        AS[App Selector]
+        AS --> S1[Shard 1<br/>Apps A-F]
+        AS --> S2[Shard 2<br/>Apps G-M]
+        AS --> S3[Shard 3<br/>Apps N-S]
+        AS --> S4[Shard 4<br/>Apps T-Z]
+    end
+
+    subgraph "Event Type Sharding"
+        ES[Event Router]
+        ES --> D[Definition Events]
+        ES --> I[Interaction Events]
+        ES --> S[State Events]
+    end
+
+    subgraph "Time-Based Sharding"
+        TS[Time Router]
+        TS --> H[Hot Data<br/>< 1 hour]
+        TS --> W[Warm Data<br/>1-24 hours]
+        TS --> C[Cold Data<br/>> 24 hours]
+    end
+```
+
+## Deployment Architecture
+
+### Container Architecture
+
+```mermaid
+graph TB
+    subgraph "Container Orchestration"
+        K[Kubernetes Cluster]
+
+        subgraph "Client Pods"
+            CP1[Client Pod 1]
+            CP2[Client Pod 2]
+            CPN[Client Pod N]
+        end
+
+        subgraph "Relay Pods"
+            RP1[Relay Pod 1]
+            RP2[Relay Pod 2]
+            RPN[Relay Pod N]
+        end
+
+        subgraph "Arbiter Pods"
+            AP1[Arbiter Pod 1]
+            AP2[Arbiter Pod 2]
+            APN[Arbiter Pod N]
+        end
+    end
+
+    subgraph "Services"
+        CS[Client Service]
+        RS[Relay Service]
+        AS[Arbiter Service]
+    end
+
+    CP1 --> CS
+    CP2 --> CS
+    CPN --> CS
+
+    RP1 --> RS
+    RP2 --> RS
+    RPN --> RS
+
+    AP1 --> AS
+    AP2 --> AS
+    APN --> AS
+```
+
+### Monitoring Architecture
+
+```mermaid
+flowchart TD
+    subgraph "Metrics Collection"
+        CM[Client Metrics]
+        RM[Relay Metrics]
+        AM[Arbiter Metrics]
+    end
+
+    subgraph "Monitoring Stack"
+        P[Prometheus]
+        G[Grafana]
+        A[AlertManager]
+    end
+
+    subgraph "Dashboards"
+        D1[System Health]
+        D2[Performance]
+        D3[Error Rates]
+        D4[User Activity]
+    end
+
+    CM --> P
+    RM --> P
+    AM --> P
+
+    P --> G
+    P --> A
+
+    G --> D1
+    G --> D2
+    G --> D3
+    G --> D4
+
+    A -->|Critical| PG[PagerDuty]
+    A -->|Warning| SL[Slack]
+    A -->|Info| EM[Email]
+```
+
+## Integration Patterns
+
+### Client Integration
+
+```mermaid
+graph TD
+    subgraph "Application Layer"
+        UI[User Interface]
+        BL[Business Logic]
+    end
+
+    subgraph "NSM Integration Layer"
+        NSM[NSM Client Library]
+        EM[Event Manager]
+        SM[State Manager]
+        NM[Network Manager]
+    end
+
+    subgraph "Infrastructure Layer"
+        WS[WebSocket Client]
+        LS[Local Storage]
+        IDB[IndexedDB]
+    end
+
+    UI --> BL
+    BL --> NSM
+
+    NSM --> EM
+    NSM --> SM
+    NSM --> NM
+
+    EM --> WS
+    SM --> LS
+    SM --> IDB
+    NM --> WS
+```
+
+### Framework Adapters
+
+```mermaid
+graph LR
+    subgraph "Frontend Frameworks"
+        R[React Adapter]
+        V[Vue Adapter]
+        A[Angular Adapter]
+        S[Svelte Adapter]
+    end
+
+    subgraph "NSM Core"
+        C[Core Library]
+        E[Event System]
+        ST[State System]
+    end
+
+    subgraph "State Machines"
+        X[XState]
+        M[MobX State Tree]
+        Z[Zustand]
+    end
+
+    R --> C
+    V --> C
+    A --> C
+    S --> C
+
+    C --> E
+    C --> ST
+
+    ST --> X
+    ST --> M
+    ST --> Z
+```
+
+## Best Practices
+
+### Architecture Principles
+
+1. **Separation of Concerns**
+   - Keep protocol logic separate from business logic
+   - Isolate cryptographic operations
+   - Decouple UI from state management
+
+2. **Defensive Programming**
+   - Validate all inputs
+   - Handle network failures gracefully
+   - Implement circuit breakers
+
+3. **Performance First**
+   - Design for minimal latency
+   - Optimize for bandwidth efficiency
+   - Implement progressive enhancement
+
+4. **Security by Design**
+   - Never trust client input
+   - Validate cryptographic signatures
+   - Implement rate limiting
+
+5. **Scalability Planning**
+   - Design for horizontal scaling
+   - Implement efficient caching
+   - Plan for data growth
+
+### Implementation Guidelines
+
+1. **Event Design**
+   - Keep events small and focused
+   - Use meaningful event types
+   - Include necessary metadata
+
+2. **State Management**
+   - Minimize state size
+   - Use immutable updates
+   - Implement state versioning
+
+3. **Network Optimization**
+   - Batch related operations
+   - Implement reconnection logic
+   - Use connection pooling
+
+4. **Error Handling**
+   - Provide meaningful error messages
+   - Implement retry mechanisms
+   - Log errors for debugging
+
+5. **Testing Strategy**
+   - Test all state transitions
+   - Simulate network failures
+   - Validate conflict resolution
+
+## Conclusion
+
+The NSM architecture provides a robust foundation for building decentralized, collaborative applications. By following these architectural patterns and best practices, developers can create scalable, secure, and performant applications that leverage the power of the Nostr protocol for distributed state management.

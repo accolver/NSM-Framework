@@ -549,7 +549,7 @@
             "id": 4,
             "title": "Document protocol specifications and NIPs",
             "description": "Create detailed protocol documentation for the proposed NSM event kinds and specifications",
-            "status": "pending",
+            "status": "done",
             "details": "Document event schemas, interaction patterns, and implementation requirements",
             "testStrategy": "Validate protocol examples, ensure specification completeness, and test implementations"
           }
@@ -844,7 +844,7 @@
     ],
     "metadata": {
       "created": "2025-09-15T12:51:55.799Z",
-      "updated": "2025-09-16T13:49:43.079Z",
+      "updated": "2025-09-16T20:19:57.902Z",
       "description": "Tasks for master context"
     }
   }
