@@ -1,0 +1,620 @@
+---
+title: NSM Core
+description: 'Core NSM protocol types, constants, and validation utilities for Nostr State Machine events'
+---
+
+# NSM Core
+
+NSM Core provides the foundational TypeScript interfaces, validation utilities, and protocol constants for the Nostr State Machine (NSM) protocol. This package defines the three core NSM event types and provides utilities for creating and validating them.
+
+## Installation
+
+```bash
+npm install @nsm/core
+```
+
+## Protocol Overview
+
+The NSM protocol defines three event types for collaborative state machines on Nostr:
+
+1. **Definition Events** (Kind 30079) - Define state machine structure
+2. **Interaction Events** (Kind 7000-7999) - User interactions with state machines
+3. **State Update Events** (Kind 10079) - State machine state changes
+
+## Protocol Constants
+
+### NSM_PROTOCOL
+
+Core protocol specification constants.
+
+```typescript
+export const NSM_PROTOCOL = {
+  /** NSM Definition Event kind */
+  DEFINITION_KIND: 30079,
+  /** NSM Interaction Event kind range */
+  INTERACTION_KIND_MIN: 7000,
+  INTERACTION_KIND_MAX: 7999,
+  /** NSM State Update Event kind */
+  STATE_UPDATE_KIND: 10079,
+  /** Protocol version */
+  VERSION: "1.0.0"
+} as const;
+```
+
+### SUPPORTED_ENGINES
+
+Currently supported state machine engines.
+
+```typescript
+export const SUPPORTED_ENGINES = ["xstate"] as const;
+export type SupportedEngine = typeof SUPPORTED_ENGINES[number];
+```
+
+## Utility Functions
+
+### `isNSMEventKind(kind)`
+
+Check if an event kind is a valid NSM event kind.
+
+```typescript
+function isNSMEventKind(kind: number): boolean
+```
+
+**Example:**
+
+```typescript
+import { isNSMEventKind, NSM_PROTOCOL } from '@nsm/core';
+
+console.log(isNSMEventKind(30079)); // true (Definition)
+console.log(isNSMEventKind(7001));  // true (Interaction)
+console.log(isNSMEventKind(10079)); // true (State Update)
+console.log(isNSMEventKind(1));     // false (Regular note)
+```
+
+### `getNSMEventType(kind)`
+
+Get the NSM event type from a kind number.
+
+```typescript
+function getNSMEventType(kind: number): "definition" | "interaction" | "state-update" | null
+```
+
+**Example:**
+
+```typescript
+import { getNSMEventType } from '@nsm/core';
+
+console.log(getNSMEventType(30079)); // "definition"
+console.log(getNSMEventType(7001));  // "interaction"
+console.log(getNSMEventType(10079)); // "state-update"
+console.log(getNSMEventType(1));     // null
+```
+
+## NSM Definition Events
+
+Definition events (Kind 30079) define the structure and initial state of NSM applications.
+
+### Interface
+
+```typescript
+interface INSMDefinitionEvent extends INostrEvent {
+  kind: 30079;
+  content: string; // JSON-serialized NSMDefinitionContent
+  tags: NSMDefinitionEventTags;
+}
+
+interface NSMDefinitionContent {
+  initialState: any;
+  stateSchema?: JSONSchema;
+  interactionSchema?: JSONSchema;
+  conflictResolution?: ConflictResolutionPolicy;
+  metadata?: NSMDefinitionMetadata;
+}
+
+type NSMDefinitionEventTags = [
+  ["d", string], // Application identifier
+  ["name", string], // Human-readable name
+  ["engine", SupportedEngine], // State machine engine
+  ["engineCodeURI", string], // URI to engine code
+  ...Array<[string, string]> // Additional tags
+];
+
+interface NSMDefinitionMetadata {
+  description?: string;
+  version?: string;
+  author?: string;
+  license?: string;
+  repository?: string;
+  documentation?: string;
+  tags?: string[];
+}
+```
+
+### `createNSMDefinitionEvent(options)`
+
+Create a new NSM Definition event.
+
+```typescript
+function createNSMDefinitionEvent(options: {
+  identifier: string;
+  name: string;
+  engine: SupportedEngine;
+  engineCodeURI: string;
+  initialState: any;
+  stateSchema?: JSONSchema;
+  interactionSchema?: JSONSchema;
+  conflictResolution?: ConflictResolutionPolicy;
+  metadata?: NSMDefinitionMetadata;
+  additionalTags?: Array<[string, string]>;
+}): Omit<INSMDefinitionEvent, 'id' | 'pubkey' | 'sig' | 'created_at'>
+```
+
+**Example:**
+
+```typescript
+import { createNSMDefinitionEvent } from '@nsm/core';
+
+const chatMachineDefinition = createNSMDefinitionEvent({
+  identifier: 'simple-chat-v1',
+  name: 'Simple Chat Application',
+  engine: 'xstate',
+  engineCodeURI: 'https://example.com/chat-machine.js',
+  initialState: {
+    messages: [],
+    users: [],
+    roomName: 'General'
+  },
+  stateSchema: {
+    type: 'object',
+    properties: {
+      messages: { type: 'array' },
+      users: { type: 'array' },
+      roomName: { type: 'string' }
+    }
+  },
+  interactionSchema: {
+    oneOf: [
+      {
+        type: 'object',
+        properties: {
+          type: { const: 'SEND_MESSAGE' },
+          text: { type: 'string' },
+          sender: { type: 'string' }
+        }
+      }
+    ]
+  },
+  metadata: {
+    description: 'A simple chat room state machine',
+    version: '1.0.0',
+    tags: ['chat', 'communication']
+  }
+});
+
+console.log('Created definition:', chatMachineDefinition);
+```
+
+### `validateNSMDefinitionEvent(event)`
+
+Validate an NSM Definition event structure.
+
+```typescript
+function validateNSMDefinitionEvent(event: any): ValidationResult<INSMDefinitionEvent>
+```
+
+**Example:**
+
+```typescript
+import { validateNSMDefinitionEvent } from '@nsm/core';
+
+const result = validateNSMDefinitionEvent(someEvent);
+if (result.valid) {
+  console.log('Valid definition event:', result.data);
+} else {
+  console.error('Validation errors:', result.errors);
+}
+```
+
+## NSM Interaction Events
+
+Interaction events (Kind 7000-7999) represent user actions on NSM applications.
+
+### Interface
+
+```typescript
+interface INSMInteractionEvent extends INostrEvent {
+  kind: number; // 7000-7999 range
+  content: string; // JSON-serialized NSMInteractionContent
+  tags: NSMInteractionEventTags;
+}
+
+interface NSMInteractionContent {
+  action: string;
+  payload?: any;
+  timestamp?: number;
+  sessionId?: string;
+  clientInfo?: {
+    userAgent?: string;
+    version?: string;
+  };
+}
+
+type NSMInteractionEventTags = [
+  ["a", string], // Reference to NSM definition event
+  ["p", string]?, // Optional: target user pubkey
+  ...Array<[string, string]> // Additional tags
+];
+```
+
+### `createNSMInteractionEvent(options)`
+
+Create a new NSM Interaction event.
+
+```typescript
+function createNSMInteractionEvent(options: NSMInteractionOptions): Omit<INSMInteractionEvent, 'id' | 'pubkey' | 'sig' | 'created_at'>
+
+interface NSMInteractionOptions {
+  definitionEventCoordinate: string;
+  action: string;
+  payload?: any;
+  kind?: number; // Must be in 7000-7999 range
+  targetUser?: string;
+  sessionId?: string;
+  clientInfo?: {
+    userAgent?: string;
+    version?: string;
+  };
+  additionalTags?: Array<[string, string]>;
+}
+```
+
+**Example:**
+
+```typescript
+import { createNSMInteractionEvent } from '@nsm/core';
+
+const chatMessage = createNSMInteractionEvent({
+  definitionEventCoordinate: '30079:npub123:simple-chat-v1',
+  action: 'SEND_MESSAGE',
+  payload: {
+    text: 'Hello, everyone!',
+    sender: 'Alice',
+    timestamp: Date.now()
+  },
+  sessionId: 'chat-session-123'
+});
+
+const userJoin = createNSMInteractionEvent({
+  definitionEventCoordinate: '30079:npub123:simple-chat-v1',
+  action: 'USER_JOIN',
+  payload: {
+    username: 'Bob',
+    joinTime: Date.now()
+  },
+  kind: 7001, // Custom kind within range
+});
+
+console.log('Chat interaction:', chatMessage);
+```
+
+### `validateNSMInteractionEvent(event)`
+
+Validate an NSM Interaction event structure.
+
+```typescript
+function validateNSMInteractionEvent(event: any): ValidationResult<INSMInteractionEvent>
+```
+
+**Example:**
+
+```typescript
+import { validateNSMInteractionEvent } from '@nsm/core';
+
+const result = validateNSMInteractionEvent(interactionEvent);
+if (result.valid) {
+  console.log('Valid interaction:', result.data.content);
+  const parsed = JSON.parse(result.data.content);
+  console.log('Action:', parsed.action);
+} else {
+  console.error('Validation failed:', result.errors);
+}
+```
+
+## NSM State Update Events
+
+State Update events (Kind 10079) represent changes to the state of NSM applications.
+
+### Interface
+
+```typescript
+interface INSMStateUpdateEvent extends INostrEvent {
+  kind: 10079;
+  content: string; // JSON-serialized NSMStateUpdateContent
+  tags: NSMStateUpdateEventTags;
+}
+
+interface NSMStateUpdateContent {
+  state: any;
+  stateMachineId?: string;
+  version?: number;
+  causedBy?: {
+    interactionId?: string;
+    userId?: string;
+    timestamp?: number;
+  };
+  metadata?: {
+    computeTime?: number;
+    stateSize?: number;
+    checksum?: string;
+  };
+}
+
+type NSMStateUpdateEventTags = [
+  ["a", string], // Reference to NSM definition event
+  ["e", string]?, // Optional: reference to previous state update
+  ["p", string]?, // Optional: user who caused the update
+  ...Array<[string, string]> // Additional tags
+];
+```
+
+### `createNSMStateUpdateEvent(options)`
+
+Create a new NSM State Update event.
+
+```typescript
+function createNSMStateUpdateEvent(options: NSMStateUpdateOptions): Omit<INSMStateUpdateEvent, 'id' | 'pubkey' | 'sig' | 'created_at'>
+
+interface NSMStateUpdateOptions {
+  definitionEventCoordinate: string;
+  state: any;
+  previousEventId?: string;
+  causedByUser?: string;
+  causedByInteraction?: string;
+  stateMachineId?: string;
+  version?: number;
+  metadata?: {
+    computeTime?: number;
+    stateSize?: number;
+    checksum?: string;
+  };
+  additionalTags?: Array<[string, string]>;
+}
+```
+
+**Example:**
+
+```typescript
+import { createNSMStateUpdateEvent } from '@nsm/core';
+
+const updatedChatState = createNSMStateUpdateEvent({
+  definitionEventCoordinate: '30079:npub123:simple-chat-v1',
+  state: {
+    messages: [
+      {
+        id: 1,
+        text: 'Hello, everyone!',
+        sender: 'Alice',
+        timestamp: 1640995200000
+      }
+    ],
+    users: ['Alice'],
+    roomName: 'General'
+  },
+  causedByUser: 'npub456...',
+  causedByInteraction: 'interaction-event-id',
+  version: 1,
+  metadata: {
+    computeTime: 15,
+    stateSize: 256
+  }
+});
+
+console.log('State update event:', updatedChatState);
+```
+
+### `validateNSMStateUpdateEvent(event)`
+
+Validate an NSM State Update event structure.
+
+```typescript
+function validateNSMStateUpdateEvent(event: any): ValidationResult<INSMStateUpdateEvent>
+```
+
+**Example:**
+
+```typescript
+import { validateNSMStateUpdateEvent } from '@nsm/core';
+
+const result = validateNSMStateUpdateEvent(stateEvent);
+if (result.valid) {
+  const content = JSON.parse(result.data.content);
+  console.log('New state:', content.state);
+  console.log('Version:', content.version);
+} else {
+  console.error('Invalid state update:', result.errors);
+}
+```
+
+## Base Types and Interfaces
+
+### Core Interfaces
+
+```typescript
+interface INostrEvent {
+  id?: string;
+  pubkey?: string;
+  created_at?: number;
+  kind: number;
+  tags: string[][];
+  content: string;
+  sig?: string;
+}
+
+interface ValidationResult<T = any> {
+  valid: boolean;
+  data?: T;
+  errors?: string[];
+}
+
+interface JSONSchema {
+  type?: string;
+  properties?: Record<string, JSONSchema>;
+  items?: JSONSchema;
+  required?: string[];
+  enum?: any[];
+  const?: any;
+  oneOf?: JSONSchema[];
+  anyOf?: JSONSchema[];
+  [key: string]: any;
+}
+
+type NSMEventType = "definition" | "interaction" | "state-update";
+
+type ConflictResolutionPolicy = "last-write-wins" | "merge" | "manual" | "custom";
+```
+
+## Complete Usage Example
+
+```typescript
+import {
+  NSM_PROTOCOL,
+  createNSMDefinitionEvent,
+  createNSMInteractionEvent,
+  createNSMStateUpdateEvent,
+  validateNSMDefinitionEvent,
+  validateNSMInteractionEvent,
+  validateNSMStateUpdateEvent,
+  isNSMEventKind,
+  getNSMEventType
+} from '@nsm/core';
+
+// Create a todo application definition
+const todoAppDefinition = createNSMDefinitionEvent({
+  identifier: 'collaborative-todo-v1',
+  name: 'Collaborative Todo List',
+  engine: 'xstate',
+  engineCodeURI: 'https://cdn.example.com/todo-machine.js',
+  initialState: {
+    tasks: [],
+    filter: 'all'
+  },
+  stateSchema: {
+    type: 'object',
+    properties: {
+      tasks: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            text: { type: 'string' },
+            completed: { type: 'boolean' },
+            createdBy: { type: 'string' }
+          },
+          required: ['id', 'text', 'completed']
+        }
+      },
+      filter: {
+        type: 'string',
+        enum: ['all', 'active', 'completed']
+      }
+    },
+    required: ['tasks', 'filter']
+  },
+  interactionSchema: {
+    oneOf: [
+      {
+        type: 'object',
+        properties: {
+          type: { const: 'ADD_TASK' },
+          text: { type: 'string' }
+        },
+        required: ['type', 'text']
+      },
+      {
+        type: 'object',
+        properties: {
+          type: { const: 'TOGGLE_TASK' },
+          id: { type: 'string' }
+        },
+        required: ['type', 'id']
+      },
+      {
+        type: 'object',
+        properties: {
+          type: { const: 'SET_FILTER' },
+          filter: { type: 'string', enum: ['all', 'active', 'completed'] }
+        },
+        required: ['type', 'filter']
+      }
+    ]
+  },
+  metadata: {
+    description: 'A collaborative todo list application',
+    version: '1.0.0',
+    tags: ['productivity', 'collaboration']
+  }
+});
+
+// Validate the definition
+const defValidation = validateNSMDefinitionEvent(todoAppDefinition);
+if (defValidation.valid) {
+  console.log('✅ Valid todo app definition');
+} else {
+  console.error('❌ Definition validation errors:', defValidation.errors);
+}
+
+// Create an interaction to add a task
+const addTaskInteraction = createNSMInteractionEvent({
+  definitionEventCoordinate: '30079:author-pubkey:collaborative-todo-v1',
+  action: 'ADD_TASK',
+  payload: {
+    text: 'Learn NSM protocol',
+    id: 'task-' + Date.now()
+  },
+  sessionId: 'todo-session-1'
+});
+
+// Create a state update reflecting the new task
+const newTodoState = createNSMStateUpdateEvent({
+  definitionEventCoordinate: '30079:author-pubkey:collaborative-todo-v1',
+  state: {
+    tasks: [
+      {
+        id: 'task-' + Date.now(),
+        text: 'Learn NSM protocol',
+        completed: false,
+        createdBy: 'user-pubkey'
+      }
+    ],
+    filter: 'all'
+  },
+  causedByInteraction: 'interaction-event-id',
+  version: 1
+});
+
+// Validate events
+console.log('Interaction valid:', validateNSMInteractionEvent(addTaskInteraction).valid);
+console.log('State update valid:', validateNSMStateUpdateEvent(newTodoState).valid);
+
+// Check event kinds
+console.log('Definition kind valid:', isNSMEventKind(NSM_PROTOCOL.DEFINITION_KIND));
+console.log('Interaction type:', getNSMEventType(7001));
+```
+
+## Version Information
+
+Current NSM Core version:
+
+```typescript
+export const NSM_CORE_VERSION = "0.1.0";
+```
+
+The NSM protocol is currently at version 1.0.0 as defined in `NSM_PROTOCOL.VERSION`.
+
+## Next Steps
+
+- [NSM Client](/api/nsm-client) - Use these types with the NSM client
+- [NSM Client SDK](/api/nsm-client-sdk) - Higher-level SDK interface
+- [Examples](/examples) - See these types in action
+- [Guide: State Machines](/guide/state-machines) - Learn about NSM state machine concepts

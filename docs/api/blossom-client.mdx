@@ -1,0 +1,766 @@
+---
+title: Blossom Client
+description: 'Decentralized file storage client with multi-server support, redundancy, and Nostr authentication'
+---
+
+# Blossom Client
+
+The Blossom Client provides a comprehensive interface for interacting with Blossom protocol servers - a decentralized file storage network built on Nostr. It features multi-server support, automatic failover, content integrity verification, and redundancy options.
+
+## Installation
+
+```bash
+npm install @nsm/client-sdk
+```
+
+The BlossomClient is included as part of the NSM Client SDK.
+
+## Quick Start
+
+```typescript
+import { BlossomClient } from '@nsm/client-sdk';
+
+const client = new BlossomClient({
+  servers: ['https://blossom1.com', 'https://blossom2.com'],
+  privateKey: 'your-64-character-hex-nostr-private-key'
+});
+
+// Upload a file
+const result = await client.upload('Hello, Blossom!');
+console.log('File URL:', result.url);
+
+// Download the file
+const content = await client.download(result.hash);
+console.log('Downloaded:', content);
+```
+
+## Class: BlossomClient
+
+### Constructor
+
+```typescript
+constructor(config: BlossomConfig)
+```
+
+#### Configuration
+
+```typescript
+interface BlossomConfig {
+  servers: string[];
+  privateKey: string;
+  redundancy?: {
+    replicationCount?: number;
+    failoverTimeout?: number;
+    retryAttempts?: number;
+    preferFastestServer?: boolean;
+  };
+}
+```
+
+**Parameters:**
+
+- `servers` - Array of Blossom server URLs
+- `privateKey` - 64-character hex string for Nostr authentication
+- `redundancy` - Optional redundancy configuration
+
+**Redundancy Options:**
+
+- `replicationCount` - Number of servers to replicate to (default: 2)
+- `failoverTimeout` - Timeout for server operations in ms (default: 30000)
+- `retryAttempts` - Number of retry attempts (default: 3)
+- `preferFastestServer` - Prefer fastest server for downloads (default: false)
+
+**Example:**
+
+```typescript
+// Basic configuration
+const basicClient = new BlossomClient({
+  servers: ['https://blossom.example.com'],
+  privateKey: '64-character-hex-private-key'
+});
+
+// Advanced configuration with redundancy
+const redundantClient = new BlossomClient({
+  servers: [
+    'https://blossom-primary.com',
+    'https://blossom-backup.com',
+    'https://blossom-emergency.com'
+  ],
+  privateKey: 'your-private-key',
+  redundancy: {
+    replicationCount: 3,
+    failoverTimeout: 10000,
+    retryAttempts: 2,
+    preferFastestServer: true
+  }
+});
+```
+
+## Upload Methods
+
+### `upload(content, options?)`
+
+Upload content to Blossom servers with automatic server selection and failover.
+
+```typescript
+async upload(
+  content: string | Uint8Array,
+  options?: BlossomUploadOptions
+): Promise<BlossomUploadResponse>
+```
+
+**Parameters:**
+
+```typescript
+interface BlossomUploadOptions {
+  maxSize?: number;
+  contentType?: string;
+  strict?: boolean;
+}
+```
+
+- `content` - File content as string or Uint8Array
+- `maxSize` - Maximum allowed file size in bytes
+- `contentType` - MIME type of the content
+- `strict` - Enforce strict content type validation
+
+**Returns:**
+
+```typescript
+interface BlossomUploadResponse {
+  hash: string;
+  url: string;
+  size: number;
+  contentType?: string;
+  verified?: boolean;
+  replicas?: BlossomUploadResponse[];
+  partialReplication?: boolean;
+}
+```
+
+**Example:**
+
+```typescript
+// Upload text content
+const textResult = await client.upload('Hello, world!', {
+  contentType: 'text/plain',
+  maxSize: 1024 * 1024 // 1MB limit
+});
+
+// Upload binary data
+const imageData = new Uint8Array([137, 80, 78, 71, /* ... PNG data */]);
+const imageResult = await client.upload(imageData, {
+  contentType: 'image/png',
+  strict: true
+});
+
+// Upload JSON data
+const jsonData = JSON.stringify({ message: 'Hello, Blossom!' });
+const jsonResult = await client.upload(jsonData, {
+  contentType: 'application/json'
+});
+
+console.log('Text uploaded:', textResult.url);
+console.log('Image uploaded:', imageResult.url);
+console.log('JSON uploaded:', jsonResult.url);
+```
+
+### `uploadWithVerification(content)`
+
+Upload content with integrity verification to ensure the server returns the correct hash.
+
+```typescript
+async uploadWithVerification(content: string | Uint8Array): Promise<BlossomUploadResponse>
+```
+
+This method automatically verifies that the hash returned by the server matches the expected SHA256 hash of the content, providing protection against tampering or corruption.
+
+**Example:**
+
+```typescript
+try {
+  const result = await client.uploadWithVerification('Critical document content');
+  console.log('Upload verified successfully:', result.verified); // true
+  console.log('Content hash:', result.hash);
+} catch (error) {
+  console.error('Verification failed:', error.message);
+  // Could indicate server tampering or network corruption
+}
+```
+
+### `uploadWithReplication(content)`
+
+Upload content to multiple servers simultaneously for redundancy.
+
+```typescript
+async uploadWithReplication(content: string | Uint8Array): Promise<BlossomUploadResponse>
+```
+
+This method attempts to upload to multiple servers based on the `replicationCount` configuration, providing enhanced availability and durability.
+
+**Example:**
+
+```typescript
+const client = new BlossomClient({
+  servers: ['https://server1.com', 'https://server2.com', 'https://server3.com'],
+  privateKey: 'your-key',
+  redundancy: {
+    replicationCount: 3
+  }
+});
+
+const result = await client.uploadWithReplication('Important backup data');
+
+console.log(`Content replicated to ${result.replicas?.length} servers`);
+console.log('Primary URL:', result.url);
+console.log('Partial replication:', result.partialReplication); // true if fewer than requested replicas
+
+// List all replica URLs
+result.replicas?.forEach((replica, index) => {
+  console.log(`Replica ${index + 1}:`, replica.url);
+});
+```
+
+## Download Methods
+
+### `download(hash)`
+
+Download content by SHA256 hash from available servers.
+
+```typescript
+async download(hash: string): Promise<string>
+```
+
+The client automatically tries healthy servers first and implements intelligent failover.
+
+**Example:**
+
+```typescript
+const hash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+
+try {
+  const content = await client.download(hash);
+  console.log('Downloaded content:', content);
+} catch (error) {
+  console.error('Download failed:', error.message);
+}
+```
+
+### `downloadAndVerify(hash)`
+
+Download content and verify its integrity against the expected hash.
+
+```typescript
+async downloadAndVerify(hash: string): Promise<string>
+```
+
+This method provides additional security by verifying that the downloaded content matches the expected hash.
+
+**Example:**
+
+```typescript
+try {
+  const content = await client.downloadAndVerify('expected-hash-value');
+  console.log('Content downloaded and verified:', content);
+} catch (error) {
+  if (error.message.includes('integrity verification failed')) {
+    console.error('Downloaded content is corrupted or tampered with');
+  } else {
+    console.error('Download error:', error.message);
+  }
+}
+```
+
+## Delete Methods
+
+### `delete(hash)`
+
+Delete content from all configured servers.
+
+```typescript
+async delete(hash: string): Promise<void>
+```
+
+**Example:**
+
+```typescript
+try {
+  await client.delete('hash-to-delete');
+  console.log('Content successfully deleted from all servers');
+} catch (error) {
+  console.error('Delete operation failed:', error.message);
+}
+```
+
+## Server Management
+
+### `getServers()`
+
+Get the list of configured servers.
+
+```typescript
+getServers(): string[]
+```
+
+**Example:**
+
+```typescript
+const servers = client.getServers();
+console.log('Configured servers:', servers);
+// ['https://server1.com', 'https://server2.com']
+```
+
+### `getServerHealth(serverUrl)`
+
+Check the health status of a specific server.
+
+```typescript
+getServerHealth(serverUrl: string): 'healthy' | 'unhealthy' | 'unknown'
+```
+
+**Example:**
+
+```typescript
+const health = client.getServerHealth('https://blossom.example.com');
+console.log('Server health:', health);
+
+// Check all servers
+client.getServers().forEach(server => {
+  const health = client.getServerHealth(server);
+  console.log(`${server}: ${health}`);
+});
+```
+
+### `getServerStats()`
+
+Get detailed performance statistics for all servers.
+
+```typescript
+getServerStats(): Record<string, ServerStats>
+```
+
+```typescript
+interface ServerStats {
+  health: 'healthy' | 'unhealthy' | 'unknown';
+  responseTime: number;
+  successRate: number;
+  totalRequests: number;
+  failureCount: number;
+}
+```
+
+**Example:**
+
+```typescript
+const stats = client.getServerStats();
+
+for (const [server, stat] of Object.entries(stats)) {
+  console.log(`\n${server}:`);
+  console.log(`  Health: ${stat.health}`);
+  console.log(`  Success Rate: ${(stat.successRate * 100).toFixed(1)}%`);
+  console.log(`  Avg Response Time: ${stat.responseTime}ms`);
+  console.log(`  Total Requests: ${stat.totalRequests}`);
+  console.log(`  Failures: ${stat.failureCount}`);
+}
+```
+
+### `checkServerHealth(serverUrl)`
+
+Actively check a server's health status with a HEAD request.
+
+```typescript
+async checkServerHealth(serverUrl: string): Promise<void>
+```
+
+**Example:**
+
+```typescript
+// Check and update health status
+await client.checkServerHealth('https://blossom.example.com');
+console.log('Health updated:', client.getServerHealth('https://blossom.example.com'));
+
+// Check all servers
+const servers = client.getServers();
+for (const server of servers) {
+  try {
+    await client.checkServerHealth(server);
+    console.log(`${server}: ${client.getServerHealth(server)}`);
+  } catch (error) {
+    console.error(`Failed to check ${server}:`, error.message);
+  }
+}
+```
+
+### `markServerUnhealthy(serverUrl)`
+
+Manually mark a server as unhealthy (useful for external monitoring integration).
+
+```typescript
+markServerUnhealthy(serverUrl: string): void
+```
+
+**Example:**
+
+```typescript
+// Mark server as unhealthy if external monitoring detects issues
+client.markServerUnhealthy('https://problematic-server.com');
+console.log('Server marked as unhealthy');
+```
+
+## Type Definitions
+
+### Core Types
+
+```typescript
+interface BlossomConfig {
+  servers: string[];
+  privateKey: string;
+  redundancy?: {
+    replicationCount?: number;
+    failoverTimeout?: number;
+    retryAttempts?: number;
+    preferFastestServer?: boolean;
+  };
+}
+
+interface BlossomUploadResponse {
+  hash: string;
+  url: string;
+  size: number;
+  contentType?: string;
+  verified?: boolean;
+  replicas?: BlossomUploadResponse[];
+  partialReplication?: boolean;
+}
+
+interface BlossomUploadOptions {
+  maxSize?: number;
+  contentType?: string;
+  strict?: boolean;
+}
+
+interface ServerStats {
+  health: 'healthy' | 'unhealthy' | 'unknown';
+  responseTime: number;
+  successRate: number;
+  totalRequests: number;
+  failureCount: number;
+}
+
+interface NostrEvent {
+  kind: number;
+  content: string;
+  tags: string[][];
+  created_at: number;
+  sig?: string;
+  id?: string;
+  pubkey?: string;
+}
+```
+
+## Complete Usage Examples
+
+### Basic File Manager
+
+```typescript
+import { BlossomClient } from '@nsm/client-sdk';
+
+class SimpleFileManager {
+  private client: BlossomClient;
+
+  constructor(servers: string[], privateKey: string) {
+    this.client = new BlossomClient({
+      servers,
+      privateKey
+    });
+  }
+
+  async uploadFile(content: string | Uint8Array, filename?: string): Promise<string> {
+    try {
+      const result = await this.client.uploadWithVerification(content);
+      console.log(`✅ ${filename || 'File'} uploaded successfully`);
+      console.log(`   Hash: ${result.hash}`);
+      console.log(`   URL: ${result.url}`);
+      console.log(`   Size: ${result.size} bytes`);
+      return result.hash;
+    } catch (error) {
+      console.error(`❌ Upload failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async downloadFile(hash: string): Promise<string> {
+    try {
+      const content = await this.client.downloadAndVerify(hash);
+      console.log(`✅ File downloaded and verified`);
+      return content;
+    } catch (error) {
+      console.error(`❌ Download failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async deleteFile(hash: string): Promise<void> {
+    try {
+      await this.client.delete(hash);
+      console.log(`✅ File deleted successfully`);
+    } catch (error) {
+      console.error(`❌ Delete failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  getServerStatus(): void {
+    console.log('\n📊 Server Status:');
+    const stats = this.client.getServerStats();
+
+    for (const [server, stat] of Object.entries(stats)) {
+      const healthIcon = stat.health === 'healthy' ? '🟢' :
+                        stat.health === 'unhealthy' ? '🔴' : '🟡';
+
+      console.log(`${healthIcon} ${server}`);
+      console.log(`   Success: ${(stat.successRate * 100).toFixed(1)}%`);
+      console.log(`   Response: ${stat.responseTime}ms`);
+      console.log(`   Requests: ${stat.totalRequests}`);
+    }
+  }
+}
+
+// Usage
+const fileManager = new SimpleFileManager(
+  ['https://blossom1.com', 'https://blossom2.com'],
+  'your-private-key'
+);
+
+// Upload and manage files
+const hash1 = await fileManager.uploadFile('Hello, world!', 'hello.txt');
+const hash2 = await fileManager.uploadFile(JSON.stringify({ data: 'test' }), 'data.json');
+
+// Download files
+const content1 = await fileManager.downloadFile(hash1);
+const content2 = await fileManager.downloadFile(hash2);
+
+// Check server status
+fileManager.getServerStatus();
+
+// Clean up
+await fileManager.deleteFile(hash1);
+await fileManager.deleteFile(hash2);
+```
+
+### Redundant Backup System
+
+```typescript
+import { BlossomClient } from '@nsm/client-sdk';
+
+class BackupManager {
+  private client: BlossomClient;
+
+  constructor() {
+    this.client = new BlossomClient({
+      servers: [
+        'https://backup-primary.com',
+        'https://backup-secondary.com',
+        'https://backup-tertiary.com',
+        'https://backup-emergency.com'
+      ],
+      privateKey: process.env.BACKUP_PRIVATE_KEY!,
+      redundancy: {
+        replicationCount: 4, // Store on all servers
+        failoverTimeout: 15000,
+        preferFastestServer: true
+      }
+    });
+  }
+
+  async createBackup(data: any, backupName: string): Promise<void> {
+    console.log(`📦 Creating backup: ${backupName}`);
+
+    const content = JSON.stringify({
+      name: backupName,
+      timestamp: Date.now(),
+      data: data
+    });
+
+    try {
+      const result = await this.client.uploadWithReplication(content);
+
+      console.log(`✅ Backup created successfully`);
+      console.log(`   Name: ${backupName}`);
+      console.log(`   Hash: ${result.hash}`);
+      console.log(`   Replicas: ${result.replicas?.length}`);
+
+      if (result.partialReplication) {
+        console.warn(`⚠️  Partial replication - only ${result.replicas?.length} replicas created`);
+      }
+
+      // Store backup metadata
+      this.saveBackupMetadata(backupName, result.hash, result.replicas?.length || 0);
+
+    } catch (error) {
+      console.error(`❌ Backup failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async restoreBackup(backupHash: string): Promise<any> {
+    console.log(`📥 Restoring backup: ${backupHash}`);
+
+    try {
+      const content = await this.client.downloadAndVerify(backupHash);
+      const backup = JSON.parse(content);
+
+      console.log(`✅ Backup restored successfully`);
+      console.log(`   Name: ${backup.name}`);
+      console.log(`   Created: ${new Date(backup.timestamp).toISOString()}`);
+
+      return backup.data;
+    } catch (error) {
+      console.error(`❌ Restore failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async verifyBackupIntegrity(): Promise<void> {
+    console.log(`🔍 Verifying backup integrity across servers`);
+
+    const stats = this.client.getServerStats();
+    let healthyServers = 0;
+    let totalServers = Object.keys(stats).length;
+
+    for (const [server, stat] of Object.entries(stats)) {
+      if (stat.health === 'healthy') {
+        healthyServers++;
+        console.log(`✅ ${server} - Healthy`);
+      } else {
+        console.log(`❌ ${server} - Unhealthy`);
+      }
+    }
+
+    console.log(`📊 Server Health: ${healthyServers}/${totalServers} servers healthy`);
+
+    if (healthyServers < totalServers / 2) {
+      console.warn(`⚠️  Warning: Less than 50% of servers are healthy!`);
+    }
+  }
+
+  private saveBackupMetadata(name: string, hash: string, replicas: number): void {
+    // Implementation would save to local database or file
+    console.log(`💾 Saving metadata: ${name} -> ${hash} (${replicas} replicas)`);
+  }
+}
+
+// Usage
+const backupManager = new BackupManager();
+
+// Create backups
+await backupManager.createBackup({ users: ['alice', 'bob'], messages: [] }, 'chat-state-2024-01-15');
+await backupManager.createBackup({ version: '1.0', config: {} }, 'app-config-backup');
+
+// Verify system health
+await backupManager.verifyBackupIntegrity();
+
+// Restore backup
+const restoredData = await backupManager.restoreBackup('backup-hash-here');
+```
+
+## Error Handling
+
+The Blossom Client provides comprehensive error handling:
+
+```typescript
+import { BlossomClient } from '@nsm/client-sdk';
+
+const client = new BlossomClient({
+  servers: ['https://blossom.example.com'],
+  privateKey: 'your-key'
+});
+
+try {
+  const result = await client.upload('content');
+} catch (error) {
+  if (error.message.includes('Content exceeds maximum size')) {
+    console.error('File too large - consider splitting or compression');
+  } else if (error.message.includes('Upload timeout exceeded')) {
+    console.error('Network timeout - check connection or try again later');
+  } else if (error.message.includes('All Blossom servers failed')) {
+    console.error('No servers available - check server status');
+  } else if (error.message.includes('Private key must be 64 character hex')) {
+    console.error('Invalid private key format');
+  } else {
+    console.error('Upload error:', error.message);
+  }
+}
+
+try {
+  const content = await client.downloadAndVerify('hash');
+} catch (error) {
+  if (error.message.includes('Content integrity verification failed')) {
+    console.error('Downloaded content is corrupted or tampered with');
+  } else if (error.message.includes('Download failed')) {
+    console.error('Content not found or server error');
+  } else {
+    console.error('Download error:', error.message);
+  }
+}
+```
+
+## Best Practices
+
+### Server Selection
+
+```typescript
+// Use geographically distributed servers for better performance
+const client = new BlossomClient({
+  servers: [
+    'https://blossom-us.com',      // US server
+    'https://blossom-eu.com',      // European server
+    'https://blossom-asia.com'     // Asian server
+  ],
+  privateKey: 'your-key',
+  redundancy: {
+    preferFastestServer: true // Automatically prefer fastest server
+  }
+});
+```
+
+### Content Type Management
+
+```typescript
+// Always specify content types for proper handling
+await client.upload(imageData, {
+  contentType: 'image/jpeg',
+  strict: true // Enforce validation
+});
+
+await client.upload(jsonData, {
+  contentType: 'application/json'
+});
+
+await client.upload(textData, {
+  contentType: 'text/plain; charset=utf-8'
+});
+```
+
+### Health Monitoring
+
+```typescript
+// Regular health checks
+setInterval(async () => {
+  const servers = client.getServers();
+  for (const server of servers) {
+    try {
+      await client.checkServerHealth(server);
+    } catch (error) {
+      console.warn(`Server ${server} health check failed:`, error.message);
+    }
+  }
+}, 60000); // Check every minute
+```
+
+## Next Steps
+
+- [NSM Client SDK](/api/nsm-client-sdk) - Complete SDK including Blossom integration
+- [NSM Client](/api/nsm-client) - Core Nostr client functionality
+- [Examples](/examples) - Real-world usage examples
+- [Guide: File Storage](/guide/file-storage) - Learn about decentralized file storage patterns

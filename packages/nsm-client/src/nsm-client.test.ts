@@ -15,8 +15,17 @@ describe('NSMClient', () => {
         on: mock(() => {}),
         stop: mock(() => {})
       })),
+      publish: mock(() => Promise.resolve()),
+      assertSigner: mock(() => {}),
+      signer: {
+        sign: mock(() => Promise.resolve('mock-signature')),
+        user: mock(() => Promise.resolve({ pubkey: 'mock-pubkey' }))
+      },
       pool: {
-        relays: new Map([['wss://test.relay', { url: 'wss://test.relay' }]])
+        relays: new Map([['wss://test.relay', { url: 'wss://test.relay' }]]),
+        addRelay: mock(() => Promise.resolve()),
+        connectedRelays: mock(() => []),
+        permanentAndConnectedRelays: mock(() => [])
       }
     };
 
@@ -320,18 +329,17 @@ describe('NSMClient', () => {
     });
 
     it('should add relay', async () => {
-      mockNDK.pool = {
-        addRelay: mock(() => Promise.resolve())
-      };
-
       await client.addRelay('wss://new.relay');
-      expect(mockNDK.pool.addRelay).toHaveBeenCalledWith('wss://new.relay');
+      expect(mockNDK.pool.addRelay).toHaveBeenCalled();
+
+      // Check that a relay object was passed (not just the URL)
+      const callArgs = mockNDK.pool.addRelay.mock.calls[0][0];
+      expect(typeof callArgs).toBe('object');
     });
 
     it('should remove relay', async () => {
-      mockNDK.pool = {
-        removeRelay: mock(() => Promise.resolve())
-      };
+      // Add removeRelay method to existing pool mock
+      mockNDK.pool.removeRelay = mock(() => Promise.resolve());
 
       await client.removeRelay('wss://test.relay');
       expect(mockNDK.pool.removeRelay).toHaveBeenCalledWith('wss://test.relay');
@@ -346,7 +354,9 @@ describe('NSMClient', () => {
     });
 
     it('should handle publishing errors', async () => {
+      // Mock publish to reject after assertSigner passes
       mockNDK.publish = mock(() => Promise.reject(new Error('Publish failed')));
+      mockNDK.assertSigner = mock(() => {}); // Allow assertSigner to pass
 
       const interaction = {
         applicationId: 'test-app',

@@ -1,0 +1,647 @@
+---
+title: State Machines
+description: 'Learn how NSM Framework uses state machines for predictable application behavior'
+---
+
+## Introduction to State Machines
+
+State machines are at the heart of NSM Framework, providing predictable and deterministic behavior for collaborative applications. By explicitly modeling your application's states and transitions, you create systems that are easier to understand, test, and debug.
+
+<Info>
+  NSM Framework uses [XState](https://xstate.js.org/) internally, providing a battle-tested state machine implementation with excellent TypeScript support.
+</Info>
+
+## Core Concepts
+
+### States
+
+A **state** represents a specific condition or mode of your application. States are finite and explicit, making your application's behavior predictable.
+
+```typescript
+// Simple states
+const states = {
+  idle: {},
+  loading: {},
+  success: {},
+  error: {}
+};
+```
+
+### Events
+
+**Events** are the triggers that cause state transitions. They represent actions or occurrences that can change your application's state.
+
+```typescript
+type AppEvent =
+  | { type: 'FETCH_DATA' }
+  | { type: 'DATA_LOADED'; data: any }
+  | { type: 'ERROR_OCCURRED'; error: string }
+  | { type: 'RETRY' };
+```
+
+### Transitions
+
+**Transitions** define how your application moves from one state to another in response to events.
+
+```typescript
+const machine = createMachine({
+  initial: 'idle',
+  states: {
+    idle: {
+      on: {
+        FETCH_DATA: { target: 'loading' }
+      }
+    },
+    loading: {
+      on: {
+        DATA_LOADED: { target: 'success' },
+        ERROR_OCCURRED: { target: 'error' }
+      }
+    },
+    success: {
+      on: {
+        FETCH_DATA: { target: 'loading' }
+      }
+    },
+    error: {
+      on: {
+        RETRY: { target: 'loading' },
+        FETCH_DATA: { target: 'loading' }
+      }
+    }
+  }
+});
+```
+
+## Creating State Machines
+
+### Basic Machine
+
+Here's a simple example of a toggle machine:
+
+```typescript
+import { createMachine, assign } from 'nsm-core';
+
+const toggleMachine = createMachine({
+  id: 'toggle',
+  initial: 'off',
+  context: {
+    count: 0
+  },
+  states: {
+    off: {
+      on: {
+        TOGGLE: {
+          target: 'on',
+          actions: assign({
+            count: (context) => context.count + 1
+          })
+        }
+      }
+    },
+    on: {
+      on: {
+        TOGGLE: {
+          target: 'off',
+          actions: assign({
+            count: (context) => context.count + 1
+          })
+        }
+      }
+    }
+  }
+});
+```
+
+### Context and Actions
+
+**Context** is the extended state (data) of your machine, while **actions** are side effects that occur during transitions.
+
+```typescript
+interface ChatContext {
+  messages: Message[];
+  currentUser: string;
+  typingUsers: Set<string>;
+  connectionStatus: 'connected' | 'disconnected' | 'connecting';
+}
+
+const chatMachine = createMachine<ChatContext>({
+  id: 'chat',
+  initial: 'disconnected',
+  context: {
+    messages: [],
+    currentUser: '',
+    typingUsers: new Set(),
+    connectionStatus: 'disconnected'
+  },
+  states: {
+    disconnected: {
+      on: {
+        CONNECT: {
+          target: 'connecting',
+          actions: assign({
+            connectionStatus: 'connecting'
+          })
+        }
+      }
+    },
+    connecting: {
+      on: {
+        CONNECTED: {
+          target: 'connected',
+          actions: assign({
+            connectionStatus: 'connected'
+          })
+        },
+        CONNECTION_FAILED: {
+          target: 'disconnected',
+          actions: assign({
+            connectionStatus: 'disconnected'
+          })
+        }
+      }
+    },
+    connected: {
+      on: {
+        SEND_MESSAGE: {
+          actions: assign({
+            messages: (context, event) => [
+              ...context.messages,
+              {
+                id: Date.now().toString(),
+                text: event.text,
+                user: context.currentUser,
+                timestamp: new Date()
+              }
+            ]
+          })
+        },
+        USER_TYPING: {
+          actions: assign({
+            typingUsers: (context, event) => {
+              const newSet = new Set(context.typingUsers);
+              newSet.add(event.userId);
+              return newSet;
+            }
+          })
+        },
+        USER_STOPPED_TYPING: {
+          actions: assign({
+            typingUsers: (context, event) => {
+              const newSet = new Set(context.typingUsers);
+              newSet.delete(event.userId);
+              return newSet;
+            }
+          })
+        }
+      }
+    }
+  }
+});
+```
+
+## Advanced Patterns
+
+### Hierarchical States
+
+State machines can have nested states for modeling complex behaviors:
+
+```typescript
+const mediaPlayerMachine = createMachine({
+  id: 'mediaPlayer',
+  initial: 'stopped',
+  states: {
+    stopped: {
+      on: {
+        PLAY: { target: 'playing' }
+      }
+    },
+    playing: {
+      initial: 'normal',
+      states: {
+        normal: {
+          on: {
+            SPEED_UP: { target: 'fast' },
+            SLOW_DOWN: { target: 'slow' }
+          }
+        },
+        fast: {
+          on: {
+            NORMAL_SPEED: { target: 'normal' }
+          }
+        },
+        slow: {
+          on: {
+            NORMAL_SPEED: { target: 'normal' }
+          }
+        }
+      },
+      on: {
+        PAUSE: { target: 'paused' },
+        STOP: { target: 'stopped' }
+      }
+    },
+    paused: {
+      on: {
+        PLAY: { target: 'playing' },
+        STOP: { target: 'stopped' }
+      }
+    }
+  }
+});
+```
+
+### Guards (Conditional Transitions)
+
+Guards allow you to conditionally execute transitions:
+
+```typescript
+const accountMachine = createMachine({
+  id: 'account',
+  initial: 'checking',
+  context: {
+    balance: 0,
+    withdrawAmount: 0
+  },
+  states: {
+    checking: {
+      on: {
+        WITHDRAW: [
+          {
+            target: 'withdrawn',
+            guard: (context, event) => {
+              return context.balance >= event.amount;
+            },
+            actions: assign({
+              balance: (context, event) => context.balance - event.amount,
+              withdrawAmount: (_, event) => event.amount
+            })
+          },
+          {
+            target: 'insufficientFunds'
+          }
+        ]
+      }
+    },
+    withdrawn: {
+      on: {
+        WITHDRAW: { target: 'checking' }
+      }
+    },
+    insufficientFunds: {
+      on: {
+        DEPOSIT: {
+          target: 'checking',
+          actions: assign({
+            balance: (context, event) => context.balance + event.amount
+          })
+        }
+      }
+    }
+  }
+});
+```
+
+### Services (Async Operations)
+
+Handle asynchronous operations with services:
+
+```typescript
+const dataMachine = createMachine({
+  id: 'data',
+  initial: 'idle',
+  context: {
+    data: null,
+    error: null
+  },
+  states: {
+    idle: {
+      on: {
+        FETCH: { target: 'loading' }
+      }
+    },
+    loading: {
+      invoke: {
+        id: 'fetchData',
+        src: 'fetchDataService',
+        onDone: {
+          target: 'success',
+          actions: assign({
+            data: (_, event) => event.data
+          })
+        },
+        onError: {
+          target: 'error',
+          actions: assign({
+            error: (_, event) => event.data
+          })
+        }
+      }
+    },
+    success: {
+      on: {
+        FETCH: { target: 'loading' },
+        CLEAR: {
+          target: 'idle',
+          actions: assign({
+            data: null,
+            error: null
+          })
+        }
+      }
+    },
+    error: {
+      on: {
+        RETRY: { target: 'loading' },
+        CLEAR: {
+          target: 'idle',
+          actions: assign({
+            data: null,
+            error: null
+          })
+        }
+      }
+    }
+  }
+}, {
+  services: {
+    fetchDataService: async () => {
+      const response = await fetch('/api/data');
+      if (!response.ok) {
+        throw new Error('Failed to fetch data');
+      }
+      return response.json();
+    }
+  }
+});
+```
+
+## NSM-Specific Features
+
+### Collaborative Actions
+
+NSM extends XState with collaborative features for multi-user applications:
+
+```typescript
+const collaborativeDocMachine = createMachine({
+  id: 'collaborativeDoc',
+  initial: 'idle',
+  context: {
+    content: '',
+    cursors: new Map(),
+    activeUsers: new Set()
+  },
+  states: {
+    idle: {
+      on: {
+        USER_JOINED: {
+          actions: [
+            assign({
+              activeUsers: (context, event) => {
+                const newSet = new Set(context.activeUsers);
+                newSet.add(event.userId);
+                return newSet;
+              }
+            }),
+            'notifyUserJoined' // NSM collaborative action
+          ]
+        },
+        TEXT_CHANGED: {
+          actions: [
+            assign({
+              content: (_, event) => event.newContent
+            }),
+            'broadcastChange' // NSM collaborative action
+          ]
+        },
+        CURSOR_MOVED: {
+          actions: [
+            assign({
+              cursors: (context, event) => {
+                const newMap = new Map(context.cursors);
+                newMap.set(event.userId, event.position);
+                return newMap;
+              }
+            }),
+            'broadcastCursor' // NSM collaborative action
+          ]
+        }
+      }
+    }
+  }
+});
+```
+
+### Event Sourcing Integration
+
+NSM automatically handles event sourcing for your state machines:
+
+```typescript
+const taskMachine = createMachine({
+  id: 'task',
+  initial: 'pending',
+  context: {
+    title: '',
+    assignee: null,
+    createdAt: null,
+    completedAt: null
+  },
+  states: {
+    pending: {
+      on: {
+        ASSIGN: {
+          actions: [
+            assign({
+              assignee: (_, event) => event.userId
+            }),
+            'recordEvent' // Automatically handled by NSM
+          ]
+        },
+        COMPLETE: {
+          target: 'completed',
+          actions: [
+            assign({
+              completedAt: () => new Date()
+            }),
+            'recordEvent' // Automatically handled by NSM
+          ]
+        }
+      }
+    },
+    completed: {
+      on: {
+        REOPEN: {
+          target: 'pending',
+          actions: [
+            assign({
+              completedAt: null
+            }),
+            'recordEvent' // Automatically handled by NSM
+          ]
+        }
+      }
+    }
+  }
+});
+```
+
+## Best Practices
+
+### 1. Keep States Simple
+
+Each state should represent a single, clear condition:
+
+```typescript
+// ✅ Good: Clear, distinct states
+const states = {
+  idle: {},
+  validating: {},
+  valid: {},
+  invalid: {}
+};
+
+// ❌ Bad: Ambiguous states
+const states = {
+  working: {}, // What kind of work?
+  done: {},    // Done with what?
+  broken: {}   // What's broken?
+};
+```
+
+### 2. Use TypeScript for Type Safety
+
+Define clear types for context and events:
+
+```typescript
+interface AppContext {
+  user: User | null;
+  data: AppData[];
+  loading: boolean;
+  error: string | null;
+}
+
+type AppEvent =
+  | { type: 'LOGIN'; credentials: Credentials }
+  | { type: 'LOGOUT' }
+  | { type: 'LOAD_DATA' }
+  | { type: 'DATA_LOADED'; data: AppData[] }
+  | { type: 'ERROR'; error: string };
+
+const appMachine = createMachine<AppContext, AppEvent>({
+  // Machine definition with full type safety
+});
+```
+
+### 3. Make Transitions Explicit
+
+Be explicit about all possible transitions:
+
+```typescript
+// ✅ Good: All transitions handled
+const machine = createMachine({
+  states: {
+    loading: {
+      on: {
+        SUCCESS: { target: 'success' },
+        ERROR: { target: 'error' },
+        CANCEL: { target: 'idle' }
+      }
+    }
+  }
+});
+
+// ❌ Bad: Missing error handling
+const machine = createMachine({
+  states: {
+    loading: {
+      on: {
+        SUCCESS: { target: 'success' }
+        // What happens on error?
+      }
+    }
+  }
+});
+```
+
+### 4. Use Guards for Complex Logic
+
+Move complex conditional logic into guards:
+
+```typescript
+const orderMachine = createMachine({
+  states: {
+    cart: {
+      on: {
+        CHECKOUT: [
+          {
+            target: 'payment',
+            guard: 'hasItems'
+          },
+          {
+            target: 'empty'
+          }
+        ]
+      }
+    }
+  }
+}, {
+  guards: {
+    hasItems: (context) => context.items.length > 0
+  }
+});
+```
+
+## Testing State Machines
+
+NSM provides utilities for testing state machines:
+
+```typescript
+import { NSMTestEnvironment } from 'nsm-testing';
+
+describe('Toggle Machine', () => {
+  let testEnv: NSMTestEnvironment;
+
+  beforeEach(() => {
+    testEnv = new NSMTestEnvironment(toggleMachine);
+  });
+
+  it('should start in off state', () => {
+    expect(testEnv.currentState.value).toBe('off');
+    expect(testEnv.currentState.context.count).toBe(0);
+  });
+
+  it('should toggle to on state', () => {
+    testEnv.sendEvent({ type: 'TOGGLE' });
+
+    expect(testEnv.currentState.value).toBe('on');
+    expect(testEnv.currentState.context.count).toBe(1);
+  });
+
+  it('should toggle back to off state', () => {
+    testEnv.sendEvent({ type: 'TOGGLE' });
+    testEnv.sendEvent({ type: 'TOGGLE' });
+
+    expect(testEnv.currentState.value).toBe('off');
+    expect(testEnv.currentState.context.count).toBe(2);
+  });
+});
+```
+
+## Next Steps
+
+Now that you understand state machines in NSM:
+
+<CardGroup cols={2}>
+  <Card title="Nostr Integration" icon="satellite" href="/guide/nostr-integration">
+    Learn how state machines work with Nostr networking
+  </Card>
+  <Card title="Collaborative State" icon="users" href="/guide/collaborative-state">
+    Understand multi-user state synchronization
+  </Card>
+  <Card title="Testing" icon="flask" href="/guide/testing">
+    Learn comprehensive testing strategies for NSM applications
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/state-machine">
+    Explore the complete state machine API
+  </Card>
+</CardGroup>

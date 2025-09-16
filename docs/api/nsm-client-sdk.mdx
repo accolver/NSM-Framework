@@ -1,0 +1,447 @@
+---
+title: NSM Client SDK
+description: 'Comprehensive SDK for building NSM (Nostr State Machine) applications with Blossom storage integration'
+---
+
+# NSM Client SDK
+
+The NSM Client SDK is the primary user-facing interface for building applications with the NSM framework. It provides a unified API for state machine management, Nostr protocol integration, and decentralized file storage through Blossom protocol.
+
+## Installation
+
+```bash
+npm install @nsm/client-sdk
+```
+
+## Quick Start
+
+```typescript
+import { NSMClient, BlossomClient } from '@nsm/client-sdk';
+
+// Create NSM client for state machine synchronization
+const nsmClient = new NSMClient();
+
+// Create Blossom client for file storage
+const blossomClient = new BlossomClient({
+  servers: ['https://blossom.example.com'],
+  privateKey: 'your-nostr-private-key'
+});
+
+// Initialize the SDK
+await nsmClient.initialize();
+```
+
+## Core Classes
+
+### NSMClient
+
+The main client for managing NSM applications and state synchronization.
+
+<Note>
+The NSMClient is currently under development. The current implementation is a placeholder that will be replaced with full functionality in upcoming releases.
+</Note>
+
+#### Constructor
+
+```typescript
+class NSMClient {
+  constructor();
+}
+```
+
+#### Methods
+
+##### `initialize()`
+
+Initialize the NSM client and connect to necessary services.
+
+```typescript
+async initialize(): Promise<void>
+```
+
+**Example:**
+
+```typescript
+const client = new NSMClient();
+await client.initialize();
+console.log('NSM Client initialized successfully');
+```
+
+### BlossomClient
+
+A comprehensive client for Blossom protocol operations including file upload, download, and deletion with multi-server support and redundancy.
+
+#### Constructor
+
+```typescript
+class BlossomClient {
+  constructor(config: BlossomConfig);
+}
+```
+
+#### Configuration
+
+```typescript
+interface BlossomConfig {
+  servers: string[];
+  privateKey: string;
+  redundancy?: {
+    replicationCount?: number;
+    failoverTimeout?: number;
+    retryAttempts?: number;
+    preferFastestServer?: boolean;
+  };
+}
+```
+
+**Parameters:**
+
+- `servers` - Array of Blossom server URLs
+- `privateKey` - 64-character hex string for Nostr authentication
+- `redundancy` (optional) - Configuration for multi-server redundancy
+
+#### Upload Methods
+
+##### `upload(content, options?)`
+
+Upload content to Blossom servers with automatic failover.
+
+```typescript
+async upload(
+  content: string | Uint8Array,
+  options?: BlossomUploadOptions
+): Promise<BlossomUploadResponse>
+```
+
+**Parameters:**
+
+- `content` - File content as string or Uint8Array
+- `options` - Upload configuration options
+
+```typescript
+interface BlossomUploadOptions {
+  maxSize?: number;
+  contentType?: string;
+  strict?: boolean;
+}
+```
+
+**Returns:**
+
+```typescript
+interface BlossomUploadResponse {
+  hash: string;
+  url: string;
+  size: number;
+  contentType?: string;
+  verified?: boolean;
+  replicas?: BlossomUploadResponse[];
+  partialReplication?: boolean;
+}
+```
+
+**Example:**
+
+```typescript
+const blossomClient = new BlossomClient({
+  servers: ['https://blossom-server1.com', 'https://blossom-server2.com'],
+  privateKey: 'your-64-char-hex-private-key'
+});
+
+// Upload text content
+const textResult = await blossomClient.upload('Hello, Blossom!', {
+  contentType: 'text/plain',
+  maxSize: 1024 * 1024 // 1MB limit
+});
+
+console.log('Uploaded text:', textResult.url);
+
+// Upload binary data
+const imageData = new Uint8Array([/* image bytes */]);
+const imageResult = await blossomClient.upload(imageData, {
+  contentType: 'image/png'
+});
+
+console.log('Uploaded image:', imageResult.url);
+```
+
+##### `uploadWithVerification(content)`
+
+Upload content with integrity verification to ensure the server returns the correct hash.
+
+```typescript
+async uploadWithVerification(content: string | Uint8Array): Promise<BlossomUploadResponse>
+```
+
+**Example:**
+
+```typescript
+const result = await blossomClient.uploadWithVerification('Important data');
+console.log('Upload verified:', result.verified); // true
+```
+
+##### `uploadWithReplication(content)`
+
+Upload content to multiple servers for redundancy.
+
+```typescript
+async uploadWithReplication(content: string | Uint8Array): Promise<BlossomUploadResponse>
+```
+
+**Example:**
+
+```typescript
+const blossomClient = new BlossomClient({
+  servers: ['https://server1.com', 'https://server2.com', 'https://server3.com'],
+  privateKey: 'your-private-key',
+  redundancy: {
+    replicationCount: 3 // Upload to 3 servers
+  }
+});
+
+const result = await blossomClient.uploadWithReplication('Critical data');
+console.log(`Replicated to ${result.replicas?.length} servers`);
+```
+
+#### Download Methods
+
+##### `download(hash)`
+
+Download content by hash from available servers.
+
+```typescript
+async download(hash: string): Promise<string>
+```
+
+**Parameters:**
+
+- `hash` - SHA256 hash of the content to download
+
+**Example:**
+
+```typescript
+const content = await blossomClient.download('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+console.log('Downloaded content:', content);
+```
+
+##### `downloadAndVerify(hash)`
+
+Download content and verify its integrity matches the expected hash.
+
+```typescript
+async downloadAndVerify(hash: string): Promise<string>
+```
+
+**Example:**
+
+```typescript
+try {
+  const content = await blossomClient.downloadAndVerify('expected-hash');
+  console.log('Content verified and downloaded:', content);
+} catch (error) {
+  console.error('Content integrity verification failed:', error);
+}
+```
+
+#### Delete Methods
+
+##### `delete(hash)`
+
+Delete content from all configured servers.
+
+```typescript
+async delete(hash: string): Promise<void>
+```
+
+**Example:**
+
+```typescript
+await blossomClient.delete('hash-to-delete');
+console.log('Content deleted from all servers');
+```
+
+#### Server Management
+
+##### `getServers()`
+
+Get the list of configured servers.
+
+```typescript
+getServers(): string[]
+```
+
+##### `getServerHealth(serverUrl)`
+
+Check the health status of a specific server.
+
+```typescript
+getServerHealth(serverUrl: string): 'healthy' | 'unhealthy' | 'unknown'
+```
+
+##### `getServerStats()`
+
+Get performance statistics for all servers.
+
+```typescript
+getServerStats(): Record<string, ServerStats>
+```
+
+```typescript
+interface ServerStats {
+  health: 'healthy' | 'unhealthy' | 'unknown';
+  responseTime: number;
+  successRate: number;
+  totalRequests: number;
+  failureCount: number;
+}
+```
+
+**Example:**
+
+```typescript
+const stats = blossomClient.getServerStats();
+for (const [server, stat] of Object.entries(stats)) {
+  console.log(`${server}: ${stat.health} (${stat.successRate * 100}% success)`);
+}
+```
+
+## Type Definitions
+
+### Core Types
+
+```typescript
+// Re-exported from @nsm/core for convenience
+export type {
+  INSMDefinitionEvent as NSMDefinitionEvent,
+  INSMInteractionEvent as NSMInteractionEvent,
+  INSMStateUpdateEvent as NSMStateUpdateEvent
+} from '@nsm/core';
+```
+
+### Blossom Types
+
+```typescript
+interface NostrEvent {
+  kind: number;
+  content: string;
+  tags: string[][];
+  created_at: number;
+  sig?: string;
+  id?: string;
+  pubkey?: string;
+}
+```
+
+## Error Handling
+
+The SDK provides comprehensive error handling for network issues, server failures, and content integrity problems.
+
+```typescript
+try {
+  const result = await blossomClient.upload('content');
+  console.log('Upload successful:', result.url);
+} catch (error) {
+  if (error.message.includes('timeout')) {
+    console.error('Upload timed out - try again later');
+  } else if (error.message.includes('size limit')) {
+    console.error('File too large for upload');
+  } else if (error.message.includes('All Blossom servers failed')) {
+    console.error('No servers available - check network connection');
+  } else {
+    console.error('Upload failed:', error.message);
+  }
+}
+```
+
+## Configuration Examples
+
+### Basic Configuration
+
+```typescript
+const basicClient = new BlossomClient({
+  servers: ['https://blossom.example.com'],
+  privateKey: '64-character-hex-string'
+});
+```
+
+### Advanced Configuration with Redundancy
+
+```typescript
+const redundantClient = new BlossomClient({
+  servers: [
+    'https://blossom-primary.com',
+    'https://blossom-backup.com',
+    'https://blossom-tertiary.com'
+  ],
+  privateKey: 'your-private-key',
+  redundancy: {
+    replicationCount: 2,           // Upload to 2 servers
+    failoverTimeout: 30000,        // 30 second timeout
+    retryAttempts: 3,              // Retry failed uploads 3 times
+    preferFastestServer: true      // Use fastest server for downloads
+  }
+});
+```
+
+## Usage Patterns
+
+### File Upload Workflow
+
+```typescript
+async function uploadFile(file: File) {
+  const client = new BlossomClient({
+    servers: ['https://blossom.example.com'],
+    privateKey: process.env.NOSTR_PRIVATE_KEY!
+  });
+
+  try {
+    // Convert file to Uint8Array
+    const arrayBuffer = await file.arrayBuffer();
+    const content = new Uint8Array(arrayBuffer);
+
+    // Upload with verification
+    const result = await client.uploadWithVerification(content);
+
+    return {
+      success: true,
+      hash: result.hash,
+      url: result.url,
+      size: result.size
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+```
+
+### Multi-Server Resilience
+
+```typescript
+const resilientClient = new BlossomClient({
+  servers: [
+    'https://primary-blossom.com',
+    'https://backup-blossom.com',
+    'https://emergency-blossom.com'
+  ],
+  privateKey: 'your-key',
+  redundancy: {
+    replicationCount: 3,
+    failoverTimeout: 10000,
+    preferFastestServer: true
+  }
+});
+
+// Upload will succeed even if some servers are down
+const result = await resilientClient.uploadWithReplication('important-data');
+console.log(`Successfully replicated to ${result.replicas?.length} servers`);
+```
+
+## Next Steps
+
+- [NSM Client](/api/nsm-client) - Lower-level Nostr client integration
+- [NSM Core](/api/nsm-core) - Core protocol types and validation
+- [Blossom Client](/api/blossom-client) - Detailed Blossom protocol reference
+- [Examples](/examples) - Real-world implementation examples

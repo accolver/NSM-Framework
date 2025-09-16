@@ -1,0 +1,422 @@
+---
+title: Nostr Integration
+description: 'How NSM Framework integrates with the Nostr protocol for decentralized networking'
+---
+
+## Overview
+
+NSM Framework leverages the Nostr protocol as its networking layer, providing a decentralized, censorship-resistant foundation for collaborative applications. This integration allows NSM applications to work without central servers while maintaining real-time synchronization between users.
+
+## What is Nostr?
+
+Nostr (Notes and Other Stuff Transmitted by Relays) is a decentralized protocol for creating global, decentralized social networks and applications. Key characteristics:
+
+- **Decentralized**: No central authority controls the network
+- **Censorship-resistant**: Content can't be globally censored
+- **Simple**: Minimalist design with extensible event types
+- **Cryptographic**: Built on public-key cryptography
+- **Real-time**: Events are transmitted immediately across the network
+
+## NSM's Nostr Integration
+
+### Event-Based Architecture
+
+NSM maps state machine events directly to Nostr events, creating a seamless integration:
+
+```typescript
+// NSM state machine event
+client.sendEvent({
+  type: 'COUNTER_INCREMENT',
+  userId: 'alice',
+  timestamp: Date.now()
+});
+
+// Automatically becomes Nostr event
+{
+  kind: 30000, // NSM custom kind
+  content: JSON.stringify({
+    type: 'COUNTER_INCREMENT',
+    userId: 'alice',
+    timestamp: Date.now()
+  }),
+  pubkey: 'user-public-key',
+  created_at: Math.floor(Date.now() / 1000),
+  tags: [
+    ['r', 'room-id'], // Room/channel identifier
+    ['t', 'nsm']      // NSM protocol tag
+  ]
+}
+```
+
+### Configuration
+
+Configure Nostr integration when creating an NSM client:
+
+```typescript
+const client = createNSMClient({
+  machine: myStateMachine,
+  nostrConfig: {
+    // Relay servers to connect to
+    relays: [
+      'wss://relay.damus.io',
+      'wss://nos.lol',
+      'wss://relay.snort.social',
+      'wss://relay.primal.net'
+    ],
+
+    // Your Nostr private key (keep secure!)
+    privateKey: process.env.NOSTR_PRIVATE_KEY,
+
+    // Optional: explicit public key
+    publicKey: process.env.NOSTR_PUBLIC_KEY,
+
+    // Connection settings
+    connectionTimeout: 30000,
+    retryAttempts: 3,
+    retryDelay: 1000
+  },
+
+  // Unique room/channel identifier
+  roomId: 'my-collaborative-app'
+});
+```
+
+### Relay Selection
+
+Choose relays based on your application needs:
+
+<CardGroup cols={2}>
+  <Card title="Public Relays" icon="globe">
+    Free, widely available, good for development and public applications
+  </Card>
+  <Card title="Private Relays" icon="lock">
+    Better control, performance, and privacy for sensitive applications
+  </Card>
+  <Card title="Geographic Distribution" icon="map">
+    Use relays in different regions for better global performance
+  </Card>
+  <Card title="Specialized Relays" icon="gear">
+    Some relays offer specific features like paid tiers or enhanced reliability
+  </Card>
+</CardGroup>
+
+## Event Types and Filtering
+
+### NSM Event Structure
+
+NSM uses specific Nostr event kinds and tagging conventions:
+
+```typescript
+interface NSMNostrEvent {
+  kind: 30000;           // NSM application events
+  content: string;       // JSON-encoded NSM event
+  pubkey: string;        // User's public key
+  created_at: number;    // Unix timestamp
+  tags: [
+    ['r', string],       // Room ID
+    ['t', 'nsm'],        // NSM protocol identifier
+    ['v', string]        // NSM version
+  ];
+}
+```
+
+### Event Filtering
+
+NSM automatically subscribes to relevant events:
+
+```typescript
+// NSM automatically creates this subscription
+const subscription = {
+  kinds: [30000],
+  "#t": ["nsm"],
+  "#r": ["my-app-room"],
+  since: Math.floor(Date.now() / 1000) - 3600 // Last hour
+};
+```
+
+### Custom Event Processing
+
+You can intercept and process Nostr events:
+
+```typescript
+const client = createNSMClient({
+  machine: myMachine,
+  nostrConfig: { /* config */ },
+
+  // Custom event processing
+  onNostrEvent: (event) => {
+    console.log('Received Nostr event:', event);
+
+    // Custom validation
+    if (event.created_at < Date.now() / 1000 - 86400) {
+      return false; // Reject events older than 24 hours
+    }
+
+    return true; // Accept event
+  },
+
+  // Custom event transformation
+  transformEvent: (nsmEvent, nostrEvent) => {
+    // Add metadata from Nostr event
+    return {
+      ...nsmEvent,
+      metadata: {
+        nostrId: nostrEvent.id,
+        pubkey: nostrEvent.pubkey,
+        relayReceived: nostrEvent.relay
+      }
+    };
+  }
+});
+```
+
+## Security Considerations
+
+### Key Management
+
+<Warning>
+  Never hardcode private keys in your application. Use environment variables or secure key management systems.
+</Warning>
+
+```typescript
+// ✅ Good: Use environment variables
+const nostrConfig = {
+  privateKey: process.env.NOSTR_PRIVATE_KEY,
+  relays: process.env.NOSTR_RELAYS?.split(',') || defaultRelays
+};
+
+// ❌ Bad: Hardcoded keys
+const nostrConfig = {
+  privateKey: 'nsec1234...', // Never do this!
+  relays: ['wss://relay.example.com']
+};
+```
+
+### Event Validation
+
+NSM automatically validates events, but you can add custom validation:
+
+```typescript
+const client = createNSMClient({
+  machine: myMachine,
+  nostrConfig: { /* config */ },
+
+  // Custom validation rules
+  validation: {
+    // Verify event signatures
+    verifySignatures: true,
+
+    // Check event timestamps
+    maxEventAge: 3600, // 1 hour
+
+    // Validate event content
+    validateContent: (content) => {
+      try {
+        const parsed = JSON.parse(content);
+        return typeof parsed.type === 'string';
+      } catch {
+        return false;
+      }
+    },
+
+    // User allowlist/blocklist
+    allowedUsers: ['pubkey1', 'pubkey2'],
+    blockedUsers: ['spammer-pubkey']
+  }
+});
+```
+
+### Privacy Protection
+
+Nostr events are public by default. For sensitive data:
+
+```typescript
+// Use room-specific encryption
+const client = createNSMClient({
+  machine: myMachine,
+  nostrConfig: { /* config */ },
+
+  // Enable end-to-end encryption
+  encryption: {
+    enabled: true,
+    roomKey: 'shared-room-secret', // Distribute securely
+    algorithm: 'AES-256-GCM'
+  }
+});
+
+// Or implement custom encryption
+const encryptedEvent = {
+  type: 'ENCRYPTED',
+  payload: await encrypt(originalEvent, roomKey)
+};
+```
+
+## Advanced Configuration
+
+### Relay Management
+
+```typescript
+const client = createNSMClient({
+  machine: myMachine,
+  nostrConfig: {
+    relays: [
+      {
+        url: 'wss://relay.damus.io',
+        read: true,
+        write: true,
+        priority: 1
+      },
+      {
+        url: 'wss://private-relay.example.com',
+        read: true,
+        write: true,
+        priority: 2,
+        auth: 'required' // Paid relay
+      }
+    ]
+  }
+});
+```
+
+### Performance Optimization
+
+```typescript
+const client = createNSMClient({
+  machine: myMachine,
+  nostrConfig: {
+    // Connection pooling
+    maxConnections: 5,
+
+    // Event batching
+    batchSize: 10,
+    batchTimeout: 100,
+
+    // Subscription management
+    subscriptionLimit: 20,
+    eventBufferSize: 1000
+  }
+});
+```
+
+### Offline Support
+
+NSM provides offline support through event caching:
+
+```typescript
+const client = createNSMClient({
+  machine: myMachine,
+  nostrConfig: { /* config */ },
+
+  offline: {
+    enabled: true,
+
+    // Cache events locally
+    cacheEvents: true,
+    maxCacheSize: 1000,
+
+    // Queue events when offline
+    queueEvents: true,
+    maxQueueSize: 100,
+
+    // Sync when back online
+    autoSync: true
+  }
+});
+
+// Handle connection state
+client.onConnectionChange((status) => {
+  if (status === 'connected') {
+    console.log('Back online, syncing...');
+  } else if (status === 'disconnected') {
+    console.log('Offline mode activated');
+  }
+});
+```
+
+## Monitoring and Debugging
+
+### Event Monitoring
+
+```typescript
+const client = createNSMClient({
+  machine: myMachine,
+  nostrConfig: { /* config */ },
+  debug: true
+});
+
+// Monitor Nostr events
+client.onNostrEvent((event, relay) => {
+  console.log(`Event ${event.id} from ${relay}:`, event);
+});
+
+// Monitor connection health
+client.onRelayStats((stats) => {
+  console.log('Relay statistics:', {
+    connected: stats.connected,
+    eventsSent: stats.eventsSent,
+    eventsReceived: stats.eventsReceived,
+    averageLatency: stats.averageLatency
+  });
+});
+```
+
+### Performance Metrics
+
+```typescript
+client.onMetrics((metrics) => {
+  console.log('NSM Performance:', {
+    eventProcessingTime: metrics.avgEventProcessingTime,
+    networkLatency: metrics.avgNetworkLatency,
+    relayHealthScore: metrics.relayHealthScore,
+    syncLag: metrics.syncLag
+  });
+});
+```
+
+## Best Practices
+
+### Relay Selection Strategy
+
+1. **Diversity**: Use 3-5 geographically distributed relays
+2. **Reliability**: Include at least one paid or private relay
+3. **Redundancy**: Ensure multiple relays for critical applications
+4. **Performance**: Test latency from your users' locations
+
+### Event Design
+
+1. **Minimize Size**: Keep events small for better performance
+2. **Idempotent**: Design events to be safely replayable
+3. **Versioned**: Include version information for compatibility
+4. **Timestamped**: Always include accurate timestamps
+
+### Error Handling
+
+```typescript
+client.onError((error) => {
+  if (error.type === 'RELAY_ERROR') {
+    // Handle relay connection issues
+    console.log('Relay error, switching to backup...');
+    client.switchToBackupRelay();
+  } else if (error.type === 'EVENT_ERROR') {
+    // Handle malformed events
+    console.log('Invalid event received:', error.event);
+  }
+});
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Collaborative State" icon="users" href="/guide/collaborative-state">
+    Learn how NSM manages multi-user state synchronization
+  </Card>
+  <Card title="Security Guide" icon="shield" href="/guide/security">
+    Implement security best practices for Nostr applications
+  </Card>
+  <Card title="Testing" icon="flask" href="/guide/testing">
+    Test Nostr integration and network scenarios
+  </Card>
+  <Card title="Nostr Adapter API" icon="code" href="/api/nostr-adapter">
+    Explore the complete Nostr adapter API
+  </Card>
+</CardGroup>

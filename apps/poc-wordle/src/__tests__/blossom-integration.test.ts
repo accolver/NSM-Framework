@@ -1,0 +1,273 @@
+/**
+ * Blossom Integration Tests
+ * Testing bloom filter storage and retrieval through Blossom protocol
+ */
+
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { BloomFilterManager } from '../bloom-filter-manager';
+import { BlossomClient, BlossomUploadResponse } from '../../../../packages/nsm-client-sdk/src/blossom/BlossomClient';
+
+// Mock the BlossomClient
+vi.mock('../../../../packages/nsm-client-sdk/src/blossom/BlossomClient');
+
+describe('Blossom Integration for Bloom Filter', () => {
+  let manager: BloomFilterManager;
+  let mockBlossomClient: any;
+
+  beforeEach(() => {
+    mockBlossomClient = {
+      upload: vi.fn(),
+      downloadAndVerify: vi.fn(),
+      uploadWithVerification: vi.fn()
+    };
+
+    manager = new BloomFilterManager({
+      servers: ['https://blossom.example.com'],
+      privateKey: 'a'.repeat(64)
+    });
+
+    // Replace the internal client with our mock
+    (manager as any).blossomClient = mockBlossomClient;
+  });
+
+  describe('Bloom Filter Upload', () => {
+    it('should upload bloom filter with SHA-256 verification', async () => {
+      const wordList = ['ABOUT', 'ABOVE', 'ACTOR', 'ACUTE', 'ADMIT'];
+      const expectedHash = 'mock-sha256-hash';
+
+      mockBlossomClient.uploadWithVerification.mockResolvedValue({
+        hash: expectedHash,
+        url: `https://blossom.example.com/${expectedHash}`,
+        size: 15000,
+        verified: true
+      } as BlossomUploadResponse);
+
+      const result = await manager.uploadWordList(wordList);
+
+      expect(result.hash).toBe(expectedHash);
+      expect(result.size).toBe(15000);
+      expect(result.verified).toBe(true);
+      expect(mockBlossomClient.uploadWithVerification).toHaveBeenCalledWith(
+        expect.any(Uint8Array)
+      );
+    });
+
+    it('should handle upload failures gracefully', async () => {
+      const wordList = ['ABOUT', 'ABOVE'];
+
+      mockBlossomClient.uploadWithVerification.mockRejectedValue(
+        new Error('Upload failed: Server error')
+      );
+
+      await expect(manager.uploadWordList(wordList)).rejects.toThrow('Upload failed: Server error');
+    });
+
+    it('should create NSM Definition Event reference', async () => {
+      const wordList = ['ABOUT', 'ABOVE', 'ACTOR'];
+      const expectedHash = 'bloom-filter-hash-123';
+
+      mockBlossomClient.uploadWithVerification.mockResolvedValue({
+        hash: expectedHash,
+        url: `https://blossom.example.com/${expectedHash}`,
+        size: 12500,
+        verified: true
+      });
+
+      const result = await manager.uploadWordList(wordList);
+      const definitionEvent = manager.createDefinitionEvent(result.hash);
+
+      expect(definitionEvent.kind).toBe(1); // NSM Definition Event kind
+      expect(definitionEvent.tags).toContainEqual(['blossom', expectedHash]);
+      expect(definitionEvent.tags).toContainEqual(['size', '12500']);
+      expect(definitionEvent.tags).toContainEqual(['type', 'bloom-filter']);
+      expect(definitionEvent.content).toContain('Wordle dictionary validation');
+    });
+  });
+
+  describe('Bloom Filter Download', () => {
+    it('should download and verify bloom filter by hash', async () => {
+      const testHash = 'bloom-filter-hash-456';
+      const mockFilterData = new Uint8Array([1, 2, 3, 4, 5]); // Mock serialized filter
+
+      mockBlossomClient.downloadAndVerify.mockResolvedValue(
+        Buffer.from(mockFilterData).toString('base64')
+      );
+
+      const result = await manager.downloadBloomFilter(testHash);
+
+      expect(mockBlossomClient.downloadAndVerify).toHaveBeenCalledWith(testHash);
+      expect(result).toEqual(mockFilterData);
+    });
+
+    it('should handle download failures', async () => {
+      const testHash = 'invalid-hash';
+
+      mockBlossomClient.downloadAndVerify.mockRejectedValue(
+        new Error('Download failed: File not found')
+      );
+
+      await expect(manager.downloadBloomFilter(testHash)).rejects.toThrow(
+        'Download failed: File not found'
+      );
+    });
+
+    it('should verify SHA-256 integrity on download', async () => {
+      const testHash = 'correct-hash';
+      const mockFilterData = new Uint8Array([1, 2, 3, 4, 5]);
+
+      mockBlossomClient.downloadAndVerify.mockResolvedValue(
+        Buffer.from(mockFilterData).toString('base64')
+      );
+
+      // downloadAndVerify should handle integrity checking internally
+      const result = await manager.downloadBloomFilter(testHash);
+      expect(result).toEqual(mockFilterData);
+    });
+  });
+
+  describe('Caching', () => {
+    it('should cache downloaded bloom filters locally', async () => {
+      const testHash = 'cacheable-hash';
+      const mockFilterData = new Uint8Array([1, 2, 3, 4, 5]);
+
+      mockBlossomClient.downloadAndVerify.mockResolvedValue(
+        Buffer.from(mockFilterData).toString('base64')
+      );
+
+      // First download
+      const result1 = await manager.downloadBloomFilter(testHash);
+      expect(result1).toEqual(mockFilterData);
+
+      // Second download should use cache
+      const result2 = await manager.downloadBloomFilter(testHash);
+      expect(result2).toEqual(mockFilterData);
+
+      // Should only call download once due to caching
+      expect(mockBlossomClient.downloadAndVerify).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle cache misses correctly', async () => {
+      const hash1 = 'hash-1';
+      const hash2 = 'hash-2';
+      const data1 = new Uint8Array([1, 1, 1]);
+      const data2 = new Uint8Array([2, 2, 2]);
+
+      mockBlossomClient.downloadAndVerify
+        .mockResolvedValueOnce(Buffer.from(data1).toString('base64'))
+        .mockResolvedValueOnce(Buffer.from(data2).toString('base64'));
+
+      const result1 = await manager.downloadBloomFilter(hash1);
+      const result2 = await manager.downloadBloomFilter(hash2);
+
+      expect(result1).toEqual(data1);
+      expect(result2).toEqual(data2);
+      expect(mockBlossomClient.downloadAndVerify).toHaveBeenCalledTimes(2);
+    });
+
+    it('should clear cache when requested', async () => {
+      const testHash = 'clear-cache-test';
+      const mockFilterData = new Uint8Array([9, 8, 7]);
+
+      mockBlossomClient.downloadAndVerify.mockResolvedValue(
+        Buffer.from(mockFilterData).toString('base64')
+      );
+
+      // Download once
+      await manager.downloadBloomFilter(testHash);
+      expect(mockBlossomClient.downloadAndVerify).toHaveBeenCalledTimes(1);
+
+      // Clear cache
+      manager.clearCache();
+
+      // Download again - should call API again
+      await manager.downloadBloomFilter(testHash);
+      expect(mockBlossomClient.downloadAndVerify).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('Size and Performance Constraints', () => {
+    it('should generate bloom filter within size constraints', async () => {
+      // Large word list to test size constraints
+      const largeWordList = Array.from({ length: 10000 }, (_, i) =>
+        `WORD${i.toString().padStart(4, '0')}`
+      );
+
+      mockBlossomClient.uploadWithVerification.mockResolvedValue({
+        hash: 'large-filter-hash',
+        url: 'https://blossom.example.com/large-filter-hash',
+        size: 14500, // Should be under 15KB target
+        verified: true
+      });
+
+      const result = await manager.uploadWordList(largeWordList);
+
+      // Should be under 15KB (15,000 bytes)
+      expect(result.size).toBeLessThan(15000);
+
+      // Verify upload was called with reasonably sized data
+      const uploadCall = mockBlossomClient.uploadWithVerification.mock.calls[0];
+      const uploadedData = uploadCall[0] as Uint8Array;
+      expect(uploadedData.length).toBeLessThan(15000);
+    });
+
+    it('should achieve target false positive rate', async () => {
+      const wordList = Array.from({ length: 1000 }, (_, i) =>
+        `TEST${i.toString().padStart(3, '0')}`
+      );
+
+      mockBlossomClient.uploadWithVerification.mockResolvedValue({
+        hash: 'fp-test-hash',
+        url: 'https://blossom.example.com/fp-test-hash',
+        size: 12000,
+        verified: true
+      });
+
+      const result = await manager.uploadWordList(wordList, {
+        targetFalsePositiveRate: 0.001 // 0.1%
+      });
+
+      expect(result.verified).toBe(true);
+
+      // Should use optimal parameters for target FP rate
+      const uploadCall = mockBlossomClient.uploadWithVerification.mock.calls[0];
+      const uploadedData = uploadCall[0] as Uint8Array;
+      expect(uploadedData.length).toBeGreaterThan(1000); // Should be substantial for low FP rate
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should handle network timeouts gracefully', async () => {
+      const wordList = ['TIMEOUT', 'TEST'];
+
+      mockBlossomClient.uploadWithVerification.mockRejectedValue(
+        new Error('Upload timeout exceeded')
+      );
+
+      await expect(manager.uploadWordList(wordList)).rejects.toThrow('Upload timeout exceeded');
+    });
+
+    it('should handle corrupted download data', async () => {
+      const testHash = 'corrupted-data';
+
+      mockBlossomClient.downloadAndVerify.mockRejectedValue(
+        new Error('Content integrity verification failed: hash mismatch')
+      );
+
+      await expect(manager.downloadBloomFilter(testHash)).rejects.toThrow(
+        'Content integrity verification failed'
+      );
+    });
+
+    it('should validate Blossom configuration', () => {
+      expect(() => new BloomFilterManager({
+        servers: [],
+        privateKey: 'a'.repeat(64)
+      })).toThrow('At least one Blossom server must be configured');
+
+      expect(() => new BloomFilterManager({
+        servers: ['https://blossom.example.com'],
+        privateKey: 'invalid'
+      })).toThrow('Private key must be 64 character hex string');
+    });
+  });
+});

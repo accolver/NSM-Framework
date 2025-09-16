@@ -12,7 +12,7 @@ export default defineConfig({
     sourcemap: true,
   },
   server: {
-    port: 5174,
+    port: 5173,
     open: true,
     host: '0.0.0.0', // Allow connections from any IP (helpful for WSL2)
   },
@@ -25,6 +25,6 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'xstate', '@xstate/react'],
+    include: ['react', 'react-dom', 'xstate', '@xstate/react', 'konva', 'react-konva', 'yjs'],
   },
 });

@@ -1,0 +1,248 @@
+---
+title: Quick Start
+description: 'Get up and running with NSM Framework in under 5 minutes'
+---
+
+## Overview
+
+This guide will help you create your first NSM application - a simple collaborative counter that multiple users can increment together in real-time.
+
+<Steps>
+  <Step title="Install NSM Framework">
+    Add NSM Framework to your project using your preferred package manager:
+
+    <CodeGroup>
+      ```bash npm
+      npm install nsm-core
+      ```
+
+      ```bash yarn
+      yarn add nsm-core
+      ```
+
+      ```bash pnpm
+      pnpm add nsm-core
+      ```
+
+      ```bash bun
+      bun add nsm-core
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Create a State Machine">
+    Define your application's state machine using NSM's XState integration:
+
+    ```typescript
+    import { createMachine } from 'nsm-core';
+
+    interface CounterContext {
+      count: number;
+      lastUpdatedBy?: string;
+    }
+
+    type CounterEvent =
+      | { type: 'INCREMENT'; userId: string }
+      | { type: 'DECREMENT'; userId: string }
+      | { type: 'RESET'; userId: string };
+
+    export const counterMachine = createMachine({
+      id: 'counter',
+      initial: 'active',
+      context: {
+        count: 0
+      },
+      states: {
+        active: {
+          on: {
+            INCREMENT: {
+              actions: assign({
+                count: (context) => context.count + 1,
+                lastUpdatedBy: (_, event) => event.userId
+              })
+            },
+            DECREMENT: {
+              actions: assign({
+                count: (context) => Math.max(0, context.count - 1),
+                lastUpdatedBy: (_, event) => event.userId
+              })
+            },
+            RESET: {
+              actions: assign({
+                count: 0,
+                lastUpdatedBy: (_, event) => event.userId
+              })
+            }
+          }
+        }
+      }
+    });
+    ```
+  </Step>
+
+  <Step title="Initialize NSM Client">
+    Create an NSM client instance with your machine and configuration:
+
+    ```typescript
+    import { createNSMClient } from 'nsm-core';
+    import { counterMachine } from './counterMachine';
+
+    const client = createNSMClient({
+      machine: counterMachine,
+      nostrConfig: {
+        relays: ['wss://relay.damus.io', 'wss://nos.lol'],
+        // Your Nostr private key (keep this secure!)
+        privateKey: 'your-private-key-here'
+      },
+      roomId: 'counter-demo-room'
+    });
+    ```
+
+    <Warning>
+      Never hardcode private keys in production! Use environment variables or secure key management.
+    </Warning>
+  </Step>
+
+  <Step title="Connect and Interact">
+    Start the client and begin sending events:
+
+    ```typescript
+    async function startCounterApp() {
+      // Connect to the network
+      await client.connect();
+
+      // Listen for state updates
+      client.onStateChange((state) => {
+        console.log('Counter updated:', state.context.count);
+        console.log('Last updated by:', state.context.lastUpdatedBy);
+        updateUI(state.context);
+      });
+
+      // Send events
+      document.getElementById('increment')?.addEventListener('click', () => {
+        client.sendEvent({ type: 'INCREMENT', userId: 'user1' });
+      });
+
+      document.getElementById('decrement')?.addEventListener('click', () => {
+        client.sendEvent({ type: 'DECREMENT', userId: 'user1' });
+      });
+
+      document.getElementById('reset')?.addEventListener('click', () => {
+        client.sendEvent({ type: 'RESET', userId: 'user1' });
+      });
+    }
+
+    startCounterApp();
+    ```
+  </Step>
+
+  <Step title="Add UI (Optional)">
+    Create a simple HTML interface to interact with your counter:
+
+    ```html
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>NSM Counter Demo</title>
+    </head>
+    <body>
+      <div id="app">
+        <h1>Collaborative Counter</h1>
+        <div id="counter-display">Count: 0</div>
+        <div id="last-updated">Last updated by: none</div>
+
+        <button id="increment">+</button>
+        <button id="decrement">-</button>
+        <button id="reset">Reset</button>
+      </div>
+
+      <script src="./counter-app.js"></script>
+    </body>
+    </html>
+    ```
+
+    ```javascript
+    function updateUI(context) {
+      document.getElementById('counter-display').textContent =
+        `Count: ${context.count}`;
+      document.getElementById('last-updated').textContent =
+        `Last updated by: ${context.lastUpdatedBy || 'none'}`;
+    }
+    ```
+  </Step>
+</Steps>
+
+## What Just Happened?
+
+Congratulations! You've just created your first NSM application. Here's what happened:
+
+1. **State Machine**: You defined a deterministic state machine with increment, decrement, and reset actions
+2. **Network Layer**: NSM automatically synchronized the state across all connected clients via Nostr
+3. **Event Sourcing**: All state changes are automatically logged and can be replayed
+4. **Collaboration**: Multiple users can interact with the same counter in real-time
+
+## Key Concepts Demonstrated
+
+<CardGroup cols={2}>
+  <Card title="Deterministic State" icon="gear">
+    The state machine ensures predictable behavior regardless of event order
+  </Card>
+  <Card title="Real-time Sync" icon="refresh">
+    State changes are automatically synchronized across all connected clients
+  </Card>
+  <Card title="Event-Driven" icon="bolt">
+    Actions are triggered by events, making the system reactive and responsive
+  </Card>
+  <Card title="Decentralized" icon="globe">
+    No central server needed - applications run peer-to-peer via Nostr
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+Now that you have a basic NSM application running, explore these topics:
+
+<CardGroup cols={2}>
+  <Card title="State Machines" icon="sitemap" href="/guide/state-machines">
+    Learn advanced state machine patterns and best practices
+  </Card>
+  <Card title="Collaboration" icon="users" href="/guide/collaborative-state">
+    Understand how NSM handles multi-user state synchronization
+  </Card>
+  <Card title="Security" icon="shield" href="/guide/security">
+    Implement authentication and authorization in your apps
+  </Card>
+  <Card title="Examples" icon="code" href="/examples">
+    Explore more complex application examples and patterns
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection Issues">
+    If you're having trouble connecting to Nostr relays:
+    - Verify your relay URLs are correct and accessible
+    - Check your internet connection
+    - Try different relay servers
+    - Ensure your private key is valid
+  </Accordion>
+
+  <Accordion title="State Not Syncing">
+    If state changes aren't appearing across clients:
+    - Verify all clients are using the same `roomId`
+    - Check that events are being sent correctly
+    - Ensure your state machine is deterministic
+    - Look for network connectivity issues
+  </Accordion>
+
+  <Accordion title="Performance Issues">
+    For performance optimization:
+    - Limit the frequency of state updates
+    - Use debouncing for rapid user interactions
+    - Consider state machine optimization
+    - Monitor network usage and relay performance
+  </Accordion>
+</AccordionGroup>
+
+Need more help? Check out our [troubleshooting guide](/guide/troubleshooting) or join our [Discord community](https://discord.gg/nsmframework).

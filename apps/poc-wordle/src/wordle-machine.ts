@@ -1,5 +1,6 @@
 import { createMachine, assign } from 'xstate';
 import { getRandomWord, isValidWord } from './word-list';
+import { WordValidator } from './word-validator';
 
 // Types for Wordle game
 export type LetterStatus = 'correct' | 'present' | 'absent';
@@ -15,6 +16,8 @@ export interface WordleContext {
   guesses: GuessData[];
   attemptNumber: number;
   gameOver: boolean;
+  validationError?: string;
+  validator?: WordValidator;
 }
 
 export type WordleEvent =
@@ -77,7 +80,8 @@ const addLetter = assign({
     }
     console.log('Letter not added, current guess unchanged');
     return context.currentGuess;
-  }
+  },
+  validationError: undefined // Clear validation error on new input
 });
 
 const removeLetter = assign({
@@ -86,7 +90,8 @@ const removeLetter = assign({
     const newGuess = context.currentGuess.slice(0, -1);
     console.log('Removed letter, new guess:', newGuess);
     return newGuess;
-  }
+  },
+  validationError: undefined // Clear validation error on input change
 });
 
 const submitGuess = assign({
@@ -98,7 +103,12 @@ const submitGuess = assign({
     return [...context.guesses, guess];
   },
   currentGuess: '',
-  attemptNumber: ({ context }) => context.attemptNumber + 1
+  attemptNumber: ({ context }) => context.attemptNumber + 1,
+  validationError: undefined
+});
+
+const setValidationError = assign({
+  validationError: 'Word not in dictionary'
 });
 
 const markGameWon = assign({
@@ -114,7 +124,8 @@ const resetGame = assign({
   currentGuess: '',
   guesses: [],
   attemptNumber: 0,
-  gameOver: false
+  gameOver: false,
+  validationError: undefined
 });
 
 // Guards
@@ -130,12 +141,19 @@ const canRemoveLetter = ({ context }) => {
 
 const canSubmitGuess = ({ context }) => {
   return context.currentGuess.length === 5;
-  // Note: For this demo, we'll allow any 5-letter word
-  // In production, you might want: && isValidWord(context.currentGuess);
 };
 
 const isGuessValid = ({ context }) => {
-  return context.currentGuess.length === 5;
+  if (context.currentGuess.length !== 5) {
+    return false;
+  }
+
+  // Use validator if available, otherwise fall back to word list
+  if (context.validator) {
+    return context.validator.isValid(context.currentGuess);
+  }
+
+  return isValidWord(context.currentGuess);
 };
 
 const isWinningGuess = ({ context }) => {
@@ -151,7 +169,7 @@ const isGameOver = ({ context }) => {
 };
 
 // Create machine factory for testing with specific words
-export const createWordleMachine = (hiddenWord?: string) => createMachine({
+export const createWordleMachine = (hiddenWord?: string, validator?: WordValidator) => createMachine({
   id: 'wordleMachine',
   initial: 'playing',
   context: {
@@ -159,7 +177,8 @@ export const createWordleMachine = (hiddenWord?: string) => createMachine({
     currentGuess: '',
     guesses: [],
     attemptNumber: 0,
-    gameOver: false
+    gameOver: false,
+    validator
   } as WordleContext,
   entry: hiddenWord ? undefined : setRandomWord,
   states: {
@@ -185,8 +204,12 @@ export const createWordleMachine = (hiddenWord?: string) => createMachine({
             actions: [submitGuess, markGameLost]
           },
           {
-            guard: canSubmitGuess,
+            guard: ({ context }) => isGuessValid({ context }),
             actions: submitGuess
+          },
+          {
+            guard: canSubmitGuess,
+            actions: setValidationError
           }
         ],
         RESET_GAME: {

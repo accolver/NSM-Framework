@@ -1,0 +1,124 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "NSM Framework",
+  "logo": {
+    "dark": "/logo/nsm-dark.svg",
+    "light": "/logo/nsm-light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#6366f1",
+    "light": "#8b5cf6",
+    "dark": "#4c1d95",
+    "ultraLight": "#f1f5f9",
+    "ultraDark": "#1e293b",
+    "background": {
+      "dark": "#0f0f23"
+    }
+  },
+  "topbarCtaButton": {
+    "name": "Get Started",
+    "url": "/getting-started"
+  },
+  "primaryTab": {
+    "name": "Home"
+  },
+  "tabs": [
+    {
+      "name": "Guide",
+      "url": "guide"
+    },
+    {
+      "name": "API Reference",
+      "url": "api"
+    },
+    {
+      "name": "Examples",
+      "url": "examples"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": ["introduction", "quickstart", "installation"]
+    },
+    {
+      "group": "Core Concepts",
+      "pages": [
+        "guide/state-machines",
+        "guide/nostr-integration",
+        "guide/collaborative-state",
+        "guide/event-sourcing"
+      ]
+    },
+    {
+      "group": "Framework Guide",
+      "pages": [
+        "guide/creating-machines",
+        "guide/state-management",
+        "guide/networking",
+        "guide/security",
+        "guide/testing"
+      ]
+    },
+    {
+      "group": "API Documentation",
+      "pages": [
+        "api/overview",
+        "api/nsm-client-sdk",
+        "api/nsm-client",
+        "api/nsm-core",
+        "api/blossom-client",
+        "api/dev-tools"
+      ]
+    },
+    {
+      "group": "Examples & Tutorials",
+      "pages": [
+        "examples/chat-app",
+        "examples/collaborative-editor",
+        "examples/task-manager",
+        "examples/gaming"
+      ]
+    },
+    {
+      "group": "Advanced Topics",
+      "pages": [
+        "guide/performance",
+        "guide/deployment",
+        "guide/troubleshooting",
+        "guide/migration"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/soveng/nsm",
+    "twitter": "https://twitter.com/nsmframework"
+  },
+  "feedback": {
+    "thumbsRating": true,
+    "suggestEdit": true,
+    "raiseIssue": true
+  },
+  "search": {
+    "prompt": "Search NSM documentation..."
+  },
+  "redirects": [
+    {
+      "source": "/docs",
+      "destination": "/introduction"
+    }
+  ],
+  "analytics": {
+    "ga4": {
+      "measurementId": "G-XXXXXXXXXX"
+    }
+  },
+  "api": {
+    "baseUrl": "https://api.nsm.dev",
+    "auth": {
+      "method": "bearer"
+    }
+  },
+  "openapi": "/api/openapi.json"
+}

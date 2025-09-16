@@ -1,0 +1,557 @@
+---
+title: NSM Dev Tools
+description: 'Development utilities and debugging tools for NSM applications'
+---
+
+# NSM Dev Tools
+
+The NSM Dev Tools package provides essential development utilities for building, debugging, and testing NSM applications. It includes debugging helpers, state inspection tools, and development server utilities.
+
+## Installation
+
+```bash
+npm install @nsm/dev-tools
+```
+
+## Quick Start
+
+```typescript
+import { enableDevTools } from '@nsm/dev-tools';
+
+// Enable development tools globally
+enableDevTools({
+  logging: true,
+  inspector: true,
+  timeTravel: true
+});
+
+console.log('NSM development tools enabled');
+```
+
+## Core Features
+
+<Note>
+The NSM Dev Tools package is currently in active development. The current implementation provides a foundation that will be expanded with comprehensive debugging and inspection utilities.
+</Note>
+
+### Development Mode
+
+The dev tools package provides utilities for enabling enhanced development experience:
+
+```typescript
+import '@nsm/dev-tools';
+
+// Development tools are automatically available in development mode
+if (process.env.NODE_ENV === 'development') {
+  console.log('NSM Dev Tools loaded');
+}
+```
+
+## Development Utilities
+
+### State Inspector
+
+Visual inspection tool for NSM state machines and application state.
+
+```typescript
+// State inspection will be available through the developer dashboard
+// Currently integrated with the NSM Client SDK for real-time debugging
+```
+
+### Event Logging
+
+Comprehensive logging system for NSM protocol events.
+
+```typescript
+// Event logging is built into the NSM Client for development
+// Logs all NSM protocol events including definitions, interactions, and state updates
+```
+
+### Time Travel Debugging
+
+Ability to step through state machine history and replay events.
+
+```typescript
+// Time travel debugging integrated with XState inspector
+// Allows developers to step through state machine execution
+```
+
+## Integration with NSM Applications
+
+### Developer Dashboard
+
+The primary interface for NSM development tools is the Developer Dashboard component:
+
+```typescript
+import { DeveloperDashboard } from '@nsm/dev-tools';
+
+function MyApp() {
+  return (
+    <div>
+      {/* Your application */}
+      <YourNSMApplication />
+
+      {/* Development dashboard - only in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <DeveloperDashboard />
+      )}
+    </div>
+  );
+}
+```
+
+### Features Available in Dashboard
+
+1. **State Inspector** - Visual state machine inspection
+2. **Event Log** - Real-time event logging and filtering
+3. **Time Travel** - Step through state machine history
+4. **Application Discovery** - Find and connect to NSM applications
+5. **Performance Monitoring** - Track performance metrics
+
+## CLI Tools
+
+### Development Server
+
+Run a local development server with NSM tools integration:
+
+```bash
+npx nsm-dev-tools serve
+```
+
+### Application Generator
+
+Generate boilerplate NSM applications:
+
+```bash
+npx nsm-dev-tools create my-app --template=chat
+```
+
+### State Machine Validator
+
+Validate NSM event structures:
+
+```bash
+npx nsm-dev-tools validate events.json
+```
+
+## Configuration
+
+### Development Configuration
+
+Configure dev tools behavior through environment variables or config files:
+
+```typescript
+// .nsmrc.js
+module.exports = {
+  devTools: {
+    enabled: process.env.NODE_ENV === 'development',
+    logging: {
+      level: 'debug',
+      events: true,
+      performance: true
+    },
+    inspector: {
+      enabled: true,
+      port: 3001
+    },
+    dashboard: {
+      position: 'bottom-right',
+      theme: 'dark'
+    }
+  }
+};
+```
+
+### Environment Variables
+
+```bash
+# Enable dev tools
+NSM_DEV_TOOLS=true
+
+# Set logging level
+NSM_LOG_LEVEL=debug
+
+# Enable specific features
+NSM_INSPECTOR=true
+NSM_TIME_TRAVEL=true
+NSM_PERFORMANCE_MONITOR=true
+```
+
+## Debugging Workflow
+
+### 1. Enable Development Mode
+
+```typescript
+import { NSMClient } from '@nsm/client';
+import '@nsm/dev-tools'; // Automatically enables dev features
+
+const client = new NSMClient({
+  // ... configuration
+  debug: process.env.NODE_ENV === 'development'
+});
+```
+
+### 2. Use Developer Dashboard
+
+The dashboard provides real-time debugging capabilities:
+
+- **Real-time event monitoring**
+- **State machine visualization**
+- **Performance profiling**
+- **Network activity tracking**
+
+### 3. Event Logging
+
+All NSM protocol events are automatically logged in development:
+
+```typescript
+// Events are logged with detailed information:
+// - Event type (definition, interaction, state-update)
+// - Timestamp and duration
+// - Payload inspection
+// - Network activity
+// - State changes
+```
+
+### 4. Time Travel Debugging
+
+Step through application history:
+
+```typescript
+// Available through the dashboard interface:
+// - Previous/Next state navigation
+// - Jump to specific events
+// - Replay sequences
+// - State comparison
+```
+
+## Testing Utilities
+
+### Mock NSM Client
+
+For testing applications without network dependencies:
+
+```typescript
+import { createMockNSMClient } from '@nsm/dev-tools/testing';
+
+const mockClient = createMockNSMClient({
+  applications: [
+    {
+      identifier: 'test-app',
+      name: 'Test Application',
+      initialState: { count: 0 }
+    }
+  ]
+});
+
+// Use in tests
+expect(mockClient.discoverApplications()).resolves.toHaveLength(1);
+```
+
+### Event Builders
+
+Utilities for creating test events:
+
+```typescript
+import {
+  buildDefinitionEvent,
+  buildInteractionEvent,
+  buildStateUpdateEvent
+} from '@nsm/dev-tools/testing';
+
+const testDefinition = buildDefinitionEvent({
+  identifier: 'test-machine',
+  name: 'Test State Machine',
+  initialState: { value: 'idle' }
+});
+
+const testInteraction = buildInteractionEvent({
+  action: 'START',
+  payload: { userId: 'test-user' }
+});
+```
+
+### Test Helpers
+
+Assertion helpers for NSM applications:
+
+```typescript
+import { expectStateChange, expectEventPublished } from '@nsm/dev-tools/testing';
+
+// Test state transitions
+await expectStateChange(client, 'idle', 'active');
+
+// Test event publishing
+await expectEventPublished(client, 'INTERACTION', { action: 'START' });
+```
+
+## Performance Profiling
+
+### Metrics Collection
+
+Automatic collection of performance metrics:
+
+```typescript
+// Metrics automatically collected:
+// - Event processing time
+// - Network latency
+// - State transition duration
+// - Memory usage
+// - Render performance (React components)
+```
+
+### Performance Dashboard
+
+View performance metrics in the developer dashboard:
+
+- **Event Processing Times** - Average and peak processing times
+- **Network Latency** - Relay connection and event propagation times
+- **Memory Usage** - JavaScript heap and component memory
+- **Frame Rate** - UI rendering performance
+
+### Performance Alerts
+
+Automatic detection of performance issues:
+
+```typescript
+// Alerts for:
+// - Slow event processing (>100ms)
+// - High memory usage (>50MB growth)
+// - Network timeouts (>5s)
+// - Excessive re-renders (>10/sec)
+```
+
+## Integration Examples
+
+### React Application with Dev Tools
+
+```typescript
+import React from 'react';
+import { NSMClient } from '@nsm/client';
+import { DeveloperDashboard } from '@nsm/dev-tools';
+
+function App() {
+  const [client, setClient] = React.useState<NSMClient | null>(null);
+
+  React.useEffect(() => {
+    const nsmClient = new NSMClient({
+      relayUrls: ['wss://relay.damus.io'],
+      privateKey: process.env.REACT_APP_NOSTR_PRIVATE_KEY,
+      debug: process.env.NODE_ENV === 'development'
+    });
+
+    nsmClient.connect().then(() => {
+      setClient(nsmClient);
+    });
+
+    return () => nsmClient.disconnect();
+  }, []);
+
+  return (
+    <div className="app">
+      <header>
+        <h1>My NSM Application</h1>
+      </header>
+
+      <main>
+        {client ? (
+          <MyNSMComponents client={client} />
+        ) : (
+          <div>Connecting to NSM network...</div>
+        )}
+      </main>
+
+      {/* Development tools - only show in development */}
+      {process.env.NODE_ENV === 'development' && client && (
+        <DeveloperDashboard
+          client={client}
+          position="bottom-right"
+          defaultTab="inspector"
+        />
+      )}
+    </div>
+  );
+}
+
+function MyNSMComponents({ client }: { client: NSMClient }) {
+  // Your NSM application components
+  return <div>NSM Application Content</div>;
+}
+
+export default App;
+```
+
+### Node.js Development Server
+
+```typescript
+import { NSMClient } from '@nsm/client';
+import { enableServerDevTools } from '@nsm/dev-tools/server';
+
+const client = new NSMClient({
+  relayUrls: ['wss://relay.damus.io'],
+  privateKey: process.env.NOSTR_PRIVATE_KEY,
+  debug: true
+});
+
+// Enable server-side development tools
+enableServerDevTools({
+  client,
+  port: 3001, // Dev tools dashboard port
+  logging: {
+    level: 'debug',
+    format: 'json'
+  }
+});
+
+await client.connect();
+console.log('NSM development server started');
+console.log('Dashboard available at: http://localhost:3001');
+
+// Your server application logic
+const app = await client.loadApplication('my-server-app');
+if (app) {
+  console.log('Loaded application:', app.name);
+
+  // Subscribe to events with development logging
+  client.subscribeToApplication('my-server-app', {
+    onInteraction: (interaction) => {
+      console.log('📥 Interaction:', interaction);
+    },
+    onStateUpdate: (update) => {
+      console.log('🔄 State Update:', update);
+    }
+  });
+}
+```
+
+## Troubleshooting
+
+### Common Development Issues
+
+1. **Dev tools not loading**
+   ```typescript
+   // Ensure dev tools are imported
+   import '@nsm/dev-tools';
+
+   // Check environment
+   console.log('NODE_ENV:', process.env.NODE_ENV);
+   ```
+
+2. **Dashboard not appearing**
+   ```typescript
+   // Verify development mode
+   if (process.env.NODE_ENV === 'development') {
+     console.log('Development mode enabled');
+   }
+
+   // Check React integration
+   {process.env.NODE_ENV === 'development' && <DeveloperDashboard />}
+   ```
+
+3. **Events not logging**
+   ```typescript
+   // Enable debug mode on NSM client
+   const client = new NSMClient({
+     debug: true, // Ensure debug is enabled
+     // ... other config
+   });
+   ```
+
+### Debug Mode Configuration
+
+```typescript
+// Comprehensive debug configuration
+const client = new NSMClient({
+  relayUrls: ['wss://relay.damus.io'],
+  privateKey: process.env.NOSTR_PRIVATE_KEY,
+  debug: process.env.NODE_ENV === 'development',
+
+  // Additional debug options (if supported)
+  debugOptions: {
+    logEvents: true,
+    logNetworkActivity: true,
+    logStateChanges: true,
+    logPerformance: true
+  }
+});
+```
+
+## Roadmap
+
+The NSM Dev Tools package is under active development. Upcoming features include:
+
+### Planned Features
+
+- **Visual State Machine Editor** - Drag-and-drop state machine design
+- **Event Replay System** - Save and replay event sequences
+- **Network Analysis Tools** - Relay performance and connectivity analysis
+- **Code Generation** - Generate boilerplate NSM applications
+- **Testing Framework** - Comprehensive testing utilities for NSM apps
+- **Performance Benchmarking** - Automated performance testing
+- **Documentation Generator** - Auto-generate API docs from NSM definitions
+
+### Browser Extension
+
+A dedicated browser extension for NSM development:
+
+- **Cross-application debugging** - Debug any NSM app on any website
+- **Network monitoring** - Monitor all NSM network activity
+- **State inspection** - Inspect state across all NSM applications
+- **Event interception** - Modify events for testing
+
+## API Reference Summary
+
+<Note>
+The current NSM Dev Tools implementation provides foundational infrastructure. Full API documentation will be expanded as features are implemented.
+</Note>
+
+### Main Exports
+
+```typescript
+// Development tools enablement
+export function enableDevTools(options?: DevToolsOptions): void;
+
+// Dashboard component (React)
+export { DeveloperDashboard } from './components/DeveloperDashboard';
+
+// Testing utilities
+export {
+  createMockNSMClient,
+  buildDefinitionEvent,
+  buildInteractionEvent,
+  buildStateUpdateEvent,
+  expectStateChange,
+  expectEventPublished
+} from './testing';
+
+// Server tools
+export { enableServerDevTools } from './server';
+```
+
+### Configuration Types
+
+```typescript
+interface DevToolsOptions {
+  enabled?: boolean;
+  logging?: {
+    level?: 'debug' | 'info' | 'warn' | 'error';
+    events?: boolean;
+    performance?: boolean;
+  };
+  inspector?: {
+    enabled?: boolean;
+    port?: number;
+  };
+  dashboard?: {
+    position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+    theme?: 'light' | 'dark';
+  };
+}
+```
+
+## Next Steps
+
+- [NSM Client SDK](/api/nsm-client-sdk) - Main SDK for building NSM applications
+- [NSM Client](/api/nsm-client) - Core Nostr client functionality
+- [Examples](/examples) - Real-world implementation examples with debugging
+- [Guide: Testing](/guide/testing) - Testing strategies for NSM applications

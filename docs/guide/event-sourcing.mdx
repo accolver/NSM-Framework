@@ -1,0 +1,628 @@
+---
+title: Event Sourcing
+description: 'How NSM Framework implements event sourcing for complete audit trails and time-travel debugging'
+---
+
+## Overview
+
+Event Sourcing is a fundamental pattern in NSM Framework where all changes to application state are stored as a sequence of events. Instead of storing just the current state, NSM maintains a complete log of all state changes, enabling powerful features like audit trails, time-travel debugging, and state replay.
+
+## Core Concepts
+
+### Event Store
+
+NSM automatically maintains an event store containing all state-changing events:
+
+```typescript
+// Each event is stored with metadata
+interface StoredEvent {
+  id: string;
+  type: string;
+  payload: any;
+  metadata: {
+    userId: string;
+    timestamp: number;
+    version: number;
+    checksum: string;
+  };
+}
+
+// Event store structure
+interface EventStore {
+  events: StoredEvent[];
+  snapshots: Snapshot[];
+  version: number;
+}
+```
+
+### Event Replay
+
+Reconstruct any historical state by replaying events:
+
+```typescript
+const client = createNSMClient({
+  machine: myMachine,
+  nostrConfig: { /* config */ },
+
+  // Enable event sourcing
+  eventSourcing: {
+    enabled: true,
+    storeEvents: true,
+    maxEvents: 10000, // Keep last 10k events
+    snapshotInterval: 1000 // Create snapshot every 1000 events
+  }
+});
+
+// Replay to specific point in time
+const historicalState = await client.replayToTimestamp(
+  new Date('2024-01-01T10:00:00Z').getTime()
+);
+
+// Replay to specific event
+const stateAtEvent = await client.replayToEvent('event-id-123');
+```
+
+## Event Structure
+
+### Event Anatomy
+
+Every NSM event contains:
+
+```typescript
+interface NSMEvent {
+  // Core event data
+  type: string;
+  payload?: any;
+
+  // Metadata (automatically added)
+  id: string;
+  userId: string;
+  timestamp: number;
+  version: number;
+
+  // Verification
+  signature?: string;
+  checksum: string;
+
+  // Causality
+  causedBy?: string[]; // IDs of events that caused this event
+  correlationId?: string; // Group related events
+}
+```
+
+### Event Types
+
+NSM categorizes events by their purpose:
+
+```typescript
+// State machine events
+{
+  type: 'COUNTER_INCREMENT',
+  payload: { amount: 1 },
+  category: 'STATE_CHANGE'
+}
+
+// User actions
+{
+  type: 'USER_JOINED',
+  payload: { username: 'alice' },
+  category: 'USER_ACTION'
+}
+
+// System events
+{
+  type: 'SNAPSHOT_CREATED',
+  payload: { snapshotId: 'snap-123' },
+  category: 'SYSTEM'
+}
+
+// Error events
+{
+  type: 'VALIDATION_ERROR',
+  payload: { error: 'Invalid input' },
+  category: 'ERROR'
+}
+```
+
+## State Reconstruction
+
+### From Events
+
+Build current state from event history:
+
+```typescript
+function reconstructState(events: NSMEvent[], machine: StateMachine) {
+  let state = machine.initialState;
+
+  for (const event of events) {
+    state = machine.transition(state, event);
+  }
+
+  return state;
+}
+
+// NSM handles this automatically
+const currentState = client.getState(); // Reconstructed from events
+const eventHistory = client.getEventHistory(); // All events that led to current state
+```
+
+### With Snapshots
+
+Optimize replay performance using snapshots:
+
+```typescript
+interface Snapshot {
+  id: string;
+  state: any;
+  eventVersion: number;
+  timestamp: number;
+  checksum: string;
+}
+
+// Create snapshot
+const snapshot = await client.createSnapshot();
+
+// Replay from snapshot (much faster)
+const state = await client.replayFromSnapshot(snapshot.id, targetTimestamp);
+```
+
+## Time-Travel Debugging
+
+### Historical Analysis
+
+Debug issues by examining historical state:
+
+```typescript
+class TimeTravel {
+  constructor(private client: NSMClient) {}
+
+  async debugIssue(issueTimestamp: number) {
+    // Get state just before issue
+    const beforeState = await this.client.replayToTimestamp(issueTimestamp - 1000);
+
+    // Get state during issue
+    const duringState = await this.client.replayToTimestamp(issueTimestamp);
+
+    // Find problematic events
+    const suspiciousEvents = this.client.getEventsBetween(
+      issueTimestamp - 1000,
+      issueTimestamp
+    );
+
+    return {
+      beforeState,
+      duringState,
+      suspiciousEvents,
+      stateDiff: this.diffStates(beforeState, duringState)
+    };
+  }
+
+  async revertToGoodState(targetTimestamp: number) {
+    // Replay to known good state
+    const goodState = await this.client.replayToTimestamp(targetTimestamp);
+
+    // Create new branch from this point
+    await this.client.createBranch('recovery', goodState);
+
+    return goodState;
+  }
+}
+```
+
+### Event Analysis
+
+Analyze event patterns and causality:
+
+```typescript
+class EventAnalyzer {
+  analyzeEventChain(eventId: string) {
+    const event = this.client.getEvent(eventId);
+    const causedBy = event.causedBy || [];
+    const causes = this.client.getEventsCausedBy(eventId);
+
+    return {
+      event,
+      predecessors: causedBy.map(id => this.client.getEvent(id)),
+      successors: causes,
+      correlationChain: this.getCorrelationChain(event.correlationId)
+    };
+  }
+
+  findAnomalousEvents() {
+    const events = this.client.getAllEvents();
+
+    return events.filter(event => {
+      // Look for unusual patterns
+      return (
+        this.isUnusuallyLarge(event) ||
+        this.hasUnexpectedTiming(event) ||
+        this.violatesInvariants(event)
+      );
+    });
+  }
+}
+```
+
+## Audit Trails
+
+### Complete Audit Log
+
+Every change is automatically tracked:
+
+```typescript
+interface AuditEntry {
+  eventId: string;
+  type: string;
+  userId: string;
+  timestamp: number;
+  changes: {
+    before: any;
+    after: any;
+    diff: any;
+  };
+  metadata: {
+    ipAddress?: string;
+    userAgent?: string;
+    sessionId?: string;
+  };
+}
+
+// Get audit trail for specific entity
+const auditTrail = await client.getAuditTrail({
+  entityId: 'document-123',
+  startTime: startDate,
+  endTime: endDate,
+  userId: 'alice' // Optional filter
+});
+
+// Generate audit report
+const report = {
+  totalChanges: auditTrail.length,
+  uniqueUsers: new Set(auditTrail.map(e => e.userId)).size,
+  timeSpan: {
+    start: auditTrail[0]?.timestamp,
+    end: auditTrail[auditTrail.length - 1]?.timestamp
+  },
+  changesByType: groupBy(auditTrail, 'type'),
+  changesByUser: groupBy(auditTrail, 'userId')
+};
+```
+
+### Compliance Features
+
+Built-in compliance and governance:
+
+```typescript
+const client = createNSMClient({
+  machine: myMachine,
+  nostrConfig: { /* config */ },
+
+  compliance: {
+    // Data retention
+    retentionPolicy: {
+      maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
+      archiveOldEvents: true,
+      anonymizeAfter: 90 * 24 * 60 * 60 * 1000 // 90 days
+    },
+
+    // Access control
+    auditAccess: {
+      requireAuth: true,
+      logAccess: true,
+      restrictedFields: ['personalData', 'sensitive']
+    },
+
+    // Integrity verification
+    verification: {
+      checksumEvents: true,
+      signEvents: true,
+      validateChain: true
+    }
+  }
+});
+```
+
+## Event Persistence
+
+### Storage Options
+
+Configure event storage:
+
+```typescript
+const client = createNSMClient({
+  machine: myMachine,
+  nostrConfig: { /* config */ },
+
+  storage: {
+    // Local storage (default)
+    type: 'local',
+    maxSize: 100 * 1024 * 1024, // 100MB
+
+    // Or remote storage
+    // type: 'remote',
+    // endpoint: 'https://api.myapp.com/events',
+    // apiKey: process.env.STORAGE_API_KEY
+
+    // Or hybrid
+    // type: 'hybrid',
+    // local: { maxSize: 10 * 1024 * 1024 },
+    // remote: { endpoint: 'https://api.myapp.com/events' }
+  }
+});
+```
+
+### Backup and Recovery
+
+Implement backup strategies:
+
+```typescript
+class EventBackup {
+  constructor(private client: NSMClient) {}
+
+  async createBackup() {
+    const events = this.client.getAllEvents();
+    const snapshots = this.client.getAllSnapshots();
+
+    const backup = {
+      version: '1.0',
+      timestamp: Date.now(),
+      events,
+      snapshots,
+      metadata: {
+        totalEvents: events.length,
+        oldestEvent: events[0]?.timestamp,
+        newestEvent: events[events.length - 1]?.timestamp
+      }
+    };
+
+    return backup;
+  }
+
+  async restoreFromBackup(backup: any) {
+    // Validate backup integrity
+    this.validateBackup(backup);
+
+    // Clear current state
+    await this.client.reset();
+
+    // Restore events
+    for (const event of backup.events) {
+      await this.client.appendEvent(event);
+    }
+
+    // Restore snapshots
+    for (const snapshot of backup.snapshots) {
+      await this.client.storeSnapshot(snapshot);
+    }
+
+    // Verify restoration
+    const restoredState = this.client.getState();
+    return restoredState;
+  }
+}
+```
+
+## Performance Optimization
+
+### Event Compression
+
+Compress events for storage efficiency:
+
+```typescript
+const client = createNSMClient({
+  machine: myMachine,
+  nostrConfig: { /* config */ },
+
+  eventSourcing: {
+    compression: {
+      enabled: true,
+      algorithm: 'gzip', // or 'lz4', 'brotli'
+      threshold: 1024, // Compress events > 1KB
+      batchSize: 100 // Compress in batches
+    }
+  }
+});
+```
+
+### Snapshot Strategy
+
+Optimize with smart snapshotting:
+
+```typescript
+const client = createNSMClient({
+  machine: myMachine,
+  nostrConfig: { /* config */ },
+
+  eventSourcing: {
+    snapshots: {
+      // Fixed interval
+      interval: 1000,
+
+      // Or dynamic based on conditions
+      strategy: 'adaptive',
+      conditions: {
+        eventCount: 1000,
+        timeElapsed: 3600000, // 1 hour
+        stateComplexity: 0.8 // When state becomes complex
+      }
+    }
+  }
+});
+```
+
+### Event Pruning
+
+Manage event store size:
+
+```typescript
+const client = createNSMClient({
+  machine: myMachine,
+  nostrConfig: { /* config */ },
+
+  eventSourcing: {
+    pruning: {
+      enabled: true,
+      keepLastN: 10000, // Keep last 10k events
+      archiveOldEvents: true,
+      archiveStorage: 's3://my-bucket/archives/',
+
+      // Custom pruning logic
+      shouldPrune: (event, index, events) => {
+        const age = Date.now() - event.timestamp;
+        const isOldSnapshot = event.type === 'SNAPSHOT_CREATED' && age > 86400000;
+        return isOldSnapshot;
+      }
+    }
+  }
+});
+```
+
+## Event Migrations
+
+### Schema Evolution
+
+Handle event format changes:
+
+```typescript
+interface EventMigration {
+  version: string;
+  up: (event: any) => any;
+  down: (event: any) => any;
+}
+
+const migrations: EventMigration[] = [
+  {
+    version: '2.0.0',
+    up: (event) => {
+      // Migrate v1 events to v2 format
+      if (event.type === 'USER_UPDATED') {
+        return {
+          ...event,
+          type: 'PROFILE_UPDATED',
+          payload: {
+            profile: event.payload,
+            updatedFields: ['name', 'email']
+          }
+        };
+      }
+      return event;
+    },
+    down: (event) => {
+      // Rollback v2 events to v1 format
+      if (event.type === 'PROFILE_UPDATED') {
+        return {
+          ...event,
+          type: 'USER_UPDATED',
+          payload: event.payload.profile
+        };
+      }
+      return event;
+    }
+  }
+];
+
+const client = createNSMClient({
+  machine: myMachine,
+  nostrConfig: { /* config */ },
+
+  eventSourcing: {
+    migrations,
+    currentVersion: '2.0.0'
+  }
+});
+```
+
+## Testing Event Sourcing
+
+### Event-Driven Testing
+
+Test by examining event sequences:
+
+```typescript
+import { NSMTestEnvironment } from 'nsm-testing';
+
+describe('Task Management Events', () => {
+  let testEnv: NSMTestEnvironment;
+
+  beforeEach(() => {
+    testEnv = new NSMTestEnvironment(taskMachine);
+  });
+
+  it('should create correct event sequence for task completion', () => {
+    // Create task
+    testEnv.sendEvent({
+      type: 'CREATE_TASK',
+      payload: { title: 'Test Task' }
+    });
+
+    // Assign task
+    testEnv.sendEvent({
+      type: 'ASSIGN_TASK',
+      payload: { taskId: 1, assignee: 'alice' }
+    });
+
+    // Complete task
+    testEnv.sendEvent({
+      type: 'COMPLETE_TASK',
+      payload: { taskId: 1 }
+    });
+
+    // Verify event sequence
+    const events = testEnv.getEventHistory();
+    expect(events).toHaveLength(3);
+    expect(events.map(e => e.type)).toEqual([
+      'CREATE_TASK',
+      'ASSIGN_TASK',
+      'COMPLETE_TASK'
+    ]);
+
+    // Test replay
+    const replayedState = testEnv.replayEvents(events.slice(0, 2));
+    expect(replayedState.context.tasks[0].completed).toBe(false);
+
+    const finalState = testEnv.replayEvents(events);
+    expect(finalState.context.tasks[0].completed).toBe(true);
+  });
+});
+```
+
+## Best Practices
+
+### Event Design
+
+1. **Immutable Events**: Never modify events after creation
+2. **Rich Events**: Include all necessary context
+3. **Idempotent**: Events should be safely replayable
+4. **Versioned**: Include schema version information
+5. **Small**: Keep events focused and minimal
+
+### Storage Management
+
+1. **Regular Snapshots**: Balance performance with storage
+2. **Archive Old Events**: Implement retention policies
+3. **Compress Data**: Use compression for large datasets
+4. **Monitor Size**: Track storage growth and usage
+
+### Security Considerations
+
+1. **Encrypt Sensitive Data**: Protect personal information
+2. **Sign Events**: Verify event integrity and authenticity
+3. **Access Control**: Restrict access to event history
+4. **Audit Access**: Log who accesses historical data
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Testing Guide" icon="flask" href="/guide/testing">
+    Learn how to test event-sourced applications
+  </Card>
+  <Card title="Performance Optimization" icon="zap" href="/guide/performance">
+    Optimize event sourcing performance
+  </Card>
+  <Card title="Security Best Practices" icon="shield" href="/guide/security">
+    Secure your event-sourced applications
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore the complete NSM API
+  </Card>
+</CardGroup>

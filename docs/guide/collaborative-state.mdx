@@ -1,0 +1,712 @@
+---
+title: Collaborative State
+description: 'Understanding multi-user state synchronization in NSM Framework'
+---
+
+## Overview
+
+NSM Framework's collaborative state management allows multiple users to interact with shared application state in real-time. By combining deterministic state machines with Nostr's decentralized messaging, NSM ensures that all users see a consistent view of the application state, even in complex multi-user scenarios.
+
+## Core Concepts
+
+### Deterministic State Synchronization
+
+NSM ensures that all participants reach the same state by processing events in a deterministic order:
+
+```typescript
+// All users process the same events in the same order
+Event 1: { type: 'ADD_ITEM', item: 'Task A', user: 'alice' }
+Event 2: { type: 'ADD_ITEM', item: 'Task B', user: 'bob' }
+Event 3: { type: 'COMPLETE_ITEM', id: 1, user: 'alice' }
+
+// Result: All users have identical state
+{
+  items: [
+    { id: 1, text: 'Task A', completed: true, createdBy: 'alice' },
+    { id: 2, text: 'Task B', completed: false, createdBy: 'bob' }
+  ]
+}
+```
+
+### Event Ordering
+
+NSM uses timestamp-based ordering with conflict resolution:
+
+```typescript
+const collaborativeMachine = createMachine({
+  id: 'collaborative-doc',
+  initial: 'editing',
+  context: {
+    content: '',
+    version: 0,
+    pendingChanges: []
+  },
+  states: {
+    editing: {
+      on: {
+        TEXT_CHANGE: {
+          actions: [
+            // Add timestamp and user info
+            assign({
+              pendingChanges: (context, event) => [
+                ...context.pendingChanges,
+                {
+                  ...event,
+                  timestamp: Date.now(),
+                  userId: event.userId,
+                  version: context.version + 1
+                }
+              ]
+            }),
+            'processChanges' // NSM handles ordering and conflicts
+          ]
+        },
+        CHANGES_PROCESSED: {
+          actions: assign({
+            content: (_, event) => event.newContent,
+            version: (_, event) => event.newVersion,
+            pendingChanges: []
+          })
+        }
+      }
+    }
+  }
+});
+```
+
+## Multi-User Patterns
+
+### User Presence
+
+Track which users are currently active:
+
+```typescript
+const chatMachine = createMachine({
+  id: 'chat',
+  context: {
+    activeUsers: new Map(),
+    messages: []
+  },
+  states: {
+    connected: {
+      on: {
+        USER_JOINED: {
+          actions: [
+            assign({
+              activeUsers: (context, event) => {
+                const newMap = new Map(context.activeUsers);
+                newMap.set(event.userId, {
+                  username: event.username,
+                  joinedAt: Date.now(),
+                  lastSeen: Date.now()
+                });
+                return newMap;
+              }
+            }),
+            'broadcastUserJoined'
+          ]
+        },
+        USER_LEFT: {
+          actions: [
+            assign({
+              activeUsers: (context, event) => {
+                const newMap = new Map(context.activeUsers);
+                newMap.delete(event.userId);
+                return newMap;
+              }
+            }),
+            'broadcastUserLeft'
+          ]
+        },
+        HEARTBEAT: {
+          actions: assign({
+            activeUsers: (context, event) => {
+              const newMap = new Map(context.activeUsers);
+              const user = newMap.get(event.userId);
+              if (user) {
+                user.lastSeen = Date.now();
+              }
+              return newMap;
+            }
+          })
+        }
+      }
+    }
+  }
+});
+```
+
+### Collaborative Editing
+
+Handle simultaneous text editing with operational transformation:
+
+```typescript
+const editorMachine = createMachine({
+  id: 'collaborative-editor',
+  context: {
+    document: {
+      content: '',
+      cursors: new Map(),
+      selections: new Map()
+    },
+    operations: []
+  },
+  states: {
+    editing: {
+      on: {
+        INSERT_TEXT: {
+          actions: [
+            'createInsertOperation',
+            'transformOperation',
+            'applyOperation',
+            'broadcastOperation'
+          ]
+        },
+        DELETE_TEXT: {
+          actions: [
+            'createDeleteOperation',
+            'transformOperation',
+            'applyOperation',
+            'broadcastOperation'
+          ]
+        },
+        CURSOR_MOVE: {
+          actions: [
+            assign({
+              'document.cursors': (context, event) => {
+                const newMap = new Map(context.document.cursors);
+                newMap.set(event.userId, {
+                  position: event.position,
+                  timestamp: Date.now()
+                });
+                return newMap;
+              }
+            }),
+            'broadcastCursorPosition'
+          ]
+        }
+      }
+    }
+  }
+}, {
+  actions: {
+    createInsertOperation: assign({
+      operations: (context, event) => [
+        ...context.operations,
+        {
+          type: 'insert',
+          position: event.position,
+          text: event.text,
+          userId: event.userId,
+          timestamp: Date.now(),
+          id: generateOperationId()
+        }
+      ]
+    }),
+
+    transformOperation: (context, event) => {
+      // Operational transformation logic
+      const operation = context.operations[context.operations.length - 1];
+
+      // Transform against concurrent operations
+      const transformedOp = transformAgainstConcurrentOps(
+        operation,
+        context.operations.slice(0, -1)
+      );
+
+      return transformedOp;
+    },
+
+    applyOperation: assign({
+      'document.content': (context, event) => {
+        const operation = context.operations[context.operations.length - 1];
+        return applyOperationToContent(context.document.content, operation);
+      }
+    })
+  }
+});
+```
+
+### Shared Collections
+
+Manage collaborative lists and collections:
+
+```typescript
+const taskListMachine = createMachine({
+  id: 'task-list',
+  context: {
+    tasks: [],
+    assignments: new Map(),
+    collaborators: new Set()
+  },
+  states: {
+    active: {
+      on: {
+        ADD_TASK: {
+          actions: [
+            assign({
+              tasks: (context, event) => [
+                ...context.tasks,
+                {
+                  id: generateTaskId(),
+                  title: event.title,
+                  description: event.description,
+                  createdBy: event.userId,
+                  createdAt: Date.now(),
+                  completed: false,
+                  assignee: null
+                }
+              ]
+            }),
+            'notifyTaskAdded'
+          ]
+        },
+        ASSIGN_TASK: {
+          actions: [
+            assign({
+              assignments: (context, event) => {
+                const newMap = new Map(context.assignments);
+                newMap.set(event.taskId, {
+                  assignee: event.assigneeId,
+                  assignedBy: event.userId,
+                  assignedAt: Date.now()
+                });
+                return newMap;
+              }
+            }),
+            'updateTaskAssignment',
+            'notifyAssignment'
+          ]
+        },
+        COMPLETE_TASK: {
+          guard: 'canCompleteTask',
+          actions: [
+            assign({
+              tasks: (context, event) => context.tasks.map(task =>
+                task.id === event.taskId
+                  ? { ...task, completed: true, completedAt: Date.now(), completedBy: event.userId }
+                  : task
+              )
+            }),
+            'notifyTaskCompleted'
+          ]
+        }
+      }
+    }
+  }
+}, {
+  guards: {
+    canCompleteTask: (context, event) => {
+      const task = context.tasks.find(t => t.id === event.taskId);
+      const assignment = context.assignments.get(event.taskId);
+
+      // Allow creator or assignee to complete
+      return task && (
+        task.createdBy === event.userId ||
+        assignment?.assignee === event.userId
+      );
+    }
+  }
+});
+```
+
+## Conflict Resolution
+
+### Last-Writer-Wins
+
+Simple conflict resolution for independent properties:
+
+```typescript
+const profileMachine = createMachine({
+  context: {
+    profile: {
+      name: '',
+      email: '',
+      lastUpdated: 0,
+      updatedBy: null
+    }
+  },
+  states: {
+    editing: {
+      on: {
+        UPDATE_PROFILE: {
+          guard: 'isNewerUpdate',
+          actions: assign({
+            profile: (context, event) => ({
+              ...context.profile,
+              ...event.updates,
+              lastUpdated: event.timestamp,
+              updatedBy: event.userId
+            })
+          })
+        }
+      }
+    }
+  }
+}, {
+  guards: {
+    isNewerUpdate: (context, event) => {
+      return event.timestamp > context.profile.lastUpdated;
+    }
+  }
+});
+```
+
+### Custom Conflict Resolution
+
+Handle complex conflicts with custom logic:
+
+```typescript
+const documentMachine = createMachine({
+  context: {
+    content: '',
+    conflictingVersions: []
+  },
+  states: {
+    editing: {
+      on: {
+        CONTENT_CHANGE: [
+          {
+            target: 'resolving',
+            guard: 'hasConflict',
+            actions: 'storeConflictingVersion'
+          },
+          {
+            actions: 'applyChange'
+          }
+        ]
+      }
+    },
+    resolving: {
+      on: {
+        RESOLVE_CONFLICT: {
+          target: 'editing',
+          actions: [
+            'applyResolution',
+            'clearConflicts',
+            'notifyResolution'
+          ]
+        },
+        AUTO_RESOLVE: {
+          target: 'editing',
+          actions: 'autoResolveConflict'
+        }
+      }
+    }
+  }
+}, {
+  guards: {
+    hasConflict: (context, event) => {
+      // Check if concurrent edits affect the same content
+      return detectConflict(context.content, event.changes);
+    }
+  },
+  actions: {
+    storeConflictingVersion: assign({
+      conflictingVersions: (context, event) => [
+        ...context.conflictingVersions,
+        {
+          userId: event.userId,
+          changes: event.changes,
+          timestamp: event.timestamp,
+          baseVersion: context.version
+        }
+      ]
+    }),
+
+    autoResolveConflict: assign({
+      content: (context, event) => {
+        // Implement three-way merge or other auto-resolution
+        return autoMerge(
+          context.content,
+          context.conflictingVersions
+        );
+      },
+      conflictingVersions: []
+    })
+  }
+});
+```
+
+## Real-time Features
+
+### Typing Indicators
+
+Show when users are typing:
+
+```typescript
+const typingMachine = createMachine({
+  context: {
+    typingUsers: new Map()
+  },
+  states: {
+    idle: {
+      on: {
+        START_TYPING: {
+          actions: [
+            assign({
+              typingUsers: (context, event) => {
+                const newMap = new Map(context.typingUsers);
+                newMap.set(event.userId, {
+                  startedAt: Date.now(),
+                  lastActivity: Date.now()
+                });
+                return newMap;
+              }
+            }),
+            'broadcastTypingStart',
+            'scheduleTypingTimeout'
+          ]
+        },
+        STOP_TYPING: {
+          actions: [
+            assign({
+              typingUsers: (context, event) => {
+                const newMap = new Map(context.typingUsers);
+                newMap.delete(event.userId);
+                return newMap;
+              }
+            }),
+            'broadcastTypingStop'
+          ]
+        },
+        TYPING_TIMEOUT: {
+          actions: 'cleanupStaleTyping'
+        }
+      }
+    }
+  }
+});
+```
+
+### Live Cursors
+
+Share cursor positions in real-time:
+
+```typescript
+const cursorMachine = createMachine({
+  context: {
+    cursors: new Map()
+  },
+  states: {
+    tracking: {
+      on: {
+        CURSOR_MOVE: {
+          actions: [
+            assign({
+              cursors: (context, event) => {
+                const newMap = new Map(context.cursors);
+                newMap.set(event.userId, {
+                  x: event.x,
+                  y: event.y,
+                  timestamp: Date.now(),
+                  color: getUserColor(event.userId)
+                });
+                return newMap;
+              }
+            }),
+            'throttledBroadcast' // Limit broadcast frequency
+          ]
+        },
+        CURSOR_LEAVE: {
+          actions: assign({
+            cursors: (context, event) => {
+              const newMap = new Map(context.cursors);
+              newMap.delete(event.userId);
+              return newMap;
+            }
+          })
+        }
+      }
+    }
+  }
+});
+```
+
+## Performance Optimization
+
+### Event Batching
+
+Batch rapid events to reduce network traffic:
+
+```typescript
+const client = createNSMClient({
+  machine: myMachine,
+  nostrConfig: { /* config */ },
+
+  // Enable event batching
+  batching: {
+    enabled: true,
+    batchSize: 10,        // Max events per batch
+    batchTimeout: 100,    // Max wait time (ms)
+
+    // Custom batching logic
+    shouldBatch: (event) => {
+      // Only batch frequent events
+      return ['CURSOR_MOVE', 'TYPING'].includes(event.type);
+    }
+  }
+});
+```
+
+### State Compression
+
+Compress large state objects:
+
+```typescript
+const optimizedMachine = createMachine({
+  context: {
+    largeDataset: [],
+    compressionEnabled: true
+  },
+  on: {
+    UPDATE_DATASET: {
+      actions: [
+        'compressData',
+        'updateState',
+        'broadcastCompressed'
+      ]
+    }
+  }
+}, {
+  actions: {
+    compressData: (context, event) => {
+      if (context.compressionEnabled && event.data.length > 1000) {
+        event.compressedData = compress(event.data);
+        delete event.data;
+      }
+    }
+  }
+});
+```
+
+### Selective Synchronization
+
+Only sync relevant state changes:
+
+```typescript
+const selectiveMachine = createMachine({
+  context: {
+    publicState: { /* shared data */ },
+    privateState: { /* local-only data */ }
+  },
+  on: {
+    PUBLIC_UPDATE: {
+      actions: [
+        'updatePublicState',
+        'broadcastUpdate' // Only broadcast public changes
+      ]
+    },
+    PRIVATE_UPDATE: {
+      actions: 'updatePrivateState' // No broadcast
+    }
+  }
+});
+```
+
+## Testing Collaborative Features
+
+### Multi-User Simulation
+
+Test collaborative scenarios:
+
+```typescript
+import { NSMTestEnvironment } from 'nsm-testing';
+
+describe('Collaborative Chat', () => {
+  let testEnv: NSMTestEnvironment;
+  let alice: TestUser;
+  let bob: TestUser;
+
+  beforeEach(() => {
+    testEnv = new NSMTestEnvironment(chatMachine);
+    alice = testEnv.createUser('alice');
+    bob = testEnv.createUser('bob');
+  });
+
+  it('should sync messages between users', async () => {
+    // Alice joins
+    await alice.sendEvent({ type: 'JOIN_CHAT', username: 'Alice' });
+
+    // Bob joins
+    await bob.sendEvent({ type: 'JOIN_CHAT', username: 'Bob' });
+
+    // Alice sends message
+    await alice.sendEvent({
+      type: 'SEND_MESSAGE',
+      text: 'Hello Bob!'
+    });
+
+    // Both users should see the message
+    expect(alice.getState().context.messages).toHaveLength(1);
+    expect(bob.getState().context.messages).toHaveLength(1);
+
+    expect(alice.getState().context.messages[0].text).toBe('Hello Bob!');
+    expect(bob.getState().context.messages[0].text).toBe('Hello Bob!');
+  });
+
+  it('should handle concurrent messages', async () => {
+    await Promise.all([
+      alice.sendEvent({ type: 'SEND_MESSAGE', text: 'Message from Alice' }),
+      bob.sendEvent({ type: 'SEND_MESSAGE', text: 'Message from Bob' })
+    ]);
+
+    // Both messages should appear in correct order
+    const aliceMessages = alice.getState().context.messages;
+    const bobMessages = bob.getState().context.messages;
+
+    expect(aliceMessages).toEqual(bobMessages);
+    expect(aliceMessages).toHaveLength(2);
+  });
+});
+```
+
+## Best Practices
+
+### Design Guidelines
+
+1. **Idempotent Events**: Events should be safely replayable
+2. **Small Events**: Keep event payloads minimal
+3. **Clear Ownership**: Define who can modify what
+4. **Conflict Strategy**: Plan for concurrent modifications
+5. **User Feedback**: Show collaboration status to users
+
+### Performance Tips
+
+1. **Debounce Rapid Events**: Avoid flooding the network
+2. **Use Guards**: Prevent invalid state transitions
+3. **Cache Wisely**: Store computed values when appropriate
+4. **Clean Up**: Remove stale data and inactive users
+
+### Error Handling
+
+```typescript
+client.onError((error) => {
+  if (error.type === 'SYNC_ERROR') {
+    // Handle synchronization issues
+    console.log('Sync error, attempting recovery...');
+    client.resync();
+  } else if (error.type === 'CONFLICT_ERROR') {
+    // Handle unresolvable conflicts
+    console.log('Conflict detected, user intervention needed');
+    showConflictResolutionUI(error.conflictData);
+  }
+});
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Event Sourcing" icon="clock" href="/guide/event-sourcing">
+    Learn about NSM's event sourcing capabilities
+  </Card>
+  <Card title="Testing" icon="flask" href="/guide/testing">
+    Test collaborative features and multi-user scenarios
+  </Card>
+  <Card title="Performance" icon="zap" href="/guide/performance">
+    Optimize collaborative applications for scale
+  </Card>
+  <Card title="Examples" icon="code" href="/examples">
+    Explore collaborative application examples
+  </Card>
+</CardGroup>

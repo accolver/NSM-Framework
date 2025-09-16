@@ -1,0 +1,595 @@
+---
+title: NSM Client
+description: 'Core Nostr client with NSM protocol support for state machine synchronization'
+---
+
+# NSM Client
+
+The NSM Client provides core functionality for interacting with the Nostr protocol specifically for NSM (Nostr State Machine) applications. It handles application discovery, state synchronization, and event publishing with built-in support for NIP-07 browser extensions and multiple relay management.
+
+## Installation
+
+```bash
+npm install @nsm/client
+```
+
+## Quick Start
+
+```typescript
+import { NSMClient } from '@nsm/client';
+
+const client = new NSMClient({
+  relayUrls: ['wss://relay.damus.io', 'wss://nos.lol'],
+  privateKey: 'your-nostr-private-key'
+});
+
+await client.connect();
+console.log('Connected to relays:', client.getConnectedRelays());
+```
+
+## Class: NSMClient
+
+The main client for NSM protocol operations on Nostr.
+
+### Constructor
+
+```typescript
+constructor(options: NSMClientOptions = {})
+```
+
+#### Options
+
+```typescript
+interface NSMClientOptions {
+  relayUrls?: string[];
+  ndk?: NDK; // Allow injecting NDK for testing
+  autoConnect?: boolean;
+  privateKey?: string; // Private key for signing events
+  useNip07?: boolean; // Use NIP-07 browser extension for signing
+}
+```
+
+**Parameters:**
+
+- `relayUrls` - Array of Nostr relay WebSocket URLs (defaults to popular relays)
+- `ndk` - Optional NDK instance for advanced use cases
+- `autoConnect` - Whether to connect automatically on instantiation (default: true)
+- `privateKey` - 64-character hex private key for signing events
+- `useNip07` - Use browser extension for signing instead of private key
+
+**Example:**
+
+```typescript
+// Basic client with private key
+const client = new NSMClient({
+  relayUrls: ['wss://relay.damus.io'],
+  privateKey: 'your-64-char-hex-private-key'
+});
+
+// Client using NIP-07 browser extension
+const browserClient = new NSMClient({
+  relayUrls: ['wss://relay.damus.io'],
+  useNip07: true
+});
+
+// Manual connection control
+const manualClient = new NSMClient({
+  autoConnect: false,
+  privateKey: 'your-private-key'
+});
+await manualClient.connect();
+```
+
+### Connection Management
+
+#### `connect()`
+
+Connect to configured Nostr relays.
+
+```typescript
+async connect(): Promise<void>
+```
+
+**Throws:** Error if connection fails or times out (5 second timeout)
+
+**Example:**
+
+```typescript
+try {
+  await client.connect();
+  console.log('Successfully connected to relays');
+} catch (error) {
+  console.error('Connection failed:', error.message);
+}
+```
+
+#### `disconnect()`
+
+Disconnect from all relays and clean up subscriptions.
+
+```typescript
+disconnect(): void
+```
+
+**Example:**
+
+```typescript
+client.disconnect();
+console.log('Disconnected from all relays');
+```
+
+### Application Discovery
+
+#### `discoverApplications(options?)`
+
+Discover published NSM applications across the network.
+
+```typescript
+async discoverApplications(options: DiscoverOptions = {}): Promise<NSMApplication[]>
+```
+
+```typescript
+interface DiscoverOptions {
+  tag?: string;
+  author?: string;
+  limit?: number;
+}
+
+interface NSMApplication {
+  identifier: string;
+  name: string;
+  engine: string;
+  engineCodeURI: string;
+  initialState: any;
+  stateSchema: any;
+  interactionSchema: any;
+  author?: string;
+  created_at?: number;
+}
+```
+
+**Parameters:**
+
+- `tag` - Filter by application tag
+- `author` - Filter by author public key
+- `limit` - Maximum number of applications to return (default: 100)
+
+**Example:**
+
+```typescript
+// Discover all applications
+const allApps = await client.discoverApplications();
+console.log(`Found ${allApps.length} applications`);
+
+// Discover applications by tag
+const gameApps = await client.discoverApplications({
+  tag: 'game',
+  limit: 10
+});
+
+// Discover applications by specific author
+const authorApps = await client.discoverApplications({
+  author: 'npub1...'
+});
+
+console.log('Game applications:', gameApps);
+```
+
+#### `loadApplication(identifier)`
+
+Load a specific application by its identifier.
+
+```typescript
+async loadApplication(identifier: string): Promise<NSMApplication | null>
+```
+
+**Parameters:**
+
+- `identifier` - Unique application identifier
+
+**Returns:** Application object or null if not found
+
+**Example:**
+
+```typescript
+const app = await client.loadApplication('my-chat-app');
+if (app) {
+  console.log('Loaded application:', app.name);
+  console.log('Initial state:', app.initialState);
+} else {
+  console.log('Application not found');
+}
+```
+
+### Event Publishing
+
+#### `publishInteraction(interaction)`
+
+Publish an interaction event for an NSM application.
+
+```typescript
+async publishInteraction(interaction: InteractionPayload): Promise<void>
+```
+
+```typescript
+interface InteractionPayload {
+  applicationId: string;
+  action: string;
+  payload: any;
+}
+```
+
+**Parameters:**
+
+- `applicationId` - Target application identifier
+- `action` - Action type to perform
+- `payload` - Action-specific data
+
+**Example:**
+
+```typescript
+await client.publishInteraction({
+  applicationId: 'chat-room-1',
+  action: 'SEND_MESSAGE',
+  payload: {
+    text: 'Hello, world!',
+    timestamp: Date.now()
+  }
+});
+
+console.log('Interaction published successfully');
+```
+
+#### `publishStateUpdate(stateUpdate)`
+
+Publish a state update event for an NSM application.
+
+```typescript
+async publishStateUpdate(stateUpdate: StateUpdatePayload): Promise<void>
+```
+
+```typescript
+interface StateUpdatePayload {
+  applicationId: string;
+  state: any;
+  previousEventId?: string;
+}
+```
+
+**Parameters:**
+
+- `applicationId` - Target application identifier
+- `state` - New application state
+- `previousEventId` - Optional reference to previous state event
+
+**Example:**
+
+```typescript
+await client.publishStateUpdate({
+  applicationId: 'todo-app',
+  state: {
+    tasks: [
+      { id: 1, text: 'Learn NSM', completed: false },
+      { id: 2, text: 'Build app', completed: true }
+    ],
+    taskCount: 2
+  },
+  previousEventId: 'previous-state-event-id'
+});
+
+console.log('State update published');
+```
+
+### Event Subscription
+
+#### `subscribeToApplication(applicationId, handlers)`
+
+Subscribe to events for a specific application.
+
+```typescript
+subscribeToApplication(
+  applicationId: string,
+  handlers: SubscriptionHandlers
+): NDKSubscription
+```
+
+```typescript
+interface SubscriptionHandlers {
+  onInteraction?: (interaction: any) => void;
+  onStateUpdate?: (stateUpdate: any) => void;
+  onError?: (error: Error) => void;
+}
+```
+
+**Parameters:**
+
+- `applicationId` - Application to subscribe to
+- `handlers` - Event handlers for different event types
+
+**Returns:** NDKSubscription object for managing the subscription
+
+**Example:**
+
+```typescript
+const subscription = client.subscribeToApplication('chat-app', {
+  onInteraction: (interaction) => {
+    console.log('New interaction:', interaction.action);
+    console.log('Payload:', interaction.payload);
+  },
+
+  onStateUpdate: (stateUpdate) => {
+    console.log('State updated:', stateUpdate);
+    // Update local UI state
+    updateLocalState(stateUpdate.state);
+  },
+
+  onError: (error) => {
+    console.error('Subscription error:', error);
+  }
+});
+
+// Stop subscription when done
+// subscription.stop();
+```
+
+### Relay Management
+
+#### `getConnectedRelays()`
+
+Get list of currently connected relay URLs.
+
+```typescript
+getConnectedRelays(): string[]
+```
+
+**Example:**
+
+```typescript
+const connected = client.getConnectedRelays();
+console.log('Connected relays:', connected);
+// Output: ['wss://relay.damus.io', 'wss://nos.lol']
+```
+
+#### `addRelay(url)`
+
+Add a new relay to the connection pool.
+
+```typescript
+async addRelay(url: string): Promise<void>
+```
+
+**Example:**
+
+```typescript
+await client.addRelay('wss://new-relay.com');
+console.log('Added new relay');
+```
+
+#### `removeRelay(url)`
+
+Remove a relay from the connection pool.
+
+```typescript
+async removeRelay(url: string): Promise<void>
+```
+
+**Example:**
+
+```typescript
+await client.removeRelay('wss://old-relay.com');
+console.log('Removed relay');
+```
+
+### NIP-07 Browser Extension Support
+
+#### `static isNip07Available()`
+
+Check if NIP-07 browser extension is available.
+
+```typescript
+static isNip07Available(): boolean
+```
+
+**Example:**
+
+```typescript
+if (NSMClient.isNip07Available()) {
+  console.log('Browser extension detected');
+  const client = new NSMClient({ useNip07: true });
+} else {
+  console.log('No browser extension - using private key');
+  const client = new NSMClient({ privateKey: 'your-key' });
+}
+```
+
+#### `requestNip07Permission()`
+
+Request permission from NIP-07 browser extension.
+
+```typescript
+async requestNip07Permission(): Promise<boolean>
+```
+
+**Example:**
+
+```typescript
+const hasPermission = await client.requestNip07Permission();
+if (hasPermission) {
+  console.log('Extension permission granted');
+} else {
+  console.log('Extension permission denied');
+}
+```
+
+#### `getUserPublicKey()`
+
+Get the current user's public key.
+
+```typescript
+async getUserPublicKey(): Promise<string | null>
+```
+
+**Example:**
+
+```typescript
+const pubkey = await client.getUserPublicKey();
+if (pubkey) {
+  console.log('User public key:', pubkey);
+} else {
+  console.log('No signer configured');
+}
+```
+
+## Complete Usage Example
+
+```typescript
+import { NSMClient } from '@nsm/client';
+
+class ChatApplication {
+  private client: NSMClient;
+  private applicationId: string = 'my-chat-app';
+
+  constructor() {
+    this.client = new NSMClient({
+      relayUrls: [
+        'wss://relay.damus.io',
+        'wss://nos.lol',
+        'wss://relay.nostr.band'
+      ],
+      privateKey: process.env.NOSTR_PRIVATE_KEY
+    });
+  }
+
+  async initialize() {
+    // Connect to relays
+    await this.client.connect();
+    console.log('Connected to:', this.client.getConnectedRelays());
+
+    // Check if our application exists
+    const app = await this.client.loadApplication(this.applicationId);
+    if (!app) {
+      console.log('Application not found - would need to publish definition');
+      return;
+    }
+
+    console.log('Loaded application:', app.name);
+
+    // Subscribe to application events
+    this.client.subscribeToApplication(this.applicationId, {
+      onInteraction: this.handleInteraction.bind(this),
+      onStateUpdate: this.handleStateUpdate.bind(this),
+      onError: this.handleError.bind(this)
+    });
+
+    console.log('Chat application ready');
+  }
+
+  async sendMessage(text: string) {
+    await this.client.publishInteraction({
+      applicationId: this.applicationId,
+      action: 'SEND_MESSAGE',
+      payload: {
+        text,
+        sender: await this.client.getUserPublicKey(),
+        timestamp: Date.now()
+      }
+    });
+  }
+
+  private handleInteraction(interaction: any) {
+    console.log('New message:', interaction.payload.text);
+    // Update UI with new message
+    this.displayMessage(interaction.payload);
+  }
+
+  private handleStateUpdate(stateUpdate: any) {
+    console.log('Chat state updated:', stateUpdate);
+    // Update application state
+    this.updateChatState(stateUpdate.state);
+  }
+
+  private handleError(error: Error) {
+    console.error('Chat error:', error);
+    // Show error to user
+    this.showError(error.message);
+  }
+
+  private displayMessage(message: any) {
+    // Implementation for displaying messages
+  }
+
+  private updateChatState(state: any) {
+    // Implementation for updating chat state
+  }
+
+  private showError(message: string) {
+    // Implementation for showing errors
+  }
+
+  async cleanup() {
+    this.client.disconnect();
+  }
+}
+
+// Usage
+const chat = new ChatApplication();
+await chat.initialize();
+await chat.sendMessage('Hello, NSM world!');
+```
+
+## Error Handling
+
+The NSMClient provides comprehensive error handling for network and protocol issues:
+
+```typescript
+try {
+  await client.connect();
+} catch (error) {
+  if (error.message.includes('Connection timeout')) {
+    // Handle network connectivity issues
+    console.log('Network timeout - retrying in 5 seconds...');
+    setTimeout(() => client.connect(), 5000);
+  } else {
+    console.error('Connection failed:', error);
+  }
+}
+
+try {
+  await client.publishInteraction(interaction);
+} catch (error) {
+  if (error.message.includes('no signer')) {
+    console.error('No signing method configured');
+  } else if (error.message.includes('relay')) {
+    console.error('Relay publish error:', error);
+  }
+}
+```
+
+## Type Definitions
+
+### Exported Types
+
+```typescript
+export type {
+  NSMClientOptions,
+  NSMApplication,
+  DiscoverOptions,
+  InteractionPayload,
+  StateUpdatePayload,
+  SubscriptionHandlers
+} from './nsm-client';
+
+// Re-exported core types for convenience
+export type {
+  INSMDefinitionEvent as NSMDefinitionEvent,
+  INSMInteractionEvent as NSMInteractionEvent,
+  INSMStateUpdateEvent as NSMStateUpdateEvent
+} from '@nsm/core';
+```
+
+## Next Steps
+
+- [NSM Core](/api/nsm-core) - Core protocol types and validation
+- [NSM Client SDK](/api/nsm-client-sdk) - Higher-level SDK with Blossom integration
+- [Blossom Client](/api/blossom-client) - File storage and sharing
+- [Examples](/examples/chat-app) - Building a chat application with NSM

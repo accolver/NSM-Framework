@@ -1,0 +1,358 @@
+---
+title: API Overview
+description: 'Complete API reference for NSM Framework'
+---
+
+## Core Modules
+
+NSM Framework is organized into several packages, each providing specific functionality for building collaborative applications.
+
+<CardGroup cols={2}>
+  <Card title="NSM Client SDK" icon="package" href="/api/nsm-client-sdk">
+    Main SDK for building NSM applications with Blossom storage integration
+  </Card>
+  <Card title="NSM Client" icon="desktop" href="/api/nsm-client">
+    Core Nostr client with NSM protocol support for state synchronization
+  </Card>
+  <Card title="NSM Core" icon="code" href="/api/nsm-core">
+    Protocol types, constants, and validation utilities for NSM events
+  </Card>
+  <Card title="Blossom Client" icon="cloud" href="/api/blossom-client">
+    Decentralized file storage with multi-server support and redundancy
+  </Card>
+</CardGroup>
+
+## Developer Tools
+
+<CardGroup cols={2}>
+  <Card title="Dev Tools" icon="wrench" href="/api/dev-tools">
+    Development utilities and debugging tools for NSM applications
+  </Card>
+  <Card title="Examples" icon="lightbulb" href="/examples">
+    Real-world implementation examples and tutorials
+  </Card>
+</CardGroup>
+
+## Quick Reference
+
+### Using NSM Client SDK
+
+```typescript
+import { NSMClient, BlossomClient } from '@nsm/client-sdk';
+
+// Create NSM client
+const nsmClient = new NSMClient();
+await nsmClient.initialize();
+
+// Create Blossom client for file storage
+const blossomClient = new BlossomClient({
+  servers: ['https://blossom.example.com'],
+  privateKey: 'your-nostr-private-key'
+});
+```
+
+### Using NSM Client
+
+```typescript
+import { NSMClient } from '@nsm/client';
+
+const client = new NSMClient({
+  relayUrls: ['wss://relay.damus.io'],
+  privateKey: process.env.NOSTR_PRIVATE_KEY
+});
+
+await client.connect();
+
+// Discover applications
+const apps = await client.discoverApplications();
+
+// Subscribe to application events
+client.subscribeToApplication('app-id', {
+  onInteraction: (interaction) => console.log('Interaction:', interaction),
+  onStateUpdate: (update) => console.log('State update:', update)
+});
+```
+
+### Using NSM Core
+
+```typescript
+import {
+  createNSMDefinitionEvent,
+  createNSMInteractionEvent,
+  validateNSMDefinitionEvent,
+  NSM_PROTOCOL
+} from '@nsm/core';
+
+// Create NSM definition event
+const definition = createNSMDefinitionEvent({
+  identifier: 'my-app',
+  name: 'My Application',
+  engine: 'xstate',
+  engineCodeURI: 'https://example.com/machine.js',
+  initialState: { count: 0 }
+});
+
+// Create interaction event
+const interaction = createNSMInteractionEvent({
+  definitionEventCoordinate: '30079:pubkey:my-app',
+  action: 'INCREMENT',
+  payload: { amount: 1 }
+});
+```
+
+## Module Details
+
+### NSM Client SDK
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `NSMClient.initialize()` | `Promise<void>` | Initialize the NSM client |
+| `BlossomClient.upload()` | `Promise<BlossomUploadResponse>` | Upload content to Blossom servers |
+| `BlossomClient.download()` | `Promise<string>` | Download content by hash |
+| `BlossomClient.delete()` | `Promise<void>` | Delete content from servers |
+
+### NSM Client
+
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `connect()` | `Promise<void>` | Connect to Nostr relays |
+| `disconnect()` | `void` | Disconnect and cleanup |
+| `discoverApplications()` | `Promise<NSMApplication[]>` | Find NSM applications |
+| `loadApplication(id)` | `Promise<NSMApplication \| null>` | Load specific application |
+| `publishInteraction()` | `Promise<void>` | Publish interaction event |
+| `publishStateUpdate()` | `Promise<void>` | Publish state update |
+| `subscribeToApplication()` | `NDKSubscription` | Subscribe to app events |
+
+### NSM Core
+
+| Function | Description | Module |
+|----------|-------------|---------|
+| `createNSMDefinitionEvent` | Create NSM definition events | `@nsm/core` |
+| `createNSMInteractionEvent` | Create NSM interaction events | `@nsm/core` |
+| `createNSMStateUpdateEvent` | Create NSM state update events | `@nsm/core` |
+| `validateNSMDefinitionEvent` | Validate definition events | `@nsm/core` |
+| `isNSMEventKind` | Check if event kind is NSM | `@nsm/core` |
+| `getNSMEventType` | Get NSM event type from kind | `@nsm/core` |
+
+## Type Definitions
+
+### Core Types
+
+```typescript
+interface NSMConfig {
+  machine: StateMachine;
+  nostrConfig: NostrConfig;
+  roomId: string;
+  userId?: string;
+  debug?: boolean;
+}
+
+interface NostrConfig {
+  relays: string[];
+  privateKey: string;
+  publicKey?: string;
+}
+
+interface NSMEvent {
+  type: string;
+  [key: string]: any;
+}
+
+interface NSMState {
+  value: string | object;
+  context: any;
+  history?: NSMEvent[];
+  meta?: Record<string, any>;
+}
+```
+
+### Event Types
+
+```typescript
+type NSMEventListener = (state: NSMState) => void;
+type NSMErrorListener = (error: Error) => void;
+type NSMConnectionListener = (status: ConnectionStatus) => void;
+
+type ConnectionStatus =
+  | 'connecting'
+  | 'connected'
+  | 'disconnected'
+  | 'error';
+```
+
+## Error Handling
+
+NSM provides comprehensive error handling and recovery mechanisms:
+
+```typescript
+client.onError((error) => {
+  console.error('NSM Error:', error);
+
+  // Handle different error types
+  if (error.type === 'NETWORK_ERROR') {
+    // Handle network issues
+    client.reconnect();
+  } else if (error.type === 'STATE_ERROR') {
+    // Handle state machine errors
+    client.reset();
+  }
+});
+```
+
+### Error Types
+
+| Error Type | Description | Recovery |
+|------------|-------------|----------|
+| `NETWORK_ERROR` | Network connectivity issues | Retry connection |
+| `STATE_ERROR` | State machine execution errors | Reset or rollback |
+| `VALIDATION_ERROR` | Invalid event or state | Validate input |
+| `AUTHENTICATION_ERROR` | Nostr authentication issues | Re-authenticate |
+
+## Performance Considerations
+
+### Memory Management
+
+```typescript
+// Cleanup when done
+client.onDestroy(() => {
+  client.disconnect();
+  client.removeAllListeners();
+});
+```
+
+### Optimization Tips
+
+1. **Batch Events**: Group related events together
+2. **Debounce Rapid Changes**: Avoid flooding the network
+3. **Use Guards**: Prevent unnecessary state transitions
+4. **Optimize Context**: Keep context data minimal
+
+### Monitoring
+
+```typescript
+// Monitor performance
+client.onMetrics((metrics) => {
+  console.log('Event processing time:', metrics.avgEventTime);
+  console.log('Network latency:', metrics.avgNetworkLatency);
+  console.log('Memory usage:', metrics.memoryUsage);
+});
+```
+
+## Migration Guide
+
+### From v0.x to v1.x
+
+Key changes in the API:
+
+```typescript
+// Old API (v0.x)
+const client = new NSMClient(config);
+client.start();
+
+// New API (v1.x)
+const client = createNSMClient(config);
+await client.connect();
+```
+
+### Breaking Changes
+
+- `NSMClient` constructor → `createNSMClient` function
+- `start()` method → `connect()` method
+- Async initialization required
+- Updated event payload structure
+
+## Examples
+
+### Basic Chat Application
+
+```typescript
+import { createNSMClient, createMachine, assign } from 'nsm-core';
+
+const chatMachine = createMachine({
+  id: 'chat',
+  initial: 'idle',
+  context: {
+    messages: [],
+    users: []
+  },
+  states: {
+    idle: {
+      on: {
+        SEND_MESSAGE: {
+          actions: assign({
+            messages: (context, event) => [
+              ...context.messages,
+              {
+                id: Date.now(),
+                text: event.text,
+                user: event.user,
+                timestamp: new Date()
+              }
+            ]
+          })
+        }
+      }
+    }
+  }
+});
+
+const client = createNSMClient({
+  machine: chatMachine,
+  nostrConfig: {
+    relays: ['wss://relay.damus.io'],
+    privateKey: process.env.NOSTR_PRIVATE_KEY!
+  },
+  roomId: 'chat-room-1'
+});
+
+await client.connect();
+
+client.sendEvent({
+  type: 'SEND_MESSAGE',
+  text: 'Hello, world!',
+  user: 'alice'
+});
+```
+
+## Architecture Overview
+
+The NSM Framework follows a layered architecture:
+
+```
+┌─────────────────┐
+│   Application   │  ← Your NSM app
+├─────────────────┤
+│ NSM Client SDK  │  ← Main development interface
+├─────────────────┤
+│   NSM Client    │  ← Nostr protocol integration
+├─────────────────┤
+│    NSM Core     │  ← Protocol types & validation
+├─────────────────┤
+│ Blossom Client  │  ← Decentralized file storage
+└─────────────────┘
+```
+
+**Recommended Development Path:**
+
+1. **Start with [NSM Client SDK](/api/nsm-client-sdk)** - Main development interface
+2. **Use [NSM Core](/api/nsm-core)** - For event creation and validation
+3. **Add [Blossom Client](/api/blossom-client)** - For file storage needs
+4. **Integrate [NSM Client](/api/nsm-client)** - For advanced Nostr functionality
+5. **Use [Dev Tools](/api/dev-tools)** - For debugging and development
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Get Started" icon="play" href="/api/nsm-client-sdk">
+    Start with the NSM Client SDK for the easiest development experience
+  </Card>
+  <Card title="Protocol Deep Dive" icon="code" href="/api/nsm-core">
+    Learn about NSM protocol events and validation
+  </Card>
+  <Card title="File Storage" icon="cloud" href="/api/blossom-client">
+    Add decentralized file storage to your application
+  </Card>
+  <Card title="Examples" icon="lightbulb" href="/examples">
+    See complete implementation examples
+  </Card>
+</CardGroup>

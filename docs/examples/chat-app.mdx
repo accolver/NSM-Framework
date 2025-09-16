@@ -1,0 +1,744 @@
+---
+title: Chat Application
+description: 'Build a real-time collaborative chat application with NSM Framework'
+---
+
+## Overview
+
+This example demonstrates how to build a fully-functional real-time chat application using NSM Framework. The application features:
+
+- Real-time messaging across multiple users
+- User presence detection
+- Typing indicators
+- Message history
+- Connection status management
+
+## Complete Implementation
+
+### 1. State Machine Definition
+
+First, let's define our chat state machine:
+
+```typescript chat-machine.ts
+import { createMachine, assign } from 'nsm-core';
+
+export interface Message {
+  id: string;
+  text: string;
+  userId: string;
+  username: string;
+  timestamp: Date;
+}
+
+export interface ChatContext {
+  messages: Message[];
+  users: Set<string>;
+  typingUsers: Set<string>;
+  currentUser: {
+    id: string;
+    username: string;
+  } | null;
+  connectionStatus: 'disconnected' | 'connecting' | 'connected';
+}
+
+export type ChatEvent =
+  | { type: 'CONNECT'; user: { id: string; username: string } }
+  | { type: 'DISCONNECT' }
+  | { type: 'SEND_MESSAGE'; text: string; userId: string; username: string }
+  | { type: 'MESSAGE_RECEIVED'; message: Message }
+  | { type: 'USER_JOINED'; userId: string; username: string }
+  | { type: 'USER_LEFT'; userId: string }
+  | { type: 'START_TYPING'; userId: string }
+  | { type: 'STOP_TYPING'; userId: string }
+  | { type: 'CONNECTION_STATUS_CHANGED'; status: 'connecting' | 'connected' | 'disconnected' };
+
+export const chatMachine = createMachine<ChatContext, ChatEvent>({
+  id: 'chat',
+  initial: 'disconnected',
+  context: {
+    messages: [],
+    users: new Set(),
+    typingUsers: new Set(),
+    currentUser: null,
+    connectionStatus: 'disconnected'
+  },
+  states: {
+    disconnected: {
+      entry: assign({
+        connectionStatus: 'disconnected'
+      }),
+      on: {
+        CONNECT: {
+          target: 'connecting',
+          actions: assign({
+            currentUser: (_, event) => event.user,
+            connectionStatus: 'connecting'
+          })
+        }
+      }
+    },
+    connecting: {
+      on: {
+        CONNECTION_STATUS_CHANGED: [
+          {
+            target: 'connected',
+            guard: (_, event) => event.status === 'connected',
+            actions: assign({
+              connectionStatus: 'connected'
+            })
+          },
+          {
+            target: 'disconnected',
+            guard: (_, event) => event.status === 'disconnected',
+            actions: assign({
+              connectionStatus: 'disconnected'
+            })
+          }
+        ]
+      }
+    },
+    connected: {
+      on: {
+        SEND_MESSAGE: {
+          actions: assign({
+            messages: (context, event) => [
+              ...context.messages,
+              {
+                id: Date.now().toString(),
+                text: event.text,
+                userId: event.userId,
+                username: event.username,
+                timestamp: new Date()
+              }
+            ]
+          })
+        },
+        MESSAGE_RECEIVED: {
+          actions: assign({
+            messages: (context, event) => {
+              // Avoid duplicate messages
+              const exists = context.messages.some(msg => msg.id === event.message.id);
+              if (exists) return context.messages;
+
+              return [...context.messages, event.message];
+            }
+          })
+        },
+        USER_JOINED: {
+          actions: assign({
+            users: (context, event) => {
+              const newUsers = new Set(context.users);
+              newUsers.add(event.userId);
+              return newUsers;
+            }
+          })
+        },
+        USER_LEFT: {
+          actions: assign({
+            users: (context, event) => {
+              const newUsers = new Set(context.users);
+              newUsers.delete(event.userId);
+              return newUsers;
+            },
+            typingUsers: (context, event) => {
+              const newTypingUsers = new Set(context.typingUsers);
+              newTypingUsers.delete(event.userId);
+              return newTypingUsers;
+            }
+          })
+        },
+        START_TYPING: {
+          actions: assign({
+            typingUsers: (context, event) => {
+              const newTypingUsers = new Set(context.typingUsers);
+              newTypingUsers.add(event.userId);
+              return newTypingUsers;
+            }
+          })
+        },
+        STOP_TYPING: {
+          actions: assign({
+            typingUsers: (context, event) => {
+              const newTypingUsers = new Set(context.typingUsers);
+              newTypingUsers.delete(event.userId);
+              return newTypingUsers;
+            }
+          })
+        },
+        DISCONNECT: {
+          target: 'disconnected',
+          actions: assign({
+            users: new Set(),
+            typingUsers: new Set(),
+            connectionStatus: 'disconnected'
+          })
+        }
+      }
+    }
+  }
+});
+```
+
+### 2. Chat Application Component
+
+```typescript chat-app.ts
+import { createNSMClient, NSMClient } from 'nsm-core';
+import { chatMachine, ChatContext, ChatEvent } from './chat-machine';
+
+export class ChatApp {
+  private client: NSMClient<ChatContext, ChatEvent>;
+  private currentUserId: string;
+  private username: string;
+  private typingTimeout: NodeJS.Timeout | null = null;
+
+  constructor(
+    private container: HTMLElement,
+    nostrConfig: { relays: string[]; privateKey: string },
+    roomId: string = 'chat-demo'
+  ) {
+    this.currentUserId = this.generateUserId();
+    this.username = this.getUsername();
+
+    this.client = createNSMClient({
+      machine: chatMachine,
+      nostrConfig,
+      roomId,
+      userId: this.currentUserId
+    });
+
+    this.setupEventListeners();
+    this.render();
+  }
+
+  private generateUserId(): string {
+    return `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  private getUsername(): string {
+    const stored = localStorage.getItem('chat-username');
+    if (stored) return stored;
+
+    const username = prompt('Enter your username:') || `User${Math.floor(Math.random() * 1000)}`;
+    localStorage.setItem('chat-username', username);
+    return username;
+  }
+
+  private setupEventListeners(): void {
+    // Handle state changes
+    this.client.onStateChange((state) => {
+      this.updateUI(state);
+    });
+
+    // Handle connection status
+    this.client.onConnectionChange((status) => {
+      this.client.sendEvent({
+        type: 'CONNECTION_STATUS_CHANGED',
+        status
+      });
+    });
+
+    // Handle errors
+    this.client.onError((error) => {
+      console.error('Chat error:', error);
+      this.showError(error.message);
+    });
+  }
+
+  private render(): void {
+    this.container.innerHTML = `
+      <div class="chat-app">
+        <div class="chat-header">
+          <h2>NSM Chat Demo</h2>
+          <div class="connection-status" id="connection-status">Disconnected</div>
+        </div>
+
+        <div class="chat-messages" id="messages-container">
+          <!-- Messages will be rendered here -->
+        </div>
+
+        <div class="typing-indicator" id="typing-indicator" style="display: none;">
+          <span id="typing-text"></span>
+        </div>
+
+        <div class="chat-input">
+          <input
+            type="text"
+            id="message-input"
+            placeholder="Type your message..."
+            maxlength="500"
+          />
+          <button id="send-button" disabled>Send</button>
+        </div>
+
+        <div class="chat-users">
+          <h3>Online Users (<span id="user-count">0</span>)</h3>
+          <div id="users-list"></div>
+        </div>
+      </div>
+    `;
+
+    this.attachEventListeners();
+  }
+
+  private attachEventListeners(): void {
+    const messageInput = document.getElementById('message-input') as HTMLInputElement;
+    const sendButton = document.getElementById('send-button') as HTMLButtonElement;
+
+    // Send message on Enter or button click
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        this.sendMessage();
+      } else {
+        this.handleTyping();
+      }
+    });
+
+    sendButton.addEventListener('click', () => {
+      this.sendMessage();
+    });
+
+    // Enable/disable send button based on input
+    messageInput.addEventListener('input', (e) => {
+      const target = e.target as HTMLInputElement;
+      sendButton.disabled = !target.value.trim();
+    });
+  }
+
+  private sendMessage(): void {
+    const input = document.getElementById('message-input') as HTMLInputElement;
+    const text = input.value.trim();
+
+    if (!text) return;
+
+    this.client.sendEvent({
+      type: 'SEND_MESSAGE',
+      text,
+      userId: this.currentUserId,
+      username: this.username
+    });
+
+    input.value = '';
+    (document.getElementById('send-button') as HTMLButtonElement).disabled = true;
+
+    // Stop typing indicator
+    this.stopTyping();
+  }
+
+  private handleTyping(): void {
+    // Send start typing event
+    this.client.sendEvent({
+      type: 'START_TYPING',
+      userId: this.currentUserId
+    });
+
+    // Clear existing timeout
+    if (this.typingTimeout) {
+      clearTimeout(this.typingTimeout);
+    }
+
+    // Set timeout to stop typing
+    this.typingTimeout = setTimeout(() => {
+      this.stopTyping();
+    }, 2000);
+  }
+
+  private stopTyping(): void {
+    if (this.typingTimeout) {
+      clearTimeout(this.typingTimeout);
+      this.typingTimeout = null;
+    }
+
+    this.client.sendEvent({
+      type: 'STOP_TYPING',
+      userId: this.currentUserId
+    });
+  }
+
+  private updateUI(state: { value: string; context: ChatContext }): void {
+    this.updateConnectionStatus(state.context.connectionStatus);
+    this.updateMessages(state.context.messages);
+    this.updateTypingIndicator(state.context.typingUsers);
+    this.updateUsersList(state.context.users);
+  }
+
+  private updateConnectionStatus(status: string): void {
+    const statusElement = document.getElementById('connection-status')!;
+    statusElement.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+    statusElement.className = `connection-status ${status}`;
+  }
+
+  private updateMessages(messages: any[]): void {
+    const container = document.getElementById('messages-container')!;
+
+    container.innerHTML = messages.map(message => `
+      <div class="message ${message.userId === this.currentUserId ? 'own-message' : ''}">
+        <div class="message-header">
+          <span class="username">${message.username}</span>
+          <span class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</span>
+        </div>
+        <div class="message-text">${this.escapeHtml(message.text)}</div>
+      </div>
+    `).join('');
+
+    // Scroll to bottom
+    container.scrollTop = container.scrollHeight;
+  }
+
+  private updateTypingIndicator(typingUsers: Set<string>): void {
+    const indicator = document.getElementById('typing-indicator')!;
+    const textElement = document.getElementById('typing-text')!;
+
+    // Filter out current user
+    const otherTypingUsers = Array.from(typingUsers).filter(
+      userId => userId !== this.currentUserId
+    );
+
+    if (otherTypingUsers.length === 0) {
+      indicator.style.display = 'none';
+      return;
+    }
+
+    indicator.style.display = 'block';
+
+    if (otherTypingUsers.length === 1) {
+      textElement.textContent = `Someone is typing...`;
+    } else {
+      textElement.textContent = `${otherTypingUsers.length} people are typing...`;
+    }
+  }
+
+  private updateUsersList(users: Set<string>): void {
+    const userCount = document.getElementById('user-count')!;
+    const usersList = document.getElementById('users-list')!;
+
+    userCount.textContent = users.size.toString();
+
+    const userArray = Array.from(users);
+    usersList.innerHTML = userArray.map(userId => `
+      <div class="user-item ${userId === this.currentUserId ? 'current-user' : ''}">
+        ${userId === this.currentUserId ? `${this.username} (You)` : userId}
+      </div>
+    `).join('');
+  }
+
+  private escapeHtml(unsafe: string): string {
+    return unsafe
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  private showError(message: string): void {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = `Error: ${message}`;
+
+    document.body.appendChild(errorDiv);
+
+    setTimeout(() => {
+      document.body.removeChild(errorDiv);
+    }, 5000);
+  }
+
+  public async start(): Promise<void> {
+    try {
+      // Connect to the network
+      await this.client.connect();
+
+      // Send connection event
+      this.client.sendEvent({
+        type: 'CONNECT',
+        user: {
+          id: this.currentUserId,
+          username: this.username
+        }
+      });
+
+      // Send user joined event
+      this.client.sendEvent({
+        type: 'USER_JOINED',
+        userId: this.currentUserId,
+        username: this.username
+      });
+
+    } catch (error) {
+      console.error('Failed to start chat:', error);
+      this.showError('Failed to connect to chat. Please try again.');
+    }
+  }
+
+  public async stop(): Promise<void> {
+    // Send user left event
+    this.client.sendEvent({
+      type: 'USER_LEFT',
+      userId: this.currentUserId
+    });
+
+    // Disconnect
+    await this.client.disconnect();
+  }
+}
+```
+
+### 3. Styling
+
+```css chat-app.css
+.chat-app {
+  max-width: 800px;
+  margin: 0 auto;
+  height: 600px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.chat-header {
+  padding: 16px;
+  background: #6366f1;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 8px 8px 0 0;
+}
+
+.chat-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.connection-status {
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.connection-status.connected {
+  background: #10b981;
+}
+
+.connection-status.connecting {
+  background: #f59e0b;
+}
+
+.connection-status.disconnected {
+  background: #ef4444;
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  background: #f9fafb;
+}
+
+.message {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.message.own-message {
+  background: #ede9fe;
+  margin-left: 64px;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.username {
+  font-weight: 600;
+  color: #6366f1;
+}
+
+.message-text {
+  color: #1f2937;
+  line-height: 1.5;
+}
+
+.typing-indicator {
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-style: italic;
+  background: #f3f4f6;
+  border-top: 1px solid #e5e7eb;
+}
+
+.chat-input {
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  border-top: 1px solid #e5e7eb;
+  background: white;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.chat-input input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.chat-input button {
+  padding: 12px 24px;
+  background: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.chat-input button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.chat-input button:not(:disabled):hover {
+  background: #5b5bd6;
+}
+
+.chat-users {
+  padding: 16px;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  border-radius: 0 0 8px 8px;
+}
+
+.chat-users h3 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+  color: #374151;
+}
+
+.user-item {
+  padding: 6px 12px;
+  background: white;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  font-size: 0.875rem;
+}
+
+.user-item.current-user {
+  background: #ede9fe;
+  font-weight: 500;
+}
+
+.error-message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  background: #ef4444;
+  color: white;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+```
+
+### 4. Usage Example
+
+```html index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NSM Chat Demo</title>
+  <link rel="stylesheet" href="chat-app.css">
+</head>
+<body>
+  <div id="chat-container"></div>
+
+  <script type="module">
+    import { ChatApp } from './chat-app.js';
+
+    const container = document.getElementById('chat-container');
+
+    const chatApp = new ChatApp(container, {
+      relays: [
+        'wss://relay.damus.io',
+        'wss://nos.lol',
+        'wss://relay.snort.social'
+      ],
+      privateKey: 'your-nostr-private-key-here' // Replace with actual key
+    });
+
+    // Start the chat app
+    chatApp.start();
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      chatApp.stop();
+    });
+  </script>
+</body>
+</html>
+```
+
+## Key Features Demonstrated
+
+<CardGroup cols={2}>
+  <Card title="Real-time Messaging" icon="message">
+    Messages are synchronized across all connected clients instantly
+  </Card>
+  <Card title="User Presence" icon="users">
+    Track who's online and display user lists
+  </Card>
+  <Card title="Typing Indicators" icon="keyboard">
+    Show when users are typing with automatic cleanup
+  </Card>
+  <Card title="Connection Management" icon="wifi">
+    Handle connection states and network issues gracefully
+  </Card>
+</CardGroup>
+
+## Enhancements
+
+You can extend this example with:
+
+- **Message persistence**: Store messages in local storage
+- **File sharing**: Add support for image and file uploads
+- **Emoji reactions**: Allow users to react to messages
+- **Private messaging**: Direct messages between users
+- **Message formatting**: Support for markdown or rich text
+- **User avatars**: Display profile pictures
+- **Push notifications**: Notify users of new messages
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Collaborative Editor" icon="edit" href="/examples/collaborative-editor">
+    Build a real-time document editor
+  </Card>
+  <Card title="Task Manager" icon="check-square" href="/examples/task-manager">
+    Create a team task management application
+  </Card>
+  <Card title="Gaming Example" icon="gamepad" href="/examples/gaming">
+    Develop multiplayer game mechanics
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/nsm-client">
+    Explore the complete NSM API
+  </Card>
+</CardGroup>
