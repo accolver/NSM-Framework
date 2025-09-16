@@ -1,0 +1,653 @@
+---
+title: 'NSM Event Specifications'
+description: 'Detailed technical specifications for all NSM protocol events'
+---
+
+# NSM Event Specifications
+
+This document provides comprehensive technical specifications for all event types in the NSM (Nostr State Machine) protocol.
+
+## Overview
+
+The NSM protocol defines three event kinds that work together to create a complete collaborative state machine system:
+
+| Kind | Type | Purpose | Replaceability |
+|------|------|---------|----------------|
+| 30079 | Definition | Application schema and metadata | Parameterized Replaceable |
+| 7000-7999 | Interaction | User actions and state transitions | Regular (Immutable) |
+| 10079 | State Update | Canonical state snapshots | Replaceable |
+
+## Event Kind 30079: NSM Definition
+
+### Purpose
+
+Definition events establish the foundational rules, schemas, and metadata for an NSM application. They serve as the "constitution" that governs how the application behaves and what valid states and interactions look like.
+
+### Replaceability
+
+These are **parameterized replaceable events** (NIP-33), meaning newer events with the same `d` tag replace older ones. This allows application developers to update their application definitions while maintaining the same identifier.
+
+### JSON Schema Definition
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$",
+      "description": "32-byte SHA-256 hash as hex string"
+    },
+    "pubkey": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$",
+      "description": "32-byte public key as hex string"
+    },
+    "created_at": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix timestamp in seconds"
+    },
+    "kind": {
+      "type": "integer",
+      "const": 30079
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "minItems": 1
+      },
+      "contains": {
+        "type": "array",
+        "items": [
+          {"const": "d"},
+          {"type": "string", "minLength": 1}
+        ]
+      },
+      "description": "Must contain required tags: d, name, engine, engineCodeURI"
+    },
+    "content": {
+      "type": "string",
+      "description": "JSON-stringified NSMDefinitionContent"
+    },
+    "sig": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{128}$",
+      "description": "64-byte signature as hex string"
+    }
+  },
+  "required": ["id", "pubkey", "created_at", "kind", "tags", "content", "sig"]
+}
+```
+
+### Tag Specifications
+
+#### Required Tags
+
+| Tag Name | Format | Validation Rules | Example |
+|----------|--------|------------------|---------|
+| `d` | `["d", identifier]` | Non-empty string, unique per pubkey | `["d", "collaborative-todo-v1"]` |
+| `name` | `["name", appName]` | Human-readable application name | `["name", "Collaborative Todo App"]` |
+| `engine` | `["engine", engineId]` | State machine engine identifier | `["engine", "xstate"]` |
+| `engineCodeURI` | `["engineCodeURI", uri]` | Valid URI to engine implementation | `["engineCodeURI", "https://cdn.example.com/app.js"]` |
+
+#### Optional Tags
+
+| Tag Name | Format | Validation Rules | Example |
+|----------|--------|------------------|---------|
+| `ui-spec` | `["ui-spec", uri]` | Valid URI to UI specification | `["ui-spec", "https://example.com/ui.json"]` |
+| `version` | `["version", semver]` | Semantic version string | `["version", "1.2.0"]` |
+| `description` | `["description", text]` | Application description | `["description", "Real-time task management"]` |
+
+### Content Schema
+
+The `content` field contains JSON with the following structure:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "initialState": {
+      "type": "object",
+      "description": "Initial state of the state machine"
+    },
+    "stateSchema": {
+      "type": "object",
+      "properties": {
+        "type": {"const": "object"},
+        "properties": {"type": "object"},
+        "required": {"type": "array"}
+      },
+      "required": ["type"],
+      "description": "JSON Schema defining valid state structure"
+    },
+    "interactionSchema": {
+      "type": "object",
+      "properties": {
+        "type": {"const": "object"},
+        "properties": {"type": "object"},
+        "required": {"type": "array"}
+      },
+      "required": ["type"],
+      "description": "JSON Schema defining valid interaction structure"
+    }
+  },
+  "required": ["initialState", "stateSchema", "interactionSchema"]
+}
+```
+
+### Validation Rules
+
+1. **Tag Validation**: Must contain all required tags with non-empty values
+2. **Content JSON**: Must be valid JSON that parses without errors
+3. **Schema Validation**: Both `stateSchema` and `interactionSchema` must be valid JSON Schemas
+4. **URI Validation**: `engineCodeURI` and optional `ui-spec` must be valid URIs
+5. **Identifier Uniqueness**: The `d` tag value should be unique per pubkey to avoid conflicts
+
+### Example Valid Event
+
+```json
+{
+  "id": "4f46e8b9a8b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3",
+  "pubkey": "32e1827635450ebb3c5a7d12c1f8e7b2b514439ac10a67eef3d9fd9c5c68e245",
+  "created_at": 1677721121,
+  "kind": 30079,
+  "tags": [
+    ["d", "todo-app-v2"],
+    ["name", "Advanced Todo Application"],
+    ["engine", "xstate"],
+    ["engineCodeURI", "https://cdn.example.com/todo-advanced.js"],
+    ["ui-spec", "https://cdn.example.com/todo-ui.json"],
+    ["version", "2.1.0"],
+    ["description", "Feature-rich collaborative task management with categories and due dates"]
+  ],
+  "content": "{\"initialState\":{\"todos\":[],\"categories\":[\"work\",\"personal\"],\"filter\":\"all\"},\"stateSchema\":{\"type\":\"object\",\"properties\":{\"todos\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"number\"},\"text\":{\"type\":\"string\"},\"completed\":{\"type\":\"boolean\"},\"category\":{\"type\":\"string\"},\"dueDate\":{\"type\":\"string\",\"format\":\"date-time\"},\"createdBy\":{\"type\":\"string\"}},\"required\":[\"id\",\"text\",\"completed\",\"category\",\"createdBy\"]}},\"categories\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"filter\":{\"type\":\"string\",\"enum\":[\"all\",\"active\",\"completed\"]}},\"required\":[\"todos\",\"categories\",\"filter\"]},\"interactionSchema\":{\"type\":\"object\",\"properties\":{\"type\":{\"type\":\"string\",\"enum\":[\"ADD_TODO\",\"TOGGLE_TODO\",\"DELETE_TODO\",\"SET_FILTER\",\"ADD_CATEGORY\"]},\"payload\":{\"type\":\"object\"}},\"required\":[\"type\"]}}",
+  "sig": "..."
+}
+```
+
+## Event Kinds 7000-7999: NSM Interaction
+
+### Purpose
+
+Interaction events represent user actions that should trigger state machine transitions. They form an immutable event log that can be replayed to reconstruct application state.
+
+### Kind Assignment Algorithm
+
+Kinds within the 7000-7999 range are assigned deterministically to avoid conflicts:
+
+```javascript
+function getInteractionKind(appAddress) {
+  // Create hash from app address
+  const hash = Array.from(appAddress).reduce((acc, char) => {
+    return ((acc << 5) - acc + char.charCodeAt(0)) & 0xffffffff;
+  }, 0);
+
+  // Map to 7000-7999 range
+  return 7000 + (Math.abs(hash) % 1000);
+}
+
+// Example usage
+const appAddress = "30079:abc123...:my-app";
+const kind = getInteractionKind(appAddress); // e.g., 7234
+```
+
+### JSON Schema Definition
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "pubkey": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "created_at": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "kind": {
+      "type": "integer",
+      "minimum": 7000,
+      "maximum": 7999
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {"type": "string"},
+        "minItems": 1
+      },
+      "contains": {
+        "type": "array",
+        "items": [
+          {"const": "a"},
+          {
+            "type": "string",
+            "pattern": "^30079:[a-fA-F0-9]{64}:.+$"
+          }
+        ]
+      }
+    },
+    "content": {
+      "type": "string",
+      "description": "JSON-stringified NSMInteractionContent"
+    },
+    "sig": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{128}$"
+    }
+  },
+  "required": ["id", "pubkey", "created_at", "kind", "tags", "content", "sig"]
+}
+```
+
+### Tag Specifications
+
+#### Required Tags
+
+| Tag Name | Format | Validation Rules | Example |
+|----------|--------|------------------|---------|
+| `a` | `["a", address]` | Must be `30079:pubkey:identifier` format | `["a", "30079:abc123...:todo-app"]` |
+
+#### Optional Tags
+
+| Tag Name | Format | Validation Rules | Example |
+|----------|--------|------------------|---------|
+| `p` | `["p", pubkey]` | 64-character hex pubkey, can appear multiple times | `["p", "def456..."]` |
+
+### Content Schema
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Action type that must conform to interactionSchema"
+    },
+    "payload": {
+      "type": "object",
+      "description": "Optional data payload for the interaction"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "timestamp": {"type": "integer"},
+        "sessionId": {"type": "string"},
+        "userAgent": {"type": "string"},
+        "clientVersion": {"type": "string"}
+      },
+      "description": "Optional metadata about the interaction"
+    }
+  },
+  "required": ["type"]
+}
+```
+
+### Validation Rules
+
+1. **Address Format**: The `a` tag must reference a valid Definition event
+2. **Kind Range**: Must be within 7000-7999 range
+3. **Type Validation**: The `type` field must conform to the `interactionSchema` from the referenced Definition event
+4. **Payload Validation**: If present, `payload` must conform to the schema defined for the specific interaction type
+5. **Timestamp Reasonableness**: `created_at` should be reasonably close to current time (configurable tolerance)
+
+### Example Valid Events
+
+#### Simple Action
+
+```json
+{
+  "id": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+  "pubkey": "87f4f6e8c4d2a9b7f5e3d1c9a7b5f3e1d9c7b5f3e1d9c7b5f3e1d9c7b5f3e1",
+  "created_at": 1677721122,
+  "kind": 7234,
+  "tags": [
+    ["a", "30079:32e1827635450ebb3c5a7d12c1f8e7b2b514439ac10a67eef3d9fd9c5c68e245:todo-app"]
+  ],
+  "content": "{\"type\":\"TOGGLE_FILTER\",\"payload\":{\"filter\":\"completed\"}}",
+  "sig": "..."
+}
+```
+
+#### Complex Action with Metadata
+
+```json
+{
+  "id": "fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321",
+  "pubkey": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+  "created_at": 1677721125,
+  "kind": 7234,
+  "tags": [
+    ["a", "30079:32e1827635450ebb3c5a7d12c1f8e7b2b514439ac10a67eef3d9fd9c5c68e245:todo-app"],
+    ["p", "87f4f6e8c4d2a9b7f5e3d1c9a7b5f3e1d9c7b5f3e1d9c7b5f3e1d9c7b5f3e1"]
+  ],
+  "content": "{\"type\":\"ADD_TODO\",\"payload\":{\"text\":\"Review NSM documentation\",\"category\":\"work\",\"dueDate\":\"2024-02-15T17:00:00Z\"},\"metadata\":{\"timestamp\":1677721125123,\"sessionId\":\"session-xyz-789\",\"clientVersion\":\"1.2.0\"}}",
+  "sig": "..."
+}
+```
+
+## Event Kind 10079: NSM State Update
+
+### Purpose
+
+State Update events represent canonical state snapshots after applying interaction events. They enable efficient synchronization and provide conflict resolution for collaborative applications.
+
+### Replaceability
+
+These are **replaceable events** (NIP-16), meaning newer events replace older ones. This allows the canonical state to be updated while maintaining a single source of truth.
+
+### JSON Schema Definition
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "pubkey": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "created_at": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "kind": {
+      "type": "integer",
+      "const": 10079
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {"type": "string"},
+        "minItems": 1
+      },
+      "contains": {
+        "type": "array",
+        "items": [
+          {"const": "a"},
+          {
+            "type": "string",
+            "pattern": "^30079:[a-fA-F0-9]{64}:.+$"
+          }
+        ]
+      }
+    },
+    "content": {
+      "type": "string",
+      "description": "JSON-stringified NSMStateUpdateContent"
+    },
+    "sig": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{128}$"
+    }
+  },
+  "required": ["id", "pubkey", "created_at", "kind", "tags", "content", "sig"]
+}
+```
+
+### Tag Specifications
+
+#### Required Tags
+
+| Tag Name | Format | Validation Rules | Example |
+|----------|--------|------------------|---------|
+| `a` | `["a", address]` | Must be `30079:pubkey:identifier` format | `["a", "30079:abc123...:todo-app"]` |
+
+#### Optional Tags
+
+| Tag Name | Format | Validation Rules | Example |
+|----------|--------|------------------|---------|
+| `p` | `["p", pubkey]` | 64-character hex pubkey, can appear multiple times | `["p", "def456..."]` |
+| `arbiter` | `["arbiter", pubkey]` | 64-character hex pubkey of state arbiter | `["arbiter", "ghi789..."]` |
+
+### Content Schema
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "state": {
+      "type": "object",
+      "description": "Current application state (must conform to stateSchema)"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "stateVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Incremental version number"
+        },
+        "lastInteractionId": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$",
+          "description": "ID of last interaction event that caused this state"
+        },
+        "timestamp": {
+          "type": "integer",
+          "description": "High-precision timestamp in milliseconds"
+        },
+        "conflictResolution": {
+          "type": "string",
+          "enum": ["timestamp-based", "id-based", "owner-based", "custom"],
+          "description": "Strategy used for conflict resolution"
+        },
+        "arbiter": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$",
+          "description": "Pubkey of arbiter who resolved conflicts"
+        },
+        "canonicalStateHash": {
+          "type": "string",
+          "description": "Hash of canonical state for integrity verification"
+        },
+        "appliedInteractions": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "List of interaction event IDs that were applied"
+        }
+      }
+    }
+  },
+  "required": ["state"]
+}
+```
+
+### Validation Rules
+
+1. **State Schema Conformance**: The `state` object must conform to the `stateSchema` from the referenced Definition event
+2. **Address Reference**: The `a` tag must reference a valid Definition event
+3. **Version Monotonicity**: `stateVersion` should increase with each update (if present)
+4. **Interaction Reference**: `lastInteractionId` should reference a valid Interaction event (if present)
+5. **Arbiter Authority**: If `arbiter` tag is present, the event should be signed by that pubkey or authorized by them
+
+### Example Valid Events
+
+#### Basic State Update
+
+```json
+{
+  "id": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+  "pubkey": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+  "created_at": 1677721123,
+  "kind": 10079,
+  "tags": [
+    ["a", "30079:32e1827635450ebb3c5a7d12c1f8e7b2b514439ac10a67eef3d9fd9c5c68e245:todo-app"]
+  ],
+  "content": "{\"state\":{\"todos\":[{\"id\":1,\"text\":\"Buy groceries\",\"completed\":false,\"category\":\"personal\",\"createdBy\":\"87f4f6e8c4d2a9b7f5e3d1c9a7b5f3e1d9c7b5f3e1d9c7b5f3e1d9c7b5f3e1\"}],\"categories\":[\"work\",\"personal\"],\"filter\":\"all\"}}",
+  "sig": "..."
+}
+```
+
+#### Advanced State Update with Metadata
+
+```json
+{
+  "id": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
+  "pubkey": "b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2",
+  "created_at": 1677721200,
+  "kind": 10079,
+  "tags": [
+    ["a", "30079:32e1827635450ebb3c5a7d12c1f8e7b2b514439ac10a67eef3d9fd9c5c68e245:todo-app"],
+    ["p", "87f4f6e8c4d2a9b7f5e3d1c9a7b5f3e1d9c7b5f3e1d9c7b5f3e1d9c7b5f3e1"],
+    ["p", "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2"],
+    ["arbiter", "b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2"]
+  ],
+  "content": "{\"state\":{\"todos\":[{\"id\":1,\"text\":\"Buy groceries\",\"completed\":true,\"category\":\"personal\",\"createdBy\":\"87f4f6e8c4d2a9b7f5e3d1c9a7b5f3e1d9c7b5f3e1d9c7b5f3e1d9c7b5f3e1\"},{\"id\":2,\"text\":\"Review NSM docs\",\"completed\":false,\"category\":\"work\",\"dueDate\":\"2024-02-15T17:00:00Z\",\"createdBy\":\"a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2\"}],\"categories\":[\"work\",\"personal\"],\"filter\":\"all\"},\"metadata\":{\"stateVersion\":5,\"lastInteractionId\":\"fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321\",\"timestamp\":1677721200000,\"conflictResolution\":\"timestamp-based\",\"arbiter\":\"b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2\",\"canonicalStateHash\":\"sha256:f1e2d3c4b5a6978869504f3e2d1c0b9a8574635241789abcdef1234567890abc\",\"appliedInteractions\":[\"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef\",\"fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321\"]}}",
+  "sig": "..."
+}
+```
+
+## Common Validation Patterns
+
+### Event Signature Validation
+
+All NSM events must have valid Nostr signatures:
+
+```javascript
+async function validateEventSignature(event) {
+  const eventHash = await sha256(JSON.stringify([
+    0,
+    event.pubkey,
+    event.created_at,
+    event.kind,
+    event.tags,
+    event.content
+  ]));
+
+  return await schnorr.verify(event.sig, eventHash, event.pubkey);
+}
+```
+
+### Schema-Based Content Validation
+
+Content must be validated against the schemas defined in Definition events:
+
+```javascript
+function validateInteractionContent(content, definitionContent) {
+  const { interactionSchema } = JSON.parse(definitionContent);
+  const interaction = JSON.parse(content);
+
+  return jsonSchemaValidator.validate(interaction, interactionSchema);
+}
+
+function validateStateContent(content, definitionContent) {
+  const { stateSchema } = JSON.parse(definitionContent);
+  const stateUpdate = JSON.parse(content);
+
+  return jsonSchemaValidator.validate(stateUpdate.state, stateSchema);
+}
+```
+
+### Address Tag Validation
+
+Address tags must reference valid Definition events:
+
+```javascript
+function validateAddressTag(addressTag) {
+  const pattern = /^30079:[a-fA-F0-9]{64}:.+$/;
+  return pattern.test(addressTag);
+}
+
+function parseAddressTag(addressTag) {
+  const [kind, pubkey, identifier] = addressTag.split(':', 3);
+  return {
+    kind: parseInt(kind),
+    pubkey,
+    identifier
+  };
+}
+```
+
+## Error Handling
+
+### Validation Error Types
+
+```typescript
+enum NSMValidationError {
+  INVALID_SIGNATURE = 'INVALID_SIGNATURE',
+  INVALID_JSON_CONTENT = 'INVALID_JSON_CONTENT',
+  SCHEMA_VALIDATION_FAILED = 'SCHEMA_VALIDATION_FAILED',
+  MISSING_REQUIRED_TAGS = 'MISSING_REQUIRED_TAGS',
+  INVALID_ADDRESS_TAG = 'INVALID_ADDRESS_TAG',
+  KIND_OUT_OF_RANGE = 'KIND_OUT_OF_RANGE',
+  TIMESTAMP_TOO_OLD = 'TIMESTAMP_TOO_OLD',
+  TIMESTAMP_TOO_NEW = 'TIMESTAMP_TOO_NEW'
+}
+```
+
+### Error Response Format
+
+```json
+{
+  "success": false,
+  "error": {
+    "type": "SCHEMA_VALIDATION_FAILED",
+    "message": "State does not conform to stateSchema: property 'todos' is required",
+    "details": {
+      "eventId": "abcdef...",
+      "field": "content.state",
+      "expectedSchema": {...},
+      "actualValue": {...}
+    }
+  }
+}
+```
+
+## Performance Considerations
+
+### Event Size Limits
+
+While Nostr doesn't strictly limit event sizes, NSM implementations should consider:
+
+- **Definition Events**: Typically 1-10KB for schemas and metadata
+- **Interaction Events**: Should be kept under 1KB for optimal relay performance
+- **State Update Events**: May be larger (10-100KB) but should be optimized for critical state only
+
+### Validation Caching
+
+Implementations should cache validation results to avoid repeated computation:
+
+```javascript
+class NSMEventValidator {
+  constructor() {
+    this.definitionCache = new Map();
+    this.schemaValidatorCache = new Map();
+  }
+
+  async validateEvent(event) {
+    // Cache definition events and their schemas
+    // Reuse compiled schema validators
+    // Cache signature validation results
+  }
+}
+```
+
+### Efficient State Synchronization
+
+State Update events should include metadata to enable efficient synchronization:
+
+- Use `stateVersion` for version-based synchronization
+- Include `appliedInteractions` to track which events have been processed
+- Provide `canonicalStateHash` for integrity verification without full state comparison
