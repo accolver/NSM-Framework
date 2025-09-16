@@ -1,4 +1,5 @@
 import { createMachine, assign } from 'xstate';
+import { CollaborationService, createCollaborationService } from './services/collaboration';
 
 // Types for Whiteboard application
 export type DrawingTool = 'pen' | 'brush' | 'eraser' | 'shape';
@@ -72,6 +73,7 @@ export interface WhiteboardContext {
   collaborators: Collaborator[];
   userId: string;
   userName: string;
+  collaborationService: CollaborationService | null;
 
   // Canvas state
   canvasSize: { width: number; height: number };
@@ -120,7 +122,10 @@ export type WhiteboardEvent =
   | { type: 'LEAVE_SESSION'; userId: string }
   | { type: 'UPDATE_CURSOR'; userId: string; cursor: Point }
   | { type: 'RECEIVE_REMOTE_OBJECT'; object: DrawingPath | Shape }
-  | { type: 'RECEIVE_REMOTE_DELETE'; objectIds: string[] };
+  | { type: 'RECEIVE_REMOTE_DELETE'; objectIds: string[] }
+  | { type: 'INITIALIZE_COLLABORATION'; userId: string; userName: string }
+  | { type: 'SYNC_STATE'; remoteUpdate: Uint8Array }
+  | { type: 'REQUEST_SYNC' };
 
 // Helper functions
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -208,12 +213,20 @@ const endDrawing = assign({
   isDrawing: false,
   paths: ({ context }) => {
     if (context.currentPath) {
+      // Sync with collaboration service
+      if (context.collaborationService) {
+        context.collaborationService.addPath(context.currentPath);
+      }
       return [...context.paths, context.currentPath];
     }
     return context.paths;
   },
   shapes: ({ context }) => {
     if (context.currentShape) {
+      // Sync with collaboration service
+      if (context.collaborationService) {
+        context.collaborationService.addShape(context.currentShape);
+      }
       return [...context.shapes, context.currentShape];
     }
     return context.shapes;
@@ -337,6 +350,62 @@ const updateCollaborators = assign({
   }
 });
 
+const initializeCollaboration = assign({
+  userId: ({ event }) => event.type === 'INITIALIZE_COLLABORATION' ? event.userId : '',
+  userName: ({ event }) => event.type === 'INITIALIZE_COLLABORATION' ? event.userName : '',
+  collaborationService: ({ context, event }) => {
+    if (event.type === 'INITIALIZE_COLLABORATION') {
+      const service = createCollaborationService(event.userId);
+      service.initialize(context);
+      return service;
+    }
+    return context.collaborationService;
+  }
+});
+
+const receiveRemoteObject = assign({
+  paths: ({ context, event }) => {
+    if (event.type === 'RECEIVE_REMOTE_OBJECT' && 'tool' in event.object) {
+      // It's a DrawingPath
+      const path = event.object as DrawingPath;
+      // Check if we already have this object to avoid duplicates
+      if (!context.paths.find(p => p.id === path.id)) {
+        return [...context.paths, path];
+      }
+    }
+    return context.paths;
+  },
+  shapes: ({ context, event }) => {
+    if (event.type === 'RECEIVE_REMOTE_OBJECT' && 'type' in event.object) {
+      // It's a Shape
+      const shape = event.object as Shape;
+      // Check if we already have this object to avoid duplicates
+      if (!context.shapes.find(s => s.id === shape.id)) {
+        return [...context.shapes, shape];
+      }
+    }
+    return context.shapes;
+  }
+});
+
+const syncCollaborationState = assign({
+  paths: ({ context, event }) => {
+    if (event.type === 'SYNC_STATE' && context.collaborationService) {
+      context.collaborationService.applyDocumentUpdate(event.remoteUpdate);
+      const state = context.collaborationService.getCurrentState();
+      return state.paths;
+    }
+    return context.paths;
+  },
+  shapes: ({ context, event }) => {
+    if (event.type === 'SYNC_STATE' && context.collaborationService) {
+      const state = context.collaborationService.getCurrentState();
+      return state.shapes;
+    }
+    return context.shapes;
+  }
+});
+
 // Guards
 const canUndo = ({ context }: { context: WhiteboardContext }) =>
   context.historyIndex > 0;
@@ -380,6 +449,7 @@ export const createWhiteboardMachine = (initialContext?: Partial<WhiteboardConte
       collaborators: [],
       userId: '',
       userName: '',
+      collaborationService: null,
 
       // Canvas state
       canvasSize: { width: 800, height: 600 },
@@ -417,7 +487,10 @@ export const createWhiteboardMachine = (initialContext?: Partial<WhiteboardConte
           UNDO: { guard: canUndo, actions: undo },
           REDO: { guard: canRedo, actions: redo },
           JOIN_SESSION: { actions: joinSession },
-          UPDATE_CURSOR: { actions: updateCollaborators }
+          UPDATE_CURSOR: { actions: updateCollaborators },
+          INITIALIZE_COLLABORATION: { actions: initializeCollaboration },
+          RECEIVE_REMOTE_OBJECT: { actions: receiveRemoteObject },
+          SYNC_STATE: { actions: syncCollaborationState }
         }
       },
       drawing: {

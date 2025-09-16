@@ -20,6 +20,14 @@ export const App: React.FC = () => {
     const subscription = actor.subscribe((snapshot) => {
       console.log('🔄 Whiteboard state update:', snapshot.value, snapshot.context);
       setState(snapshot);
+
+      // Set up collaboration service callback when it's initialized
+      if (snapshot.context.collaborationService) {
+        snapshot.context.collaborationService.setEventCallback((event) => {
+          console.log('📡 Received remote event:', event);
+          actor.send(event);
+        });
+      }
     });
 
     return () => {
@@ -108,11 +116,19 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [actor, state.context.selectedObjects.length]);
 
-  // Join session on mount (simulate user joining)
+  // Initialize collaboration and join session on mount
   useEffect(() => {
     const userId = `user_${Math.random().toString(36).substr(2, 9)}`;
     const userName = `User ${userId.slice(-4)}`;
 
+    // Initialize collaboration service first
+    actor.send({
+      type: 'INITIALIZE_COLLABORATION',
+      userId,
+      userName
+    });
+
+    // Then join the session
     actor.send({
       type: 'JOIN_SESSION',
       userId,
