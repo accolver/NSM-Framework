@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { createActor } from 'xstate';
 import { whiteboardMachine } from '../whiteboard-machine';
 import { WhiteboardCanvas } from './WhiteboardCanvas';
@@ -6,9 +6,11 @@ import { Toolbar } from './Toolbar';
 import { getInspectorService } from '../services/inspector-service';
 import { getEventLogService, logNostrEvent } from '../services/event-log-service';
 import { getTimeTravelService } from '../services/time-travel-service';
-import { DeveloperDashboard } from './DeveloperDashboard';
 import { NSM_PROTOCOL } from '@nsm/core';
 import type { INostrEvent } from '@nsm/core';
+
+// Lazy load developer-only components
+const DeveloperDashboard = lazy(() => import('./DeveloperDashboard').then(module => ({ default: module.DeveloperDashboard })));
 
 // Helper function to create mock Nostr events for demonstration
 const createMockNostrEvent = (overrides: Partial<INostrEvent> = {}): INostrEvent => {
@@ -370,11 +372,31 @@ export const App: React.FC = () => {
 
         {/* Developer Dashboard */}
         {showDashboard && process.env.NODE_ENV === 'development' && (
-          <DeveloperDashboard
-            eventLogService={eventLogService}
-            timeTravelService={timeTravelService}
-            inspectorService={inspectorService}
-          />
+          <Suspense fallback={
+            <div style={{
+              width: '40%',
+              padding: '16px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: '#f8f9fa',
+              borderLeft: '1px solid #dee2e6'
+            }}>
+              <div style={{
+                textAlign: 'center',
+                color: '#6c757d'
+              }}>
+                <div style={{ marginBottom: '8px' }}>⚡</div>
+                <div>Loading Developer Dashboard...</div>
+              </div>
+            </div>
+          }>
+            <DeveloperDashboard
+              eventLogService={eventLogService}
+              timeTravelService={timeTravelService}
+              inspectorService={inspectorService}
+            />
+          </Suspense>
         )}
       </div>
 

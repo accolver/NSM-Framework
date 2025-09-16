@@ -18,6 +18,7 @@
   ],
   "scripts": {
     "build": "turbo run build",
+    "build:analyze": "turbo run build && node tools/bundle-analyzer.js",
     "dev": "turbo run dev",
     "test": "turbo run test",
     "test:comprehensive": "./run-all-tests.sh",
@@ -38,7 +39,8 @@
     "prepare": "husky",
     "docs:dev": "cd docs && mintlify dev",
     "docs:build": "cd docs && mintlify build",
-    "docs:check": "cd docs && mintlify broken-links"
+    "docs:check": "cd docs && mintlify broken-links",
+    "analyze:bundles": "node tools/bundle-analyzer.js"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
@@ -47,8 +49,10 @@
     "bun-types": "^1.2.21",
     "esbuild": "^0.25.9",
     "eslint": "^8.57.0",
+    "events": "^3.3.0",
     "husky": "^9.0.11",
     "lint-staged": "^15.2.2",
+    "module": "^1.2.5",
     "prettier": "^3.2.5",
     "turbo": "^1.13.0",
     "typescript": "^5.4.0"
