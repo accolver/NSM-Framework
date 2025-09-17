@@ -144,7 +144,7 @@ export const EventLogViewer: React.FC<EventLogViewerProps> = ({
   };
 
   return (
-    <div className={`bg-white border border-gray-200 rounded-lg shadow-sm ${className}`}>
+    <div className={`bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col ${className}`}>
       {/* Header */}
       <div className="border-b border-gray-200 p-4">
         <h3 className="text-lg font-semibold text-gray-900">Nostr Event Log</h3>
@@ -202,11 +202,12 @@ export const EventLogViewer: React.FC<EventLogViewerProps> = ({
 
       {/* Event List */}
       <div
-        className="max-h-96 overflow-y-auto events-scrollable"
+        className="flex-1 overflow-y-auto events-scrollable"
         data-testid="events-scroll-container"
         style={{
           scrollbarWidth: 'thin',
-          scrollbarColor: '#cbd5e0 #f7fafc'
+          scrollbarColor: '#cbd5e0 #f7fafc',
+          maxHeight: '500px'
         }}
       >
         {filteredEvents.length === 0 ? (

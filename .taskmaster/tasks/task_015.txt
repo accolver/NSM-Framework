@@ -1,0 +1,51 @@
+# Task ID: 15
+# Title: Fix XState inspector integration in NSM Developer Dashboard - Ensure XState inspector properly shows state machines and enables code copying to visualizer
+# Status: pending
+# Dependencies: 7
+# Priority: high
+# Description: Fix the XState inspector integration in the NSM Developer Dashboard to ensure proper state machine visualization and enable code copying functionality to the external stately.ai visualizer.
+# Details:
+The XState inspector in the NSM Developer Dashboard requires several fixes to improve functionality and user experience:
+
+1. **Inspector Connection Issues**: The inspector service (apps/poc-whiteboard/src/services/inspector-service.ts) has complex connection logic with multiple fallback strategies but may fail to establish proper connections in certain environments. Need to improve connection reliability and error handling.
+
+2. **State Machine Registration**: Fix the registerActor method to ensure state machines are properly registered with the inspector and visible in the stately.ai/viz interface. The current implementation calls this.inspector.actor(actor) but may not be passing the correct format or metadata.
+
+3. **Code Copy Functionality**: Add functionality to copy state machine definitions to clipboard for pasting into the stately.ai visualizer. This is referenced in the user request but not currently implemented in the codebase. Need to add:
+   - Extract machine definition/configuration from registered actors
+   - Serialize machine definition to JSON format compatible with stately.ai
+   - Add "Copy to Visualizer" button in the Inspector panel (DeveloperDashboard.tsx lines 364-413)
+   - Implement clipboard API integration with proper error handling
+
+4. **Inspector Panel UX**: Improve the inspector panel in DeveloperDashboard.tsx to:
+   - Show clearer status indicators for connection state
+   - Display registered actors with their current states
+   - Add copy functionality for machine definitions
+   - Better error messages and troubleshooting guidance
+
+5. **Testing Integration**: Update existing test files (xstate-inspector-integration-debug.test.ts, inspector-integration.test.ts) to verify the copy functionality and improved connection reliability.
+
+Focus on the inspector service reliability, proper actor registration, and implementing the missing code copy feature that allows developers to easily transfer state machine definitions to the external visualizer.
+
+# Test Strategy:
+1. **Inspector Connection Testing**: Test inspector service connection in different environments (development, test, production) and verify proper fallback handling when connections fail
+
+2. **State Machine Registration**: Create test state machines, register them with the inspector service, and verify they appear correctly in the stately.ai visualizer with proper state transitions
+
+3. **Code Copy Functionality Testing**:
+   - Create a test state machine with known structure
+   - Register it with the inspector
+   - Use the copy functionality to extract machine definition
+   - Verify the copied JSON is valid and can be imported into stately.ai/viz
+   - Test clipboard integration across different browsers
+
+4. **Dashboard Integration Testing**:
+   - Load the Developer Dashboard and navigate to XState Inspector tab
+   - Test connection/reconnection buttons
+   - Verify registered actors are displayed correctly
+   - Test the new "Copy to Visualizer" functionality
+   - Verify error states and messaging are clear
+
+5. **Cross-Browser Compatibility**: Test inspector functionality across Chrome, Firefox, Safari, and Edge, particularly focusing on popup blocking scenarios and clipboard API support
+
+6. **E2E Workflow Testing**: Complete end-to-end test of creating a state machine → registering with inspector → copying definition → pasting into stately.ai visualizer → verifying visualization works correctly

@@ -1,0 +1,50 @@
+# Task ID: 10
+# Title: Security Implementation and Auditing
+# Status: done
+# Dependencies: 3
+# Priority: critical
+# Description: Implement comprehensive security measures including sandboxed execution, input validation, and security auditing for the NSM framework.
+# Details:
+
+
+# Test Strategy:
+
+
+# Subtasks:
+## 1. Implement secure sandboxed execution [done]
+### Dependencies: None
+### Description: Create secure sandbox environment for executing untrusted state machine code
+### Details:
+Implement Web Worker or VM-based sandbox with limited API access and resource constraints
+<info added on 2025-09-16T10:59:34.117Z>
+Looking at the codebase to understand the project structure and security patterns before updating the subtask details.Research Phase Complete: Analyzed codebase structure and found existing security foundations in NSMStateMachine class at packages/nsm-client/src/state-machine.ts. The project has comprehensive basic security validations including pattern-based filtering of dangerous code constructs (eval, Function constructor, __proto__ manipulation, import/require statements), structural validation, and basic sandbox wrapper implementation.
+
+Current implementation has placeholder sandbox that checks for dangerous patterns but lacks true isolation - uses simple function wrapping rather than Web Workers or VM-based sandbox. Test suite in state-machine.test.ts validates basic security patterns with 43 tests covering security validations, timeouts, and malicious code rejection.
+
+Based on NSM framework requirements from .taskmaster/docs/prd.txt, need to enhance beyond current pattern-matching approach to implement true sandboxed execution using Web Workers or VM-based isolation with limited API access and resource constraints for executing untrusted state machine code fetched from Blossom servers.
+
+Starting implementation of secure sandboxed execution. Will research secure JavaScript execution patterns including Web Workers for thread isolation, Realms API for JavaScript context isolation, Content Security Policy (CSP) for additional security layers, and VM-based sandboxing approaches. Following Test-Driven Development methodology with comprehensive security test cases covering attack vectors: code injection attempts (eval, Function constructor, prototype pollution), privilege escalation (access to global objects, Node.js APIs, file system), resource exhaustion (infinite loops, memory consumption, CPU usage), and communication security (message validation, origin verification). Implementation will enhance existing NSMStateMachine class at packages/nsm-client/src/state-machine.ts by replacing placeholder wrapInSandbox method with true isolation mechanisms while maintaining compatibility with current XState v5.19.0 integration and existing 43-test validation suite.
+</info added on 2025-09-16T10:59:34.117Z>
+<info added on 2025-09-16T11:13:35.584Z>
+IMPLEMENTATION COMPLETE: TDD Methodology Successfully Applied
+Created comprehensive SecuritySandbox class at packages/nsm-client/src/security/sandbox.ts with full Web Worker isolation, Content Security Policy integration, rate limiting, and violation tracking. Enhanced NSMStateMachine via new NSMStateMachineSecure class at packages/nsm-client/src/state-machine-secure.ts with secure action wrappers and comprehensive validation. Implemented 20+ comprehensive test cases across sandbox.test.ts and sandbox-focused.test.ts covering all major attack vectors including code injection (eval, Function constructor), privilege escalation (global access, prototype pollution), resource exhaustion (CPU, memory limits), and DoS protection. Features include singleton SecuritySandbox instance, configurable security policies with strict defaults (5s timeout, 50MB memory limit, Web Worker isolation), CSPManager for Content Security Policy enforcement, rate limiting per user (100 executions per 60s window), comprehensive violation logging and metrics tracking, secure execution environment with allowlist-only global access, and production-ready error handling. Security implementation successfully blocks malicious patterns, enforces resource constraints, prevents privilege escalation, and provides detailed security metrics for monitoring. All tests passing with comprehensive coverage of edge cases and attack scenarios.
+</info added on 2025-09-16T11:13:35.584Z>
+
+## 2. Add comprehensive input validation [done]
+### Dependencies: None
+### Description: Implement validation for all Nostr events, state machine definitions, and user inputs
+### Details:
+Validate against schemas, sanitize inputs, and implement rate limiting
+
+## 3. Implement cryptographic verification [done]
+### Dependencies: None
+### Description: Add signature verification, hash validation, and key management security
+### Details:
+Verify Nostr event signatures, Blossom content hashes, and implement secure key handling
+
+## 4. Add DoS protection and rate limiting [done]
+### Dependencies: None
+### Description: Implement protection against spam, flooding, and resource exhaustion attacks
+### Details:
+Rate limiting, event filtering, resource monitoring, and automatic throttling
+

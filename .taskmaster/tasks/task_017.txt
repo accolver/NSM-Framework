@@ -1,0 +1,62 @@
+# Task ID: 17
+# Title: Refactor NSM Developer Dashboard to modular components
+# Status: pending
+# Dependencies: 7, 16
+# Priority: medium
+# Description: Extract the monolithic DeveloperDashboard into reusable, embeddable components that can be integrated into other NSM applications, improving code reusability and maintenance.
+# Details:
+The current DeveloperDashboard.tsx is a monolithic 1000+ line component that tightly couples all developer tools into a single interface. This task involves refactoring it into a modular component architecture:
+
+1. **Extract Core Components**: Break down the existing DeveloperDashboard into separate components:
+   - DashboardContainer (layout and state management)
+   - InspectorPanel (XState inspector integration)
+   - EventLogPanel (Nostr event monitoring)
+   - TimeTravelPanel (state replay debugging)
+   - AppDiscoveryPanel (NSM application discovery)
+   - PerformancePanel (metrics tracking)
+   - DashboardTab (reusable tab component)
+
+2. **Create Component Library Structure**: Establish a new structure in packages/nsm-dev-tools/src/components/ with:
+   - Individual component files for each panel
+   - Shared types and interfaces in types.ts
+   - Common utilities in utils.ts
+   - CSS modules for component-specific styling
+   - Index file for clean exports
+
+3. **Implement Embeddable API**: Design components to accept configuration props for:
+   - Service injection (eventLogService, timeTravelService, inspectorService)
+   - Layout preferences (width, height, position)
+   - Feature toggling (which tools to show)
+   - Theming and styling customization
+   - Event handlers for integration
+
+4. **Preserve Existing Functionality**: Maintain all current features:
+   - Tab navigation and persistence
+   - Responsive layout behavior
+   - Performance monitoring
+   - XState inspector integration
+   - Event log scrolling and filtering
+   - Time travel debugging capabilities
+
+5. **Update Package Dependencies**: Modify packages/nsm-dev-tools/package.json to include React dependencies and build configuration for component distribution.
+
+6. **Create Integration Examples**: Provide usage examples showing how other NSM apps can embed specific dashboard components or the full dashboard.
+
+7. **Migration Path**: Update the existing poc-whiteboard app to use the new modular components while maintaining backward compatibility.
+
+# Test Strategy:
+1. **Component Isolation Testing**: Create unit tests for each extracted component to verify they render correctly in isolation and accept proper props
+
+2. **Integration Testing**: Test the refactored components when composed together match the original DeveloperDashboard functionality
+
+3. **Embedding Tests**: Create test applications that embed individual components (e.g., just EventLogPanel) and verify they work independently
+
+4. **Backward Compatibility**: Ensure the poc-whiteboard app continues to function identically after migration to modular components
+
+5. **Props Interface Testing**: Validate that all component props are properly typed and documented, and that required vs optional props work as expected
+
+6. **State Management Testing**: Verify that state is properly managed between components and that parent-child communication works correctly
+
+7. **Package Distribution Testing**: Test that the new nsm-dev-tools package can be imported and used in other applications within the monorepo
+
+8. **Responsive Behavior**: Ensure all extracted components maintain responsive behavior and accessibility features from the original implementation

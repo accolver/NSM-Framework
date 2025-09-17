@@ -1,0 +1,45 @@
+# Task ID: 16
+# Title: Fix NSM Developer Dashboard layout responsiveness and tab accessibility
+# Status: pending
+# Dependencies: 7
+# Priority: medium
+# Description: Improve the NSM Developer Dashboard layout by implementing proper responsive grid/flexbox design, fixing tab visibility issues on different screen sizes, and ensuring all 5 tabs remain accessible with horizontal scrolling support.
+# Details:
+The NSM Developer Dashboard requires layout improvements to enhance usability and accessibility across different screen sizes. Based on analysis of the existing codebase in `apps/poc-whiteboard/src/components/DeveloperDashboard.tsx`, the following improvements are needed:
+
+1. **Tab Container Responsive Design**: The existing tab container at lines 1075-1096 needs enhanced CSS grid/flexbox layout to ensure proper tab visibility. The current implementation has `tabs-horizontal-scroll` CSS class but needs improved responsive breakpoints and better mobile adaptation.
+
+2. **Horizontal Scrolling Implementation**: Enhance the existing `.tabs-horizontal-scroll` CSS class (lines 775-798) to provide better scrolling behavior for all 5 tabs (Inspector, Event Log, Time Travel, App Discovery, Performance). Current implementation exists but needs refinement for consistent cross-browser support.
+
+3. **Mobile Layout Optimization**: Improve the existing mobile responsive design (lines 708-725) by implementing proper CSS Grid for tab container and ensuring tab buttons maintain minimum widths and proper touch targets on mobile devices.
+
+4. **Grid/Flexbox Layout Enhancement**: Update the dashboard container layout using CSS Grid for main structure and Flexbox for tab navigation to provide better control over responsive behavior. The existing layout uses basic flexbox but needs CSS Grid integration for improved responsive design.
+
+5. **Accessibility Improvements**: Ensure all tabs remain keyboard navigable and screen reader accessible across all screen sizes, building on existing ARIA attributes (lines 1086-1090).
+
+6. **CSS Media Query Optimization**: Enhance existing media queries (@media max-width: 768px) with additional breakpoints for tablet and desktop sizes to provide better responsive experience.
+
+Implementation approach:
+- Maintain existing tab functionality and structure
+- Enhance CSS with improved grid/flexbox responsive layout
+- Add CSS variables for consistent spacing and sizing
+- Implement smooth scrolling behavior for tab container
+- Ensure existing test cases continue to pass (especially DeveloperDashboard.ux-fixes.test.tsx)
+- Preserve existing keyboard shortcuts and navigation patterns
+
+# Test Strategy:
+1. **Responsive Layout Testing**: Test dashboard layout across multiple screen sizes (mobile: 320px-768px, tablet: 768px-1024px, desktop: >1024px) to verify tab container adapts properly and all 5 tabs remain accessible
+
+2. **Tab Visibility Validation**: Verify that all tabs (XState Inspector, Event Log, Time Travel, App Discovery, Performance) are visible and clickable on different screen sizes, with horizontal scrolling working smoothly when needed
+
+3. **Touch and Keyboard Navigation**: Test tab navigation using both touch interactions on mobile devices and keyboard navigation (arrow keys, tab key, number keys 1-5) to ensure accessibility is maintained
+
+4. **CSS Grid/Flexbox Verification**: Inspect computed styles to confirm proper CSS Grid implementation for dashboard container and Flexbox for tab navigation, ensuring responsive behavior works as expected
+
+5. **Cross-Browser Compatibility**: Test horizontal scrolling behavior and responsive layout in Chrome, Firefox, Safari, and Edge to ensure consistent experience
+
+6. **Existing Test Suite Validation**: Run existing test suite including `DeveloperDashboard.ux-fixes.test.tsx` to ensure no regressions in functionality, particularly the horizontal scroll support test on line 125
+
+7. **Performance Impact Assessment**: Measure layout reflow and repaint performance during window resize operations to ensure responsive changes don't impact dashboard performance
+
+8. **Screen Reader Testing**: Verify that tab navigation remains accessible to screen readers and that ARIA attributes properly reflect the responsive layout changes

@@ -1,0 +1,43 @@
+# Task ID: 3
+# Title: Client SDK Development
+# Status: done
+# Dependencies: 2
+# Priority: critical
+# Description: Build the main NSM client SDK that wraps NDK, integrates XState, and provides a simple API for developers to build NSM applications.
+# Details:
+
+
+# Test Strategy:
+
+
+# Subtasks:
+## 1. Create NSMClient core class [done]
+### Dependencies: None
+### Description: Implement the main client class that manages NDK instance, subscriptions, and application lifecycle
+### Details:
+Class should handle initialization, relay connections, event subscriptions, and application discovery
+
+## 2. Implement state machine integration with XState [done]
+### Dependencies: None
+### Description: Create secure state machine loader and interpreter integration with sandboxed execution
+### Details:
+Implement createMachine, interpretMachine, and secure sandbox for untrusted state machine code
+
+## 3. Build application discovery and loading system [done]
+### Dependencies: None
+### Description: Implement discovery of NSM applications, loading definitions, and fetching logic from Blossom servers
+### Details:
+Create discoverApplications, loadApplication, fetchFromBlossom with integrity verification
+
+## 4. Implement optimistic updates and state reconciliation [done]
+### Dependencies: None
+### Description: Create optimistic update system with conflict resolution and canonical state synchronization
+### Details:
+Implement optimistic state transitions, conflict detection, and automatic reconciliation with canonical state
+
+## 5. Create event publishing and subscription management [done]
+### Dependencies: None
+### Description: Implement event creation, signing, publishing, and real-time subscription management
+### Details:
+Handle interaction event creation, state update publishing, and efficient subscription management
+

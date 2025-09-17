@@ -1,0 +1,32 @@
+# Task ID: 18
+# Title: Integrate NSM Developer Dashboard into poc-wordle application
+# Status: pending
+# Dependencies: 13, 14, 15, 16, 17
+# Priority: low
+# Description: Add the fixed and modularized NSM Developer Dashboard to the poc-wordle application after all dashboard improvements are complete.
+# Details:
+After completing all dashboard fixes and modularization, integrate the improved NSM Developer Dashboard into the poc-wordle application:
+
+1. **Wait for Prerequisites**: Ensure all dashboard improvement tasks are complete:
+   - Task 13: Scrollable event log
+   - Task 14: Timestamp calculation fix
+   - Task 15: XState inspector integration
+   - Task 16: Layout responsiveness
+   - Task 17: Modular component refactoring
+
+2. **Import Dashboard Components**: Add the modularized dashboard components from packages/nsm-dev-tools to the poc-wordle application
+
+3. **Configure Dashboard Integration**: Set up the dashboard to work with Wordle's state machine and event system
+
+4. **Add Dashboard Toggle**: Implement a keyboard shortcut or button to show/hide the developer dashboard
+
+5. **Test Integration**: Verify all dashboard features work correctly within the Wordle context
+
+# Test Strategy:
+1. Load poc-wordle with integrated dashboard
+2. Verify dashboard toggle functionality works
+3. Test that Wordle state machine appears in XState inspector
+4. Verify Wordle events appear in event log
+5. Test all dashboard tabs function correctly
+6. Ensure no performance impact on the game
+7. Verify responsive layout works in Wordle context

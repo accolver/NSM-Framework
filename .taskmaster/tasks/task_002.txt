@@ -1,0 +1,37 @@
+# Task ID: 2
+# Title: Core NSM Protocol Implementation
+# Status: done
+# Dependencies: 1
+# Priority: critical
+# Description: Implement the core Nostr State Machine protocol definitions, event schemas, and TypeScript interfaces for the three proposed event kinds (30079, 7000-7999, 10079).
+# Details:
+
+
+# Test Strategy:
+
+
+# Subtasks:
+## 1. Define NSM Definition Event schema (kind:30079) [done]
+### Dependencies: None
+### Description: Create TypeScript interfaces and JSON schemas for NSM Definition Events with all required tags and content structure
+### Details:
+Define INSMDefinitionEvent interface with mandatory tags (d, name, engine, engineCodeURI) and content schema (initialState, stateSchema, interactionSchema)
+
+## 2. Define NSM Interaction Event schema (kind:7000-7999) [done]
+### Dependencies: None
+### Description: Create TypeScript interfaces for interaction events with proper application addressing and content validation
+### Details:
+Define INSMInteractionEvent interface with a tag addressing, content validation against interactionSchema
+
+## 3. Define NSM State Update Event schema (kind:10079) [done]
+### Dependencies: None
+### Description: Create TypeScript interfaces for replaceable state snapshot events with state validation
+### Details:
+Define INSMStateUpdateEvent interface with proper state content validation against stateSchema
+
+## 4. Implement protocol validation utilities [done]
+### Dependencies: None
+### Description: Create validation functions for all NSM event types with comprehensive error handling and type guards
+### Details:
+Implement validateNSMDefinition, validateNSMInteraction, validateNSMStateUpdate functions with detailed error messages
+

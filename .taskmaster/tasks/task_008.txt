@@ -1,0 +1,37 @@
+# Task ID: 8
+# Title: Documentation Site Development
+# Status: done
+# Dependencies: 3, 5, 6
+# Priority: medium
+# Description: Create comprehensive documentation website using Mintlify with API references, guides, and examples for NSM framework adoption.
+# Details:
+
+
+# Test Strategy:
+
+
+# Subtasks:
+## 1. Set up Mintlify documentation site [done]
+### Dependencies: None
+### Description: Initialize Mintlify documentation site with proper configuration and theming
+### Details:
+Configure mint.json, set up navigation, and establish documentation structure
+
+## 2. Write API documentation and references [done]
+### Dependencies: None
+### Description: Create comprehensive API documentation for NSM client SDK with examples
+### Details:
+Document all classes, methods, interfaces, and configuration options with usage examples
+
+## 3. Create getting started guides and tutorials [done]
+### Dependencies: None
+### Description: Write step-by-step guides for building NSM applications with practical examples
+### Details:
+Include setup guide, first application tutorial, and advanced usage patterns
+
+## 4. Document protocol specifications and NIPs [done]
+### Dependencies: None
+### Description: Create detailed protocol documentation for the proposed NSM event kinds and specifications
+### Details:
+Document event schemas, interaction patterns, and implementation requirements
+

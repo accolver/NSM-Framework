@@ -1,0 +1,27 @@
+# Task ID: 14
+# Title: Fix NSM Developer Dashboard timestamp calculation
+# Status: pending
+# Dependencies: 7, 13
+# Priority: high
+# Description: Correct the 'minutes ago' calculation showing incorrect values like '3007951 minutes ago' in the EventLogViewer component by improving timestamp edge case handling.
+# Details:
+The EventLogViewer component in the NSM Developer Dashboard is displaying incorrect relative timestamps like '3007951 minutes ago' for certain events. Based on analysis of the codebase, the issue is in the event-log-service.ts file's getEventMetadata method (lines 275-305). The current implementation has already been partially fixed for the '1007944 minutes ago' issue, but edge cases remain for very large minute values that should be converted to appropriate time units.
+
+Required fixes:
+1. Review the timestamp calculation logic in src/services/event-log-service.ts lines 275-305
+2. Ensure the diffMinutes calculation properly handles extremely large values (>999999 minutes)
+3. Add additional validation to prevent display of unrealistic minute values
+4. Improve the hierarchical time unit conversion to catch edge cases where minutes exceed reasonable thresholds
+5. Add bounds checking to ensure no timestamp shows more than 525600 minutes (1 year)
+6. Update the existing test cases in src/test/event-flood-fix.test.ts to cover the '3007951 minutes ago' scenario
+7. Verify the fix works with EventLogViewer.tsx which displays metadata.relativeTime at line 241
+
+# Test Strategy:
+1. Create test events with extreme timestamps that would result in '3007951 minutes ago' or similar large values
+2. Run the existing test suite in src/test/event-flood-fix.test.ts to ensure no regressions
+3. Add new test case specifically for the '3007951 minutes ago' scenario to event-flood-fix.test.ts
+4. Load the NSM Developer Dashboard and verify that no events show unrealistic minute values
+5. Test with mock events spanning various time ranges: 1 hour, 1 day, 1 week, 1 month, 1 year, 10+ years
+6. Verify that the EventLogViewer component properly displays all corrected timestamps
+7. Confirm that the metadata.relativeTime values are human-readable and appropriate for their actual age
+8. Run npm test to ensure all timestamp-related tests pass

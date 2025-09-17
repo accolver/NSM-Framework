@@ -1,0 +1,31 @@
+# Task ID: 4
+# Title: Blossom Integration for Large Asset Storage
+# Status: done
+# Dependencies: 3
+# Priority: high
+# Description: Implement Blossom protocol integration for storing and retrieving large application assets like state machine logic files with proper authentication and verification.
+# Details:
+
+
+# Test Strategy:
+
+
+# Subtasks:
+## 1. Implement Blossom client for file operations [done]
+### Dependencies: None
+### Description: Create BlossomClient class with upload, download, and delete operations using proper Nostr authorization
+### Details:
+Implement PUT /upload, GET /{hash}, DELETE /{hash} with signed authorization events
+
+## 2. Add content integrity verification [done]
+### Dependencies: None
+### Description: Implement SHA-256 hash verification for all downloaded content to ensure integrity
+### Details:
+Calculate and verify SHA-256 hashes for all downloaded files with proper error handling
+
+## 3. Implement multi-server redundancy [done]
+### Dependencies: None
+### Description: Add support for multiple Blossom servers with automatic failover and server discovery via NIP-B7
+### Details:
+Support server lists, automatic failover, and load balancing across multiple Blossom servers
+

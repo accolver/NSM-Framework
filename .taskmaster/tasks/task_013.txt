@@ -1,0 +1,30 @@
+# Task ID: 13
+# Title: Fix NSM Developer Dashboard Scrollable Event Log
+# Status: pending
+# Dependencies: 7
+# Priority: high
+# Description: Fix the event log container scrolling in the Developer Dashboard by adding proper CSS overflow properties and ensuring the event list is scrollable within its container.
+# Details:
+The EventLogViewer component in the NSM Developer Dashboard needs proper scrolling functionality to handle large volumes of events. The fix requires:
+
+1. Update EventLogViewer.tsx to ensure the events container (`.events-scrollable` div at line 204-211) has proper overflow handling
+2. Verify the CSS classes in the existing scrollable container are working correctly - the component already has `max-h-96 overflow-y-auto` but may need adjustments
+3. Test with the existing `events-scroll-container` test ID to ensure scrolling is functional
+4. Check if the parent DeveloperDashboard.tsx component (line 556-560 in the 'eventlog' case) needs any container height adjustments
+5. Ensure the event list properly displays long lists of events with smooth scrolling behavior
+6. Verify scrollbar styling works correctly with the existing `scrollbarWidth` and `scrollbarColor` styles
+7. Test that the event log maintains its fixed height while allowing content to scroll within the allocated space
+
+The EventLogViewer is already structured with a scrollable container but may need refinements to ensure proper scrolling behavior in the context of the full dashboard layout.
+
+# Test Strategy:
+1. Load the NSM Developer Dashboard and navigate to the Event Log tab
+2. Generate multiple test events to populate the event log beyond the visible area
+3. Verify that a scrollbar appears when events exceed the container height
+4. Test scrolling functionality with mouse wheel and scrollbar interaction
+5. Confirm that the event log container maintains its height while content scrolls
+6. Test on different screen sizes to ensure responsive scrolling behavior
+7. Verify that event filtering and search functionality still work correctly with scrolling
+8. Use browser developer tools to inspect the CSS properties of the scrollable container
+9. Test edge cases like rapid event generation to ensure performance remains smooth
+10. Validate that the scrollbar styling matches the design system

@@ -840,11 +840,95 @@
             "testStrategy": "Measure adoption rates, validate compatibility, and support ecosystem growth"
           }
         ]
+      },
+      {
+        "id": 13,
+        "title": "Fix NSM Developer Dashboard Scrollable Event Log",
+        "description": "Fix the event log container scrolling in the Developer Dashboard by adding proper CSS overflow properties and ensuring the event list is scrollable within its container.",
+        "details": "The EventLogViewer component in the NSM Developer Dashboard needs proper scrolling functionality to handle large volumes of events. The fix requires:\n\n1. Update EventLogViewer.tsx to ensure the events container (`.events-scrollable` div at line 204-211) has proper overflow handling\n2. Verify the CSS classes in the existing scrollable container are working correctly - the component already has `max-h-96 overflow-y-auto` but may need adjustments\n3. Test with the existing `events-scroll-container` test ID to ensure scrolling is functional\n4. Check if the parent DeveloperDashboard.tsx component (line 556-560 in the 'eventlog' case) needs any container height adjustments\n5. Ensure the event list properly displays long lists of events with smooth scrolling behavior\n6. Verify scrollbar styling works correctly with the existing `scrollbarWidth` and `scrollbarColor` styles\n7. Test that the event log maintains its fixed height while allowing content to scroll within the allocated space\n\nThe EventLogViewer is already structured with a scrollable container but may need refinements to ensure proper scrolling behavior in the context of the full dashboard layout.",
+        "testStrategy": "1. Load the NSM Developer Dashboard and navigate to the Event Log tab\n2. Generate multiple test events to populate the event log beyond the visible area\n3. Verify that a scrollbar appears when events exceed the container height\n4. Test scrolling functionality with mouse wheel and scrollbar interaction\n5. Confirm that the event log container maintains its height while content scrolls\n6. Test on different screen sizes to ensure responsive scrolling behavior\n7. Verify that event filtering and search functionality still work correctly with scrolling\n8. Use browser developer tools to inspect the CSS properties of the scrollable container\n9. Test edge cases like rapid event generation to ensure performance remains smooth\n10. Validate that the scrollbar styling matches the design system",
+        "status": "done",
+        "dependencies": [
+          7
+        ],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 14,
+        "title": "Fix NSM Developer Dashboard timestamp calculation",
+        "description": "Correct the 'minutes ago' calculation showing incorrect values like '3007951 minutes ago' in the EventLogViewer component by improving timestamp edge case handling.",
+        "details": "The EventLogViewer component in the NSM Developer Dashboard is displaying incorrect relative timestamps like '3007951 minutes ago' for certain events. Based on analysis of the codebase, the issue is in the event-log-service.ts file's getEventMetadata method (lines 275-305). The current implementation has already been partially fixed for the '1007944 minutes ago' issue, but edge cases remain for very large minute values that should be converted to appropriate time units.\n\nRequired fixes:\n1. Review the timestamp calculation logic in src/services/event-log-service.ts lines 275-305\n2. Ensure the diffMinutes calculation properly handles extremely large values (>999999 minutes)\n3. Add additional validation to prevent display of unrealistic minute values\n4. Improve the hierarchical time unit conversion to catch edge cases where minutes exceed reasonable thresholds\n5. Add bounds checking to ensure no timestamp shows more than 525600 minutes (1 year)\n6. Update the existing test cases in src/test/event-flood-fix.test.ts to cover the '3007951 minutes ago' scenario\n7. Verify the fix works with EventLogViewer.tsx which displays metadata.relativeTime at line 241",
+        "testStrategy": "1. Create test events with extreme timestamps that would result in '3007951 minutes ago' or similar large values\n2. Run the existing test suite in src/test/event-flood-fix.test.ts to ensure no regressions\n3. Add new test case specifically for the '3007951 minutes ago' scenario to event-flood-fix.test.ts\n4. Load the NSM Developer Dashboard and verify that no events show unrealistic minute values\n5. Test with mock events spanning various time ranges: 1 hour, 1 day, 1 week, 1 month, 1 year, 10+ years\n6. Verify that the EventLogViewer component properly displays all corrected timestamps\n7. Confirm that the metadata.relativeTime values are human-readable and appropriate for their actual age\n8. Run npm test to ensure all timestamp-related tests pass",
+        "status": "pending",
+        "dependencies": [
+          7,
+          13
+        ],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "Fix XState inspector integration in NSM Developer Dashboard - Ensure XState inspector properly shows state machines and enables code copying to visualizer",
+        "description": "Fix the XState inspector integration in the NSM Developer Dashboard to ensure proper state machine visualization and enable code copying functionality to the external stately.ai visualizer.",
+        "details": "The XState inspector in the NSM Developer Dashboard requires several fixes to improve functionality and user experience:\n\n1. **Inspector Connection Issues**: The inspector service (apps/poc-whiteboard/src/services/inspector-service.ts) has complex connection logic with multiple fallback strategies but may fail to establish proper connections in certain environments. Need to improve connection reliability and error handling.\n\n2. **State Machine Registration**: Fix the registerActor method to ensure state machines are properly registered with the inspector and visible in the stately.ai/viz interface. The current implementation calls this.inspector.actor(actor) but may not be passing the correct format or metadata.\n\n3. **Code Copy Functionality**: Add functionality to copy state machine definitions to clipboard for pasting into the stately.ai visualizer. This is referenced in the user request but not currently implemented in the codebase. Need to add:\n   - Extract machine definition/configuration from registered actors\n   - Serialize machine definition to JSON format compatible with stately.ai\n   - Add \"Copy to Visualizer\" button in the Inspector panel (DeveloperDashboard.tsx lines 364-413)\n   - Implement clipboard API integration with proper error handling\n\n4. **Inspector Panel UX**: Improve the inspector panel in DeveloperDashboard.tsx to:\n   - Show clearer status indicators for connection state\n   - Display registered actors with their current states\n   - Add copy functionality for machine definitions\n   - Better error messages and troubleshooting guidance\n\n5. **Testing Integration**: Update existing test files (xstate-inspector-integration-debug.test.ts, inspector-integration.test.ts) to verify the copy functionality and improved connection reliability.\n\nFocus on the inspector service reliability, proper actor registration, and implementing the missing code copy feature that allows developers to easily transfer state machine definitions to the external visualizer.",
+        "testStrategy": "1. **Inspector Connection Testing**: Test inspector service connection in different environments (development, test, production) and verify proper fallback handling when connections fail\n\n2. **State Machine Registration**: Create test state machines, register them with the inspector service, and verify they appear correctly in the stately.ai visualizer with proper state transitions\n\n3. **Code Copy Functionality Testing**:\n   - Create a test state machine with known structure\n   - Register it with the inspector\n   - Use the copy functionality to extract machine definition\n   - Verify the copied JSON is valid and can be imported into stately.ai/viz\n   - Test clipboard integration across different browsers\n\n4. **Dashboard Integration Testing**:\n   - Load the Developer Dashboard and navigate to XState Inspector tab\n   - Test connection/reconnection buttons\n   - Verify registered actors are displayed correctly\n   - Test the new \"Copy to Visualizer\" functionality\n   - Verify error states and messaging are clear\n\n5. **Cross-Browser Compatibility**: Test inspector functionality across Chrome, Firefox, Safari, and Edge, particularly focusing on popup blocking scenarios and clipboard API support\n\n6. **E2E Workflow Testing**: Complete end-to-end test of creating a state machine → registering with inspector → copying definition → pasting into stately.ai visualizer → verifying visualization works correctly",
+        "status": "pending",
+        "dependencies": [
+          7
+        ],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 16,
+        "title": "Fix NSM Developer Dashboard layout responsiveness and tab accessibility",
+        "description": "Improve the NSM Developer Dashboard layout by implementing proper responsive grid/flexbox design, fixing tab visibility issues on different screen sizes, and ensuring all 5 tabs remain accessible with horizontal scrolling support.",
+        "details": "The NSM Developer Dashboard requires layout improvements to enhance usability and accessibility across different screen sizes. Based on analysis of the existing codebase in `apps/poc-whiteboard/src/components/DeveloperDashboard.tsx`, the following improvements are needed:\n\n1. **Tab Container Responsive Design**: The existing tab container at lines 1075-1096 needs enhanced CSS grid/flexbox layout to ensure proper tab visibility. The current implementation has `tabs-horizontal-scroll` CSS class but needs improved responsive breakpoints and better mobile adaptation.\n\n2. **Horizontal Scrolling Implementation**: Enhance the existing `.tabs-horizontal-scroll` CSS class (lines 775-798) to provide better scrolling behavior for all 5 tabs (Inspector, Event Log, Time Travel, App Discovery, Performance). Current implementation exists but needs refinement for consistent cross-browser support.\n\n3. **Mobile Layout Optimization**: Improve the existing mobile responsive design (lines 708-725) by implementing proper CSS Grid for tab container and ensuring tab buttons maintain minimum widths and proper touch targets on mobile devices.\n\n4. **Grid/Flexbox Layout Enhancement**: Update the dashboard container layout using CSS Grid for main structure and Flexbox for tab navigation to provide better control over responsive behavior. The existing layout uses basic flexbox but needs CSS Grid integration for improved responsive design.\n\n5. **Accessibility Improvements**: Ensure all tabs remain keyboard navigable and screen reader accessible across all screen sizes, building on existing ARIA attributes (lines 1086-1090).\n\n6. **CSS Media Query Optimization**: Enhance existing media queries (@media max-width: 768px) with additional breakpoints for tablet and desktop sizes to provide better responsive experience.\n\nImplementation approach:\n- Maintain existing tab functionality and structure\n- Enhance CSS with improved grid/flexbox responsive layout\n- Add CSS variables for consistent spacing and sizing\n- Implement smooth scrolling behavior for tab container\n- Ensure existing test cases continue to pass (especially DeveloperDashboard.ux-fixes.test.tsx)\n- Preserve existing keyboard shortcuts and navigation patterns",
+        "testStrategy": "1. **Responsive Layout Testing**: Test dashboard layout across multiple screen sizes (mobile: 320px-768px, tablet: 768px-1024px, desktop: >1024px) to verify tab container adapts properly and all 5 tabs remain accessible\n\n2. **Tab Visibility Validation**: Verify that all tabs (XState Inspector, Event Log, Time Travel, App Discovery, Performance) are visible and clickable on different screen sizes, with horizontal scrolling working smoothly when needed\n\n3. **Touch and Keyboard Navigation**: Test tab navigation using both touch interactions on mobile devices and keyboard navigation (arrow keys, tab key, number keys 1-5) to ensure accessibility is maintained\n\n4. **CSS Grid/Flexbox Verification**: Inspect computed styles to confirm proper CSS Grid implementation for dashboard container and Flexbox for tab navigation, ensuring responsive behavior works as expected\n\n5. **Cross-Browser Compatibility**: Test horizontal scrolling behavior and responsive layout in Chrome, Firefox, Safari, and Edge to ensure consistent experience\n\n6. **Existing Test Suite Validation**: Run existing test suite including `DeveloperDashboard.ux-fixes.test.tsx` to ensure no regressions in functionality, particularly the horizontal scroll support test on line 125\n\n7. **Performance Impact Assessment**: Measure layout reflow and repaint performance during window resize operations to ensure responsive changes don't impact dashboard performance\n\n8. **Screen Reader Testing**: Verify that tab navigation remains accessible to screen readers and that ARIA attributes properly reflect the responsive layout changes",
+        "status": "pending",
+        "dependencies": [
+          7
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 17,
+        "title": "Refactor NSM Developer Dashboard to modular components",
+        "description": "Extract the monolithic DeveloperDashboard into reusable, embeddable components that can be integrated into other NSM applications, improving code reusability and maintenance.",
+        "details": "The current DeveloperDashboard.tsx is a monolithic 1000+ line component that tightly couples all developer tools into a single interface. This task involves refactoring it into a modular component architecture:\n\n1. **Extract Core Components**: Break down the existing DeveloperDashboard into separate components:\n   - DashboardContainer (layout and state management)\n   - InspectorPanel (XState inspector integration)\n   - EventLogPanel (Nostr event monitoring)\n   - TimeTravelPanel (state replay debugging)\n   - AppDiscoveryPanel (NSM application discovery)\n   - PerformancePanel (metrics tracking)\n   - DashboardTab (reusable tab component)\n\n2. **Create Component Library Structure**: Establish a new structure in packages/nsm-dev-tools/src/components/ with:\n   - Individual component files for each panel\n   - Shared types and interfaces in types.ts\n   - Common utilities in utils.ts\n   - CSS modules for component-specific styling\n   - Index file for clean exports\n\n3. **Implement Embeddable API**: Design components to accept configuration props for:\n   - Service injection (eventLogService, timeTravelService, inspectorService)\n   - Layout preferences (width, height, position)\n   - Feature toggling (which tools to show)\n   - Theming and styling customization\n   - Event handlers for integration\n\n4. **Preserve Existing Functionality**: Maintain all current features:\n   - Tab navigation and persistence\n   - Responsive layout behavior\n   - Performance monitoring\n   - XState inspector integration\n   - Event log scrolling and filtering\n   - Time travel debugging capabilities\n\n5. **Update Package Dependencies**: Modify packages/nsm-dev-tools/package.json to include React dependencies and build configuration for component distribution.\n\n6. **Create Integration Examples**: Provide usage examples showing how other NSM apps can embed specific dashboard components or the full dashboard.\n\n7. **Migration Path**: Update the existing poc-whiteboard app to use the new modular components while maintaining backward compatibility.",
+        "testStrategy": "1. **Component Isolation Testing**: Create unit tests for each extracted component to verify they render correctly in isolation and accept proper props\n\n2. **Integration Testing**: Test the refactored components when composed together match the original DeveloperDashboard functionality\n\n3. **Embedding Tests**: Create test applications that embed individual components (e.g., just EventLogPanel) and verify they work independently\n\n4. **Backward Compatibility**: Ensure the poc-whiteboard app continues to function identically after migration to modular components\n\n5. **Props Interface Testing**: Validate that all component props are properly typed and documented, and that required vs optional props work as expected\n\n6. **State Management Testing**: Verify that state is properly managed between components and that parent-child communication works correctly\n\n7. **Package Distribution Testing**: Test that the new nsm-dev-tools package can be imported and used in other applications within the monorepo\n\n8. **Responsive Behavior**: Ensure all extracted components maintain responsive behavior and accessibility features from the original implementation",
+        "status": "pending",
+        "dependencies": [
+          7,
+          16
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 18,
+        "title": "Integrate NSM Developer Dashboard into poc-wordle application",
+        "description": "Add the fixed and modularized NSM Developer Dashboard to the poc-wordle application after all dashboard improvements are complete.",
+        "details": "After completing all dashboard fixes and modularization, integrate the improved NSM Developer Dashboard into the poc-wordle application:\n\n1. **Wait for Prerequisites**: Ensure all dashboard improvement tasks are complete:\n   - Task 13: Scrollable event log\n   - Task 14: Timestamp calculation fix\n   - Task 15: XState inspector integration\n   - Task 16: Layout responsiveness\n   - Task 17: Modular component refactoring\n\n2. **Import Dashboard Components**: Add the modularized dashboard components from packages/nsm-dev-tools to the poc-wordle application\n\n3. **Configure Dashboard Integration**: Set up the dashboard to work with Wordle's state machine and event system\n\n4. **Add Dashboard Toggle**: Implement a keyboard shortcut or button to show/hide the developer dashboard\n\n5. **Test Integration**: Verify all dashboard features work correctly within the Wordle context",
+        "testStrategy": "1. Load poc-wordle with integrated dashboard\n2. Verify dashboard toggle functionality works\n3. Test that Wordle state machine appears in XState inspector\n4. Verify Wordle events appear in event log\n5. Test all dashboard tabs function correctly\n6. Ensure no performance impact on the game\n7. Verify responsive layout works in Wordle context",
+        "status": "pending",
+        "dependencies": [
+          13,
+          14,
+          15,
+          16,
+          17
+        ],
+        "priority": "low",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-09-15T12:51:55.799Z",
-      "updated": "2025-09-16T22:25:13.925Z",
+      "updated": "2025-09-17T15:55:18.472Z",
       "description": "Tasks for master context"
     }
   }

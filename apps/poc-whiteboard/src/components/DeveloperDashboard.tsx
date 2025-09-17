@@ -835,8 +835,11 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
 
         .tool-content {
           flex: 1;
-          overflow: hidden;
+          overflow: auto;
           background: #1e1e1e;
+          display: flex;
+          flex-direction: column;
+          height: 0; /* This forces flex to respect the container height */
         }
 
         .service-unavailable {
