@@ -860,7 +860,7 @@
         "description": "Correct the 'minutes ago' calculation showing incorrect values like '3007951 minutes ago' in the EventLogViewer component by improving timestamp edge case handling.",
         "details": "The EventLogViewer component in the NSM Developer Dashboard is displaying incorrect relative timestamps like '3007951 minutes ago' for certain events. Based on analysis of the codebase, the issue is in the event-log-service.ts file's getEventMetadata method (lines 275-305). The current implementation has already been partially fixed for the '1007944 minutes ago' issue, but edge cases remain for very large minute values that should be converted to appropriate time units.\n\nRequired fixes:\n1. Review the timestamp calculation logic in src/services/event-log-service.ts lines 275-305\n2. Ensure the diffMinutes calculation properly handles extremely large values (>999999 minutes)\n3. Add additional validation to prevent display of unrealistic minute values\n4. Improve the hierarchical time unit conversion to catch edge cases where minutes exceed reasonable thresholds\n5. Add bounds checking to ensure no timestamp shows more than 525600 minutes (1 year)\n6. Update the existing test cases in src/test/event-flood-fix.test.ts to cover the '3007951 minutes ago' scenario\n7. Verify the fix works with EventLogViewer.tsx which displays metadata.relativeTime at line 241",
         "testStrategy": "1. Create test events with extreme timestamps that would result in '3007951 minutes ago' or similar large values\n2. Run the existing test suite in src/test/event-flood-fix.test.ts to ensure no regressions\n3. Add new test case specifically for the '3007951 minutes ago' scenario to event-flood-fix.test.ts\n4. Load the NSM Developer Dashboard and verify that no events show unrealistic minute values\n5. Test with mock events spanning various time ranges: 1 hour, 1 day, 1 week, 1 month, 1 year, 10+ years\n6. Verify that the EventLogViewer component properly displays all corrected timestamps\n7. Confirm that the metadata.relativeTime values are human-readable and appropriate for their actual age\n8. Run npm test to ensure all timestamp-related tests pass",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           7,
           13
@@ -928,7 +928,7 @@
     ],
     "metadata": {
       "created": "2025-09-15T12:51:55.799Z",
-      "updated": "2025-09-17T15:55:18.472Z",
+      "updated": "2025-09-17T15:58:27.553Z",
       "description": "Tasks for master context"
     }
   }

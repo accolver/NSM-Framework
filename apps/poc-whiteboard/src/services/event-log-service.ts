@@ -272,36 +272,56 @@ class EventLogServiceImpl implements EventLogService {
     const date = new Date(event.created_at * 1000);
     const formattedTimestamp = date.toISOString().replace('T', ' ').substring(0, 19);
 
-    // Calculate relative time with better edge case handling
+    // Calculate relative time with improved edge case handling
     const now = Date.now();
     const eventTime = event.created_at * 1000;
-    const diffMs = Math.max(0, now - eventTime); // Ensure non-negative
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMinutes / 60);
-    const diffDays = Math.floor(diffHours / 24);
-    const diffWeeks = Math.floor(diffDays / 7);
-    const diffMonths = Math.floor(diffDays / 30);
+
+    // Validate timestamp - if event timestamp is unrealistic, treat as invalid
+    const maxReasonableAge = 1000 * 60 * 60 * 24 * 365 * 10; // 10 years
+    const minReasonableTime = new Date('1970-01-01').getTime(); // Unix epoch start
 
     let relativeTime: string;
 
-    // Handle edge cases for very old events
-    if (diffMs < 0) {
-      relativeTime = 'in the future';
-    } else if (diffMinutes < 1) {
-      relativeTime = 'just now';
-    } else if (diffMinutes < 60) {
-      relativeTime = `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
-    } else if (diffHours < 24) {
-      relativeTime = `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
-    } else if (diffDays < 7) {
-      relativeTime = `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
-    } else if (diffWeeks < 4) {
-      relativeTime = `${diffWeeks} week${diffWeeks === 1 ? '' : 's'} ago`;
-    } else if (diffMonths < 12) {
-      relativeTime = `${diffMonths} month${diffMonths === 1 ? '' : 's'} ago`;
+    if (eventTime < minReasonableTime || eventTime > now + 1000 * 60 * 60 * 24) { // Future limit: 1 day
+      relativeTime = 'invalid timestamp';
     } else {
-      const years = Math.floor(diffMonths / 12);
-      relativeTime = `${years} year${years === 1 ? '' : 's'} ago`;
+      const diffMs = Math.max(0, now - eventTime); // Ensure non-negative
+
+      // Add bounds checking for unrealistic time differences
+      if (diffMs > maxReasonableAge) {
+        relativeTime = 'very old';
+      } else {
+        const diffMinutes = Math.floor(diffMs / (1000 * 60));
+        const diffHours = Math.floor(diffMinutes / 60);
+        const diffDays = Math.floor(diffHours / 24);
+        const diffWeeks = Math.floor(diffDays / 7);
+        const diffMonths = Math.floor(diffDays / 30);
+
+        // Handle edge cases for very old events with bounds checking
+        if (diffMs < 0) {
+          relativeTime = 'in the future';
+        } else if (diffMinutes < 1) {
+          relativeTime = 'just now';
+        } else if (diffMinutes < 60) {
+          relativeTime = `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
+        } else if (diffHours < 24) {
+          relativeTime = `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+        } else if (diffDays < 7) {
+          relativeTime = `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+        } else if (diffWeeks < 4) {
+          relativeTime = `${diffWeeks} week${diffWeeks === 1 ? '' : 's'} ago`;
+        } else if (diffMonths < 12) {
+          relativeTime = `${diffMonths} month${diffMonths === 1 ? '' : 's'} ago`;
+        } else {
+          const years = Math.floor(diffMonths / 12);
+          // Cap at reasonable maximum to prevent display of extreme values
+          if (years > 100) {
+            relativeTime = 'very old';
+          } else {
+            relativeTime = `${years} year${years === 1 ? '' : 's'} ago`;
+          }
+        }
+      }
     }
 
     return {
