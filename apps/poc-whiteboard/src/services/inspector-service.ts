@@ -22,6 +22,9 @@ export interface InspectorService {
   /** Check if inspector is currently connected */
   readonly isConnected: boolean;
 
+  /** Get current connection status with details */
+  readonly connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
+
   /** Connect to the inspector */
   connect(): Promise<boolean>;
 
@@ -51,6 +54,11 @@ class InspectorServiceImpl implements InspectorService {
   private inspector: any = null;
   private receiver: any = null;
   private connected = false;
+  private status: 'disconnected' | 'connecting' | 'connected' | 'error' = 'disconnected';
+  private lastError: Error | null = null;
+  private connectionAttempts = 0;
+  private maxRetries = 3;
+  private retryDelay = 1000; // Start with 1 second
   private registeredActors = new Map<string, AnyActor>();
   private config: Required<InspectorConfig>;
 
@@ -99,29 +107,41 @@ class InspectorServiceImpl implements InspectorService {
     return this.connected;
   }
 
+  get connectionStatus(): 'disconnected' | 'connecting' | 'connected' | 'error' {
+    return this.status;
+  }
+
   async connect(): Promise<boolean> {
+    // Set status to connecting
+    this.status = 'connecting';
+    this.lastError = null;
+
     console.log('🔍 CONNECT CALLED - Environment check:');
     console.log('🔍 - NODE_ENV:', process.env.NODE_ENV);
     console.log('🔍 - devOnly:', this.config.devOnly);
     console.log('🔍 - window available:', typeof window !== 'undefined');
     console.log('🔍 - already connected:', this.connected);
+    console.log('🔍 - connection attempts:', this.connectionAttempts);
 
     try {
       // Skip in production if configured
       if (this.config.devOnly && process.env.NODE_ENV === 'production') {
         console.log('🔍 Inspector connection skipped in production');
+        this.status = 'disconnected';
         return false;
       }
 
       // Check if we're in a browser environment
       if (typeof window === 'undefined') {
         console.log('🔍 Inspector not available in non-browser environment');
+        this.status = 'disconnected';
         return false;
       }
 
       // Check if already connected
       if (this.connected && this.inspector) {
         console.log('🔍 Inspector already connected, returning true');
+        this.status = 'connected';
         return true;
       }
 
@@ -198,6 +218,13 @@ class InspectorServiceImpl implements InspectorService {
           console.log('🔍 Browser Inspector connected - popup window should open');
         }
 
+        // Reset connection attempts on success
+        this.connectionAttempts = 0;
+        this.status = 'connected';
+
+        // Re-register any actors that were stored while disconnected
+        this.reregisterAllActors();
+
         return true;
       } catch (startError) {
         console.error('🔍 Failed to start inspector:', startError);
@@ -209,6 +236,8 @@ class InspectorServiceImpl implements InspectorService {
         // Clean up inspector instance if start fails
         this.inspector = null;
         this.connected = false;
+        this.status = 'error';
+        this.lastError = startError as Error;
         return false;
       }
 
@@ -221,6 +250,24 @@ class InspectorServiceImpl implements InspectorService {
         cause: error?.cause
       });
       this.connected = false;
+      this.status = 'error';
+      this.lastError = error as Error;
+      this.connectionAttempts++;
+
+      // Implement automatic retry with exponential backoff for certain errors
+      if (this.connectionAttempts < this.maxRetries) {
+        const delay = this.retryDelay * Math.pow(2, this.connectionAttempts - 1);
+        console.log(`🔍 Retrying connection in ${delay}ms (attempt ${this.connectionAttempts}/${this.maxRetries})...`);
+
+        setTimeout(() => {
+          this.connect().catch(retryError => {
+            console.error('🔍 Retry attempt failed:', retryError);
+          });
+        }, delay);
+      } else {
+        console.error(`🔍 Max retry attempts (${this.maxRetries}) reached. Connection failed permanently.`);
+      }
+
       return false;
     }
   }
@@ -256,6 +303,9 @@ class InspectorServiceImpl implements InspectorService {
       }
 
       this.connected = false;
+      this.status = 'disconnected';
+      this.lastError = null;
+      this.connectionAttempts = 0; // Reset attempts on manual disconnect
       this.registeredActors.clear();
 
       console.log('🔍 Inspector disconnected');
@@ -266,8 +316,12 @@ class InspectorServiceImpl implements InspectorService {
   }
 
   registerActor(actor: AnyActor, name: string): boolean {
+    // Store the actor even if not currently connected, for re-registration later
+    this.registeredActors.set(name, actor);
+
     if (!this.connected || !this.inspector) {
       console.warn('🔍 Cannot register actor: inspector not connected');
+      console.log(`🔍 Actor ${name} stored for registration when inspector connects`);
       return false;
     }
 
@@ -281,15 +335,13 @@ class InspectorServiceImpl implements InspectorService {
         value: snapshot.value,
         status: snapshot.status,
         contextKeys: Object.keys(snapshot.context || {}),
-        logic: !!actor.logic
+        logic: !!actor.logic,
+        machineId: actor.logic?.config?.id
       });
 
       // Register the actor with the inspector
       // The inspector expects to receive state transitions and machine definition
       this.inspector.actor(actor);
-
-      // Store locally for management
-      this.registeredActors.set(name, actor);
 
       console.log(`🔍 Actor registered successfully: ${name}`);
       console.log('🔍 Inspector should now be tracking state transitions');
@@ -304,6 +356,27 @@ class InspectorServiceImpl implements InspectorService {
         name: error?.name
       });
       return false;
+    }
+  }
+
+  /**
+   * Re-register all stored actors with the inspector
+   * Useful when reconnecting after a disconnection
+   */
+  private reregisterAllActors(): void {
+    if (!this.connected || !this.inspector) {
+      return;
+    }
+
+    console.log(`🔍 Re-registering ${this.registeredActors.size} stored actors...`);
+
+    for (const [name, actor] of this.registeredActors.entries()) {
+      try {
+        this.inspector.actor(actor);
+        console.log(`🔍 Re-registered actor: ${name}`);
+      } catch (error) {
+        console.warn(`🔍 Failed to re-register actor ${name}:`, error);
+      }
     }
   }
 

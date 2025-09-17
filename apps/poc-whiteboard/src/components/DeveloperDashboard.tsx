@@ -341,7 +341,10 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
 
               {inspectorService?.isConnected ? (
                 <div className="inspector-connected">
-                  <h4>Inspector Active</h4>
+                  <h4>Inspector Active ✅</h4>
+                  <p style={{ color: '#4caf50', fontSize: '12px', margin: '4px 0' }}>
+                    Status: {inspectorService.connectionStatus}
+                  </p>
                   <p>The XState Inspector is running. The visualization should be available in:</p>
                   <ul style={{ margin: '8px 0', paddingLeft: '20px', color: '#d4d4d4' }}>
                     <li>A popup window (if not blocked)</li>
@@ -481,7 +484,10 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
                 </div>
               ) : (
                 <div className="inspector-disconnected">
-                  <h4>Inspector Not Connected</h4>
+                  <h4>Inspector Not Connected ❌</h4>
+                  <p style={{ color: '#ff9800', fontSize: '12px', margin: '4px 0' }}>
+                    Status: {inspectorService?.connectionStatus || 'disconnected'}
+                  </p>
                   <p style={{ color: '#ff9800' }}>
                     The XState Inspector could not connect. This may be due to:
                   </p>
