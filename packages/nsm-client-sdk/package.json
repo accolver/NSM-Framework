@@ -19,7 +19,7 @@
     "build": "bun run build:ts && bun run build:bundle",
     "build:ts": "tsc --build",
     "build:bundle": "bun build src/index.ts --outdir dist --format esm --outfile index.mjs && bun build src/index.ts --outdir dist --format cjs --outfile index.js",
-    "dev": "bun run build:ts --watch",
+    "dev": "tsc --build --watch --pretty false",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "lint": "eslint src/**/*.ts",

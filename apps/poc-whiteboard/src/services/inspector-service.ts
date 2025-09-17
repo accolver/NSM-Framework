@@ -1,4 +1,4 @@
-import { type AnyActor } from 'xstate';
+import { type AnyActor, type AnyActorLogic } from 'xstate';
 
 /**
  * Configuration for the Inspector Service
@@ -94,6 +94,12 @@ class InspectorServiceImpl implements InspectorService {
   }
 
   async connect(): Promise<boolean> {
+    console.log('🔍 CONNECT CALLED - Environment check:');
+    console.log('🔍 - NODE_ENV:', process.env.NODE_ENV);
+    console.log('🔍 - devOnly:', this.config.devOnly);
+    console.log('🔍 - window available:', typeof window !== 'undefined');
+    console.log('🔍 - already connected:', this.connected);
+
     try {
       // Skip in production if configured
       if (this.config.devOnly && process.env.NODE_ENV === 'production') {
@@ -101,26 +107,90 @@ class InspectorServiceImpl implements InspectorService {
         return false;
       }
 
+      // Check if we're in a browser environment
+      if (typeof window === 'undefined') {
+        console.log('🔍 Inspector not available in non-browser environment');
+        return false;
+      }
+
+      // Check if already connected
+      if (this.connected && this.inspector) {
+        console.log('🔍 Inspector already connected, returning true');
+        return true;
+      }
+
+      // Check if we're in a test environment by detecting common test indicators
+      const isTestEnvironment =
+        process.env.NODE_ENV === 'test' ||
+        typeof (globalThis as any).expect !== 'undefined' ||
+        typeof (globalThis as any).vi !== 'undefined' ||
+        typeof (globalThis as any).jest !== 'undefined';
+
+      console.log('🔍 Test environment detected:', isTestEnvironment);
+      console.log('🔍 window.open available:', typeof window.open === 'function');
+
       // Dynamic import to avoid bundling in production
-      const { createInspector, createWebSocketReceiver } = await import('@statelyai/inspect');
+      console.log('🔍 Attempting dynamic import of @statelyai/inspect...');
+      const { createBrowserInspector } = await import('@statelyai/inspect');
+      console.log('🔍 Successfully imported @statelyai/inspect');
 
-      // Create WebSocket receiver (this creates the connection)
-      this.receiver = createWebSocketReceiver();
+      // In test environments, ensure window.open is available before creating inspector
+      if (isTestEnvironment && (!window.open || typeof window.open !== 'function')) {
+        console.log('🔍 Inspector connection skipped - test environment without window.open');
+        return false;
+      }
 
-      // Create inspector with the receiver
-      this.inspector = createInspector({
-        adapter: this.receiver
+      // Create browser inspector with explicit window handling
+      console.log('🔍 Creating browser inspector with config:', {
+        url: 'https://stately.ai/viz',
+        hasWindow: !!window,
+        autoStart: false
       });
 
-      // Start the inspector
-      this.inspector.start();
+      this.inspector = createBrowserInspector({
+        url: 'https://stately.ai/viz',
+        window: window,
+        iframe: null, // Allow popup for now
+        autoStart: false // We'll start manually
+      });
 
-      this.connected = true;
-      console.log('🔍 Inspector connected');
+      console.log('🔍 Inspector created successfully:', !!this.inspector);
 
-      return true;
+      // Start the inspector - wrap in try-catch for better error handling
+      try {
+        console.log('🔍 Starting inspector...');
+        this.inspector?.start();
+        this.connected = true;
+        console.log('🔍 Inspector started successfully');
+
+        if (isTestEnvironment) {
+          console.log('🔍 Inspector connected in test environment (mocked)');
+        } else {
+          console.log('🔍 Browser Inspector connected - popup window should open');
+        }
+
+        return true;
+      } catch (startError) {
+        console.error('🔍 Failed to start inspector:', startError);
+        console.error('🔍 Start error details:', {
+          message: startError?.message,
+          stack: startError?.stack,
+          name: startError?.name
+        });
+        // Clean up inspector instance if start fails
+        this.inspector = null;
+        this.connected = false;
+        return false;
+      }
+
     } catch (error) {
-      console.warn('🔍 Failed to connect inspector:', error);
+      console.error('🔍 Failed to connect inspector:', error);
+      console.error('🔍 Connection error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name,
+        cause: error?.cause
+      });
       this.connected = false;
       return false;
     }
@@ -156,16 +226,37 @@ class InspectorServiceImpl implements InspectorService {
     }
 
     try {
-      // Register with the inspector
+      console.log(`🔍 Registering actor ${name} with inspector...`);
+
+      // Get the current snapshot
+      const snapshot = actor.getSnapshot();
+
+      console.log('🔍 Actor snapshot:', {
+        value: snapshot.value,
+        status: snapshot.status,
+        contextKeys: Object.keys(snapshot.context || {}),
+        logic: !!actor.logic
+      });
+
+      // Register the actor with the inspector
+      // The inspector expects to receive state transitions and machine definition
       this.inspector.actor(actor);
 
       // Store locally for management
       this.registeredActors.set(name, actor);
 
-      console.log(`🔍 Actor registered: ${name}`);
+      console.log(`🔍 Actor registered successfully: ${name}`);
+      console.log('🔍 Inspector should now be tracking state transitions');
+      console.log('🔍 Visit https://stately.ai/viz to see the visualization');
+
       return true;
     } catch (error) {
-      console.warn(`🔍 Failed to register actor ${name}:`, error);
+      console.error(`🔍 Failed to register actor ${name}:`, error);
+      console.error('🔍 Registration error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name
+      });
       return false;
     }
   }
@@ -196,6 +287,86 @@ class InspectorServiceImpl implements InspectorService {
  */
 export function createInspectorService(config?: InspectorConfig): InspectorService {
   return new InspectorServiceImpl(config);
+}
+
+/**
+ * Create an XState actor with inspection enabled
+ * This is the recommended approach for XState 5
+ */
+export async function createInspectedActor<T extends AnyActorLogic>(
+  machine: T,
+  options: any = {}
+): Promise<{ actor: any; inspector?: any }> {
+  // Check if we're in an environment that supports inspection
+  if (typeof window === 'undefined' || process.env.NODE_ENV === 'production') {
+    // No inspection in non-browser or production environments
+    const { createActor } = await import('xstate');
+    return { actor: createActor(machine, options) };
+  }
+
+  // Check if we're in a test environment
+  const isTestEnvironment =
+    process.env.NODE_ENV === 'test' ||
+    typeof (globalThis as any).expect !== 'undefined' ||
+    typeof (globalThis as any).vi !== 'undefined' ||
+    typeof (globalThis as any).jest !== 'undefined';
+
+  try {
+    const [{ createActor }, { createBrowserInspector }] = await Promise.all([
+      import('xstate'),
+      import('@statelyai/inspect')
+    ]);
+
+    // In test environments, check if window.open is available
+    if (isTestEnvironment && (!window.open || typeof window.open !== 'function')) {
+      console.log('🔍 Creating actor without inspection in test environment');
+      return { actor: createActor(machine, options) };
+    }
+
+    // Check if in development mode and enable additional logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Creating actor with inspection in development mode');
+    }
+
+    // Create the inspector with proper error handling
+    let inspector: any = null;
+    try {
+      inspector = createBrowserInspector({
+        url: 'https://stately.ai/viz',
+        window: window,
+        iframe: null,
+        autoStart: true
+      });
+    } catch (inspectorError) {
+      console.warn('🔍 Failed to create inspector, falling back to normal actor:', inspectorError);
+      return { actor: createActor(machine, options) };
+    }
+
+    // Create actor with inspection enabled
+    const actor = createActor(machine, {
+      ...options,
+      inspect: inspector?.inspect
+    });
+
+    console.log('🔍 Actor created with inspection:', {
+      hasInspector: !!inspector,
+      hasInspect: !!inspector?.inspect,
+      machineId: machine.id || 'unknown',
+      actorId: actor.sessionId || 'unknown'
+    });
+
+    if (isTestEnvironment) {
+      console.log('🔍 Actor created with inspection enabled in test environment');
+    } else {
+      console.log('🔍 Actor created with inspection enabled');
+    }
+
+    return { actor, inspector };
+  } catch (error) {
+    console.warn('🔍 Failed to create inspected actor, falling back to normal actor:', error);
+    const { createActor } = await import('xstate');
+    return { actor: createActor(machine, options) };
+  }
 }
 
 /**
@@ -235,7 +406,7 @@ export async function inspectActor(actor: AnyActor, name: string = 'unnamed-acto
  * Utility function to create and inspect an actor in one call
  * Useful for development and debugging workflows
  */
-export async function createInspectedActor<T extends AnyActor>(
+export async function createAndInspectActor<T extends AnyActor>(
   actorFactory: () => T,
   name: string = 'inspected-actor'
 ): Promise<{ actor: T; inspected: boolean }> {

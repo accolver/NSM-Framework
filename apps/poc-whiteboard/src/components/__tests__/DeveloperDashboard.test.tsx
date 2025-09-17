@@ -1,6 +1,6 @@
 import '../../test-setup';
 import { describe, test, expect, beforeEach, afterEach, vi } from 'bun:test';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { DeveloperDashboard } from '../DeveloperDashboard';
 import { createEventLogService, type EventLogService } from '../../services/event-log-service';
@@ -57,6 +57,7 @@ describe('DeveloperDashboard', () => {
   });
 
   afterEach(() => {
+    cleanup();
     services.eventLogService.stop();
     services.timeTravelService.disconnect();
     services.inspectorService.disconnect();

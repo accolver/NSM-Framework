@@ -287,7 +287,7 @@ export class PerformanceMonitor extends EventEmitter {
 
     // Override fetch to track network requests
     const originalFetch = window.fetch;
-    window.fetch = async (...args: Parameters<typeof fetch>) => {
+    (window.fetch as any) = async (...args: Parameters<typeof fetch>) => {
       const startTime = performance.now();
       this.networkStats.requestCount++;
 
@@ -338,14 +338,19 @@ export class PerformanceMonitor extends EventEmitter {
     // Navigate to the correct nested object
     for (let i = 0; i < keys.length - 1; i++) {
       const key = keys[i];
-      if (!current[key]) {
+      if (key && !current[key]) {
         current[key] = {};
       }
-      current = current[key];
+      if (key) {
+        current = current[key];
+      }
     }
 
     // Set the value
-    current[keys[keys.length - 1]] = value;
+    const finalKey = keys[keys.length - 1];
+    if (finalKey) {
+      current[finalKey] = value;
+    }
 
     // Check for threshold violations
     this.checkThresholds(path, value);
@@ -581,7 +586,7 @@ export class PerformanceMonitor extends EventEmitter {
 
   // Getter methods
   public getCurrentMetrics(): PerformanceMetrics | null {
-    return this.metrics.length > 0 ? this.metrics[this.metrics.length - 1] : null;
+    return this.metrics.length > 0 ? this.metrics[this.metrics.length - 1] || null : null;
   }
 
   public getMetricsHistory(limit?: number): PerformanceMetrics[] {

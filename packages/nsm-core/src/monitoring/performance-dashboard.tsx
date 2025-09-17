@@ -222,7 +222,7 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
                 padding: '12px',
                 backgroundColor: '#f8f9fa',
                 borderRadius: '6px',
-                border: `2px solid ${getStatusColor(data.status)}`
+                border: `2px solid ${getStatusColor(data.status as 'good' | 'needs-improvement' | 'poor')}`
               }}>
                 <div style={{
                   fontSize: '12px',
@@ -236,13 +236,13 @@ const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
                 <div style={{
                   fontSize: '18px',
                   fontWeight: '700',
-                  color: getStatusColor(data.status)
+                  color: getStatusColor(data.status as 'good' | 'needs-improvement' | 'poor')
                 }}>
                   {key === 'cls' ? data.value.toFixed(3) : formatValue(data.value)}
                 </div>
                 <div style={{
                   fontSize: '10px',
-                  color: getStatusColor(data.status),
+                  color: getStatusColor(data.status as 'good' | 'needs-improvement' | 'poor'),
                   textTransform: 'capitalize'
                 }}>
                   {data.status.replace('-', ' ')}

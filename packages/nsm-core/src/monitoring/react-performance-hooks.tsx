@@ -3,7 +3,7 @@
  * Easy-to-use React hooks for performance tracking in NSM applications
  */
 
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { getPerformanceMonitor, PerformanceMetrics, PerformanceAlert, PerformanceConfig } from './performance-monitor';
 
 /**

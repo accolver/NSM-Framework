@@ -8,7 +8,7 @@
     "build": "vite build",
     "build:bun": "bun build src/index.tsx --outdir dist --target browser --format esm --splitting",
     "build:analyze": "vite-bundle-analyzer",
-    "dev": "npx vite || echo 'Vite started with warnings'",
+    "dev": "npx vite --logLevel warn || echo 'Vite started with warnings'",
     "dev:build-watch": "bun build src/index.tsx --outdir dist --target browser --format esm --watch",
     "dev:serve": "bunx serve dist -p 3000",
     "preview": "vite preview",

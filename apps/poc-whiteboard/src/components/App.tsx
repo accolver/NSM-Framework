@@ -27,119 +27,256 @@ const createMockNostrEvent = (overrides: Partial<INostrEvent> = {}): INostrEvent
 };
 
 export const App: React.FC = () => {
-  const [actor] = useState(() => createActor(whiteboardMachine));
-  const [state, setState] = useState(() => actor.getSnapshot());
+  console.log('🎨 App component rendering - START');
+
+  const [actor] = useState(() => {
+    console.log('🎨 Creating XState actor');
+
+    // Create actor without inspection first - we'll connect inspector later
+    const newActor = createActor(whiteboardMachine);
+    console.log('🎨 Actor created with sessionId:', newActor.sessionId);
+
+    return newActor;
+  });
+
+  const [state, setState] = useState(() => {
+    console.log('🎨 Getting initial state snapshot');
+    return actor.getSnapshot();
+  });
+
   const [canvasSize, setCanvasSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight - 120 // Account for toolbar
   });
   const [inspectorConnected, setInspectorConnected] = useState(false);
   const [showDashboard, setShowDashboard] = useState(true);
-  const [eventLogService] = useState(() => getEventLogService({
-    maxEvents: 500,
-    enableRealtime: true,
-    autoStart: true
-  }));
-  const [timeTravelService] = useState(() => getTimeTravelService({
-    maxSnapshots: 100,
-    enableRealtime: true,
-    autoCapture: true,
-    devOnly: true
-  }));
-  const [inspectorService] = useState(() => getInspectorService({
-    autoStart: true,
-    devOnly: true
-  }));
+
+  // Initialize services with error handling and debugging
+  const [eventLogService] = useState(() => {
+    console.log('🎨 Initializing EventLogService');
+    try {
+      return getEventLogService({
+        maxEvents: 500,
+        enableRealtime: true,
+        autoStart: true
+      });
+    } catch (error) {
+      console.error('🚨 Failed to initialize EventLogService:', error);
+      throw error;
+    }
+  });
+
+  const [timeTravelService] = useState(() => {
+    console.log('🎨 Initializing TimeTravelService');
+    try {
+      return getTimeTravelService({
+        maxSnapshots: 100,
+        enableRealtime: true,
+        autoCapture: true,
+        devOnly: true
+      });
+    } catch (error) {
+      console.error('🚨 Failed to initialize TimeTravelService:', error);
+      throw error;
+    }
+  });
+
+  const [inspectorService] = useState(() => {
+    console.log('🎨 Initializing InspectorService');
+    try {
+      return getInspectorService({
+        autoStart: false, // Change to false to prevent blocking
+        devOnly: true
+      });
+    } catch (error) {
+      console.error('🚨 Failed to initialize InspectorService:', error);
+      throw error;
+    }
+  });
 
   // Initialize the actor and subscribe to state changes
   useEffect(() => {
-    console.log('🎨 Whiteboard app starting - initializing state machine');
+    console.log('🎨 Main useEffect starting - initializing state machine');
 
-    // Initialize developer tools in development
-    if (process.env.NODE_ENV === 'development') {
-      // Connect and register the actor for inspection
-      inspectorService.connect().then((connected) => {
-        if (connected) {
-          inspectorService.registerActor(actor, 'whiteboard-machine');
-          console.log('🔍 XState Inspector connected - machine visualization available');
-          setInspectorConnected(true);
-        } else {
-          console.log('🔍 XState Inspector failed to connect - visualization not available');
-          setInspectorConnected(false);
+    let subscriptionRef: any = null;
+    let isDestroyed = false;
+
+    const initializeApp = async () => {
+      try {
+        console.log('🎨 Starting actor...');
+        actor.start();
+        console.log('✅ Actor started successfully');
+
+        // Initialize developer tools in development - but don't block
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🎨 Initializing dev tools (non-blocking)...');
+
+          // Connect inspector asynchronously without blocking
+          setTimeout(async () => {
+            try {
+              console.log('🔍 Attempting inspector connection...');
+              const connected = await inspectorService.connect();
+              if (connected) {
+                // Wait a moment for the inspector to fully initialize
+                setTimeout(() => {
+                  try {
+                    inspectorService.registerActor(actor, 'whiteboard-machine');
+                    console.log('🔍 XState Inspector connected - machine visualization available');
+                    console.log('🔍 Check your browser for a popup window or visit https://stately.ai/viz');
+                    if (!isDestroyed) setInspectorConnected(true);
+                  } catch (regError) {
+                    console.warn('🔍 Inspector registration error:', regError);
+                    if (!isDestroyed) setInspectorConnected(false);
+                  }
+                }, 500);
+              } else {
+                console.log('🔍 XState Inspector failed to connect - visualization not available');
+                if (!isDestroyed) setInspectorConnected(false);
+              }
+            } catch (error) {
+              console.warn('🔍 Inspector connection error:', error);
+              if (!isDestroyed) setInspectorConnected(false);
+            }
+          }, 100);
+
+          // Initialize Time Travel Service asynchronously
+          setTimeout(() => {
+            try {
+              console.log('🕰️ Connecting time travel service...');
+              timeTravelService.connect();
+              const registered = timeTravelService.registerActor(actor, 'whiteboard-machine');
+              if (registered) {
+                console.log('🕰️ Time Travel Service initialized - time travel debugging available');
+              }
+            } catch (error) {
+              console.warn('🕰️ Time travel service error:', error);
+            }
+          }, 200);
         }
-      }).catch(() => {
-        setInspectorConnected(false);
-      });
 
-      // Initialize Time Travel Service
-      timeTravelService.connect();
-      const registered = timeTravelService.registerActor(actor, 'whiteboard-machine');
-      if (registered) {
-        console.log('🕰️ Time Travel Service initialized - time travel debugging available');
-      }
-    }
+        // Set up subscription
+        console.log('🎨 Setting up actor subscription...');
+        subscriptionRef = actor.subscribe((snapshot) => {
+          console.log('🔄 Whiteboard state update:', snapshot.value);
 
-    actor.start();
+          // Log state machine events to EventLogService for real-time updates
+          try {
+            if (snapshot.value !== state.value || snapshot.context !== state.context) {
+              // Create a state update event for the event log
+              const stateEvent = createMockNostrEvent({
+                kind: NSM_PROTOCOL.STATE_UPDATE_KIND,
+                content: JSON.stringify({
+                  state: snapshot.value,
+                  previousState: state.value,
+                  context: {
+                    currentTool: snapshot.context.currentTool,
+                    isDrawing: snapshot.context.isDrawing,
+                    pathsCount: snapshot.context.paths.length,
+                    shapesCount: snapshot.context.shapes.length,
+                    selectedObjects: snapshot.context.selectedObjects.length
+                  },
+                  timestamp: Date.now()
+                })
+              });
 
-    const subscription = actor.subscribe((snapshot) => {
-      console.log('🔄 Whiteboard state update:', snapshot.value, snapshot.context);
-      setState(snapshot);
+              logNostrEvent(stateEvent);
+              console.log('📝 Logged state change event to EventLogService');
+            }
+          } catch (error) {
+            console.warn('⚠️ Error logging state change:', error);
+          }
 
-      // Set up collaboration service callback when it's initialized
-      if (snapshot.context.collaborationService) {
-        snapshot.context.collaborationService.setEventCallback((event) => {
-          console.log('📡 Received remote event:', event);
-          actor.send(event);
-        });
-      }
-
-      // Set up real-time collaboration event listeners when it's initialized
-      if (snapshot.context.realTimeCollaborationService) {
-        const rtService = snapshot.context.realTimeCollaborationService;
-
-        // Listen for cursor updates
-        rtService.onCursorUpdate((event) => {
-          console.log('👆 Cursor update:', event);
-          actor.send({
-            type: 'UPDATE_REMOTE_CURSOR',
-            userId: event.userId,
-            position: event.position
+          // Prevent potential infinite loop by checking if state actually changed
+          setState(prevState => {
+            if (prevState.value === snapshot.value &&
+                prevState.context === snapshot.context) {
+              return prevState; // No change, prevent re-render
+            }
+            return snapshot;
           });
-        });
 
-        // Listen for live drawing events
-        rtService.onLiveDrawingUpdate((event) => {
-          console.log('✏️ Live drawing update:', event);
-          actor.send({
-            type: event.type === 'LIVE_DRAWING_START' ? 'START_LIVE_DRAWING' : 'END_LIVE_DRAWING',
-            userId: event.userId,
-            drawingId: event.drawingId
-          });
-        });
+          // CRITICAL FIX: Only set up event callbacks once, not on every state change
+          // This was likely causing infinite loops
+          if (snapshot.context.collaborationService && !snapshot.context.collaborationService._callbackSet) {
+            console.log('📡 Setting up collaboration service callback (once)');
+            snapshot.context.collaborationService.setEventCallback((event) => {
+              console.log('📡 Received remote event:', event);
+              // Use setTimeout to break potential infinite loop
+              setTimeout(() => actor.send(event), 0);
+            });
+            // Mark callback as set
+            snapshot.context.collaborationService._callbackSet = true;
+          }
 
-        // Listen for participant updates
-        rtService.onParticipantUpdate((event) => {
-          console.log('👥 Participant update:', event);
-          actor.send({
-            type: event.type === 'PARTICIPANT_JOINED' ? 'PARTICIPANT_JOINED' : 'PARTICIPANT_LEFT',
-            userId: event.userId,
-            userName: event.userName
-          });
+          // CRITICAL FIX: Same for real-time collaboration - set up once only
+          if (snapshot.context.realTimeCollaborationService && !snapshot.context.realTimeCollaborationService._listenersSet) {
+            console.log('⚡ Setting up real-time collaboration listeners (once)');
+            const rtService = snapshot.context.realTimeCollaborationService;
+
+            // Listen for cursor updates
+            rtService.onCursorUpdate((event) => {
+              console.log('👆 Cursor update:', event);
+              setTimeout(() => actor.send({
+                type: 'UPDATE_REMOTE_CURSOR',
+                userId: event.userId,
+                position: event.position
+              }), 0);
+            });
+
+            // Listen for live drawing events
+            rtService.onLiveDrawingUpdate((event) => {
+              console.log('✏️ Live drawing update:', event);
+              setTimeout(() => actor.send({
+                type: event.type === 'LIVE_DRAWING_START' ? 'START_LIVE_DRAWING' : 'END_LIVE_DRAWING',
+                userId: event.userId,
+                drawingId: event.drawingId
+              }), 0);
+            });
+
+            // Listen for participant updates
+            rtService.onParticipantUpdate((event) => {
+              console.log('👥 Participant update:', event);
+              setTimeout(() => actor.send({
+                type: event.type === 'PARTICIPANT_JOINED' ? 'PARTICIPANT_JOINED' : 'PARTICIPANT_LEFT',
+                userId: event.userId,
+                userName: event.userName
+              }), 0);
+            });
+
+            // Mark listeners as set
+            rtService._listenersSet = true;
+          }
         });
+        console.log('✅ Actor subscription set up successfully');
+
+      } catch (error) {
+        console.error('🚨 Error during app initialization:', error);
       }
-    });
+    };
+
+    // Start initialization
+    initializeApp();
 
     return () => {
-      console.log('🎨 Whiteboard app stopping');
-      subscription.unsubscribe();
+      console.log('🎨 Whiteboard app cleanup starting');
+      isDestroyed = true;
+
+      if (subscriptionRef) {
+        console.log('🎨 Unsubscribing from actor');
+        subscriptionRef.unsubscribe();
+      }
+
+      console.log('🎨 Stopping actor');
       actor.stop();
 
       // Cleanup developer tools
       if (process.env.NODE_ENV === 'development') {
+        console.log('🎨 Disconnecting dev tools');
         timeTravelService.disconnect();
       }
+      console.log('✅ Whiteboard app cleanup complete');
     };
-  }, [actor, inspectorService, timeTravelService]);
+  }, []); // Remove dependencies that could cause re-execution
 
   // Handle window resize
   useEffect(() => {
@@ -222,84 +359,116 @@ export const App: React.FC = () => {
 
   // Initialize collaboration and join session on mount
   useEffect(() => {
-    const userId = `user_${Math.random().toString(36).substr(2, 9)}`;
-    const userName = `User ${userId.slice(-4)}`;
+    console.log('🎨 Collaboration initialization useEffect starting...');
 
-    // Initialize collaboration service first
-    actor.send({
-      type: 'INITIALIZE_COLLABORATION',
-      userId,
-      userName
-    });
+    // Use setTimeout to ensure this runs after main initialization
+    const initTimeout = setTimeout(() => {
+      try {
+        const userId = `user_${Math.random().toString(36).substr(2, 9)}`;
+        const userName = `User ${userId.slice(-4)}`;
 
-    // Initialize real-time collaboration features
-    actor.send({
-      type: 'INITIALIZE_REALTIME_COLLABORATION'
-    });
+        console.log('🤝 Initializing collaboration for user:', userId);
 
-    // Then join the session
-    actor.send({
-      type: 'JOIN_SESSION',
-      userId,
-      userName
-    });
+        // Initialize collaboration service first
+        console.log('🤝 Sending INITIALIZE_COLLABORATION');
+        actor.send({
+          type: 'INITIALIZE_COLLABORATION',
+          userId,
+          userName
+        });
 
-    // Add the user as a participant
-    actor.send({
-      type: 'PARTICIPANT_JOINED',
-      userId,
-      userName
-    });
+        // Small delay between initializations to prevent race conditions
+        setTimeout(() => {
+          console.log('⚡ Sending INITIALIZE_REALTIME_COLLABORATION');
+          actor.send({
+            type: 'INITIALIZE_REALTIME_COLLABORATION'
+          });
 
-    // Add some demo NSM events for the event log
-    if (process.env.NODE_ENV === 'development') {
-      // NSM Definition event
-      logNostrEvent(createMockNostrEvent({
-        kind: NSM_PROTOCOL.DEFINITION_KIND,
-        content: JSON.stringify({
-          type: 'whiteboard',
-          definition: {
-            states: ['idle', 'drawing', 'selecting'],
-            events: ['START_DRAWING', 'END_DRAWING', 'SELECT_TOOL']
-          }
-        })
-      }));
+          setTimeout(() => {
+            console.log('🤝 Sending JOIN_SESSION');
+            actor.send({
+              type: 'JOIN_SESSION',
+              userId,
+              userName
+            });
 
-      // NSM State Update event
-      logNostrEvent(createMockNostrEvent({
-        kind: NSM_PROTOCOL.STATE_UPDATE_KIND,
-        content: JSON.stringify({
-          state: 'idle',
-          previousState: 'drawing',
-          timestamp: Date.now()
-        })
-      }));
+            setTimeout(() => {
+              console.log('👥 Sending PARTICIPANT_JOINED');
+              actor.send({
+                type: 'PARTICIPANT_JOINED',
+                userId,
+                userName
+              });
 
-      // NSM Interaction events
-      logNostrEvent(createMockNostrEvent({
-        kind: NSM_PROTOCOL.INTERACTION_KIND_MIN + 100, // 7100
-        content: JSON.stringify({
-          action: 'startDrawing',
-          tool: 'pen',
-          coordinates: { x: 150, y: 200 },
-          userId: userId
-        })
-      }));
+              // Add demo NSM events after everything is set up
+              if (process.env.NODE_ENV === 'development') {
+                console.log('📝 Adding demo NSM events...');
+                try {
+                  // NSM Definition event
+                  logNostrEvent(createMockNostrEvent({
+                    kind: NSM_PROTOCOL.DEFINITION_KIND,
+                    content: JSON.stringify({
+                      type: 'whiteboard',
+                      definition: {
+                        states: ['idle', 'drawing', 'selecting'],
+                        events: ['START_DRAWING', 'END_DRAWING', 'SELECT_TOOL']
+                      }
+                    })
+                  }));
 
-      logNostrEvent(createMockNostrEvent({
-        kind: NSM_PROTOCOL.INTERACTION_KIND_MIN + 200, // 7200
-        content: JSON.stringify({
-          action: 'endDrawing',
-          pathId: 'path-' + Math.random().toString(36).substring(2, 9),
-          userId: userId
-        })
-      }));
-    }
-  }, [actor]);
+                  // NSM State Update event
+                  logNostrEvent(createMockNostrEvent({
+                    kind: NSM_PROTOCOL.STATE_UPDATE_KIND,
+                    content: JSON.stringify({
+                      state: 'idle',
+                      previousState: 'drawing',
+                      timestamp: Date.now()
+                    })
+                  }));
+
+                  // NSM Interaction events
+                  logNostrEvent(createMockNostrEvent({
+                    kind: NSM_PROTOCOL.INTERACTION_KIND_MIN + 100, // 7100
+                    content: JSON.stringify({
+                      action: 'startDrawing',
+                      tool: 'pen',
+                      coordinates: { x: 150, y: 200 },
+                      userId: userId
+                    })
+                  }));
+
+                  logNostrEvent(createMockNostrEvent({
+                    kind: NSM_PROTOCOL.INTERACTION_KIND_MIN + 200, // 7200
+                    content: JSON.stringify({
+                      action: 'endDrawing',
+                      pathId: 'path-' + Math.random().toString(36).substring(2, 9),
+                      userId: userId
+                    })
+                  }));
+
+                  console.log('✅ Demo NSM events added successfully');
+                } catch (error) {
+                  console.warn('⚠️ Error adding demo NSM events:', error);
+                }
+              }
+            }, 50); // PARTICIPANT_JOINED
+          }, 50); // JOIN_SESSION
+        }, 50); // INITIALIZE_REALTIME_COLLABORATION
+      } catch (error) {
+        console.error('🚨 Error during collaboration initialization:', error);
+      }
+    }, 500); // Wait for main initialization
+
+    return () => {
+      clearTimeout(initTimeout);
+    };
+  }, []); // Remove actor dependency to prevent re-execution
 
   const send = useCallback((event: any) => {
     actor.send(event);
   }, [actor]);
+
+  console.log('🎨 App component rendering - RENDER phase, state:', state.value);
 
   return (
     <div style={{

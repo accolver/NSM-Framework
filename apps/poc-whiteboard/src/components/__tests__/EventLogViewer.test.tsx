@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach, vi } from 'bun:test';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import { screen, render, fireEvent, waitFor, cleanup, userEvent } from '../../test-utils';
+// Note: Using custom jest-dom matchers from test-utils instead of @testing-library/jest-dom
 import { EventLogViewer } from '../EventLogViewer';
 import { createEventLogService, type EventLogService } from '../../services/event-log-service';
 import { NSM_PROTOCOL } from '@nsm/core';
@@ -32,6 +32,7 @@ describe('EventLogViewer', () => {
   });
 
   afterEach(() => {
+    cleanup();
     eventLogService.stop();
   });
 
@@ -99,7 +100,8 @@ describe('EventLogViewer', () => {
       render(<EventLogViewer eventLogService={eventLogService} />);
 
       expect(screen.getByText('definition')).toBeInTheDocument();
-      expect(screen.getByText('test-pubkey-123')).toBeInTheDocument();
+      // The pubkey might be displayed with "from: " prefix or truncated
+      expect(screen.getByText(/test-pubkey-123/)).toBeInTheDocument();
       expect(screen.getByText(/just now|minute|hour|day/)).toBeInTheDocument();
     });
 
@@ -354,6 +356,7 @@ describe('EventLogViewer', () => {
       expect(searchInput).toHaveFocus();
 
       // Tab navigation should work
+      const user = userEvent.setup();
       await user.tab();
       const filterSelect = screen.getByDisplayValue('All Events');
       expect(filterSelect).toHaveFocus();

@@ -7,9 +7,12 @@
     "allowImportingTsExtensions": false,
     "composite": true,
     "module": "CommonJS",
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "types": ["bun-types", "@testing-library/jest-dom"]
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "src/test-types.d.ts"],
   "exclude": ["dist", "node_modules"],
   "references": [
     { "path": "../../packages/nsm-core" },

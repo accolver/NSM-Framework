@@ -3,6 +3,13 @@
  * Complete performance monitoring solution for NSM applications
  */
 
+import {
+  getPerformanceMonitor as _getPerformanceMonitor,
+  type PerformanceConfig as _PerformanceConfig,
+  type PerformanceMetrics as _PerformanceMetrics,
+  type PerformanceAlert as _PerformanceAlert
+} from './performance-monitor';
+
 // Core monitoring system
 export {
   PerformanceMonitor,
@@ -155,7 +162,7 @@ export const PerformanceUtils = {
     if (!PerformanceUtils.isSupported()) return null;
 
     const entries = performance.getEntriesByName(name, type);
-    return entries.length > 0 ? entries[entries.length - 1] : null;
+    return entries.length > 0 ? entries[entries.length - 1] || null : null;
   },
 
   /**
@@ -225,8 +232,8 @@ export const DEFAULT_PERFORMANCE_CONFIG = {
 } as const;
 
 // Quick setup function for easy initialization
-export const setupPerformanceMonitoring = (config?: Partial<PerformanceConfig>) => {
-  const monitor = getPerformanceMonitor(config);
+export const setupPerformanceMonitoring = (config?: Partial<_PerformanceConfig>) => {
+  const monitor = _getPerformanceMonitor(config);
 
   // Auto-start monitoring if enabled
   if (config?.enabled !== false) {
@@ -237,7 +244,7 @@ export const setupPerformanceMonitoring = (config?: Partial<PerformanceConfig>) 
 };
 
 // TypeScript type guards
-export const isPerformanceMetrics = (obj: any): obj is PerformanceMetrics => {
+export const isPerformanceMetrics = (obj: any): obj is _PerformanceMetrics => {
   return obj &&
          typeof obj.timestamp === 'number' &&
          obj.coreWebVitals &&
@@ -247,7 +254,7 @@ export const isPerformanceMetrics = (obj: any): obj is PerformanceMetrics => {
          obj.memory;
 };
 
-export const isPerformanceAlert = (obj: any): obj is PerformanceAlert => {
+export const isPerformanceAlert = (obj: any): obj is _PerformanceAlert => {
   return obj &&
          typeof obj.id === 'string' &&
          typeof obj.type === 'string' &&

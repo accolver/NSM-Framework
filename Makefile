@@ -1,7 +1,7 @@
 # NSM Framework Makefile
 # Nostr State Machine Framework - Development Commands
 
-.PHONY: help install build dev test clean deploy lint format type-check
+.PHONY: help install build dev test clean deploy lint format type-check status services tasks
 
 # Default target
 help:
@@ -25,6 +25,7 @@ help:
 	@echo ""
 	@echo "📊 Monitoring:"
 	@echo "  make status      Show project status"
+	@echo "  make services    Show development service status"
 	@echo "  make tasks       Show TaskMaster tasks"
 
 # Install all dependencies
@@ -39,13 +40,11 @@ build:
 	@bun run build
 	@echo "✅ Build completed successfully"
 
-# Development mode with watch
+# Development mode with enhanced URL logging
 dev:
 	@echo "🚀 Starting NSM Framework development mode..."
-	@echo "📱 Core Protocol: packages/nsm-core"
-	@echo "📱 Client SDK: packages/nsm-client"
-	@echo "📱 Blossom Storage: packages/nsm-client-sdk"
-	@bun run dev
+	@echo ""
+	@./scripts/dev-enhanced.sh
 
 # Run comprehensive tests
 test:
@@ -120,6 +119,10 @@ status:
 	@if [ -d "packages/nsm-core/dist" ]; then echo "  ✅ nsm-core built"; else echo "  ❌ nsm-core needs build"; fi
 	@if [ -d "packages/nsm-client/dist" ]; then echo "  ✅ nsm-client built"; else echo "  ❌ nsm-client needs build"; fi
 	@if [ -d "packages/nsm-client-sdk/dist" ]; then echo "  ✅ nsm-client-sdk built"; else echo "  ❌ nsm-client-sdk needs build"; fi
+
+# Show development service status
+services:
+	@./scripts/service-status.sh
 
 # Show TaskMaster tasks
 tasks:

@@ -13,7 +13,7 @@
   "scripts": {
     "build": "tsc",
     "test": "bun test",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch --pretty false"
   },
   "dependencies": {
     "@nsm/core": "workspace:*",

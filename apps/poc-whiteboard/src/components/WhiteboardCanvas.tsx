@@ -10,6 +10,9 @@ import {
   DrawingTool,
   ShapeType
 } from '../whiteboard-machine';
+import { logNostrEvent } from '../services/event-log-service';
+import { NSM_PROTOCOL } from '@nsm/core';
+import type { INostrEvent } from '@nsm/core';
 
 interface WhiteboardCanvasProps {
   context: WhiteboardContext;
@@ -17,6 +20,20 @@ interface WhiteboardCanvasProps {
   width: number;
   height: number;
 }
+
+// Helper function to create interaction events for the event log
+const createInteractionEvent = (overrides: Partial<INostrEvent> = {}): INostrEvent => {
+  return {
+    id: 'interaction-' + Math.random().toString(36).substring(2, 15),
+    pubkey: 'whiteboard-' + Math.random().toString(36).substring(2, 32),
+    created_at: Math.floor(Date.now() / 1000),
+    kind: NSM_PROTOCOL.INTERACTION_KIND_MIN + 100, // 7100 for drawing interactions
+    tags: [],
+    content: 'Whiteboard interaction',
+    sig: 'interaction-signature-' + Math.random().toString(36).substring(2, 32),
+    ...overrides
+  };
+};
 
 export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   context,
@@ -44,12 +61,29 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
 
     send({ type: 'START_DRAWING', point });
 
+    // Log interaction event to EventLogService
+    try {
+      const interactionEvent = createInteractionEvent({
+        content: JSON.stringify({
+          action: 'startDrawing',
+          tool: context.currentTool,
+          coordinates: { x: point.x, y: point.y },
+          userId: context.userId,
+          timestamp: Date.now()
+        })
+      });
+      logNostrEvent(interactionEvent);
+      console.log('📝 Logged START_DRAWING interaction event');
+    } catch (error) {
+      console.warn('⚠️ Error logging START_DRAWING event:', error);
+    }
+
     // Notify real-time collaboration about live drawing start
     if (context.realTimeCollaborationService && context.userId) {
       const drawingId = `drawing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       context.realTimeCollaborationService.startLiveDrawing(context.userId, drawingId);
     }
-  }, [context.currentTool, send]);
+  }, [context.currentTool, context.userId, send]);
 
   const handlePointerMove = useCallback((e: KonvaEventObject<PointerEvent>) => {
     const pos = e.target.getStage()?.getPointerPosition();
@@ -74,18 +108,57 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     };
 
     send({ type: 'CONTINUE_DRAWING', point });
-  }, [send]);
+
+    // Log drawing continuation occasionally (throttled to avoid spam)
+    if (Math.random() < 0.1) { // 10% chance to log drawing points
+      try {
+        const continueEvent = createInteractionEvent({
+          kind: NSM_PROTOCOL.INTERACTION_KIND_MIN + 101, // 7101 for drawing continuation
+          content: JSON.stringify({
+            action: 'continueDrawing',
+            tool: context.currentTool,
+            coordinates: { x: point.x, y: point.y },
+            userId: context.userId,
+            timestamp: Date.now()
+          })
+        });
+        logNostrEvent(continueEvent);
+        console.log('📝 Logged CONTINUE_DRAWING interaction event');
+      } catch (error) {
+        console.warn('⚠️ Error logging CONTINUE_DRAWING event:', error);
+      }
+    }
+  }, [context.currentTool, context.userId, send]);
 
   const handlePointerUp = useCallback(() => {
     if (!isDrawing.current) return;
     isDrawing.current = false;
     send({ type: 'END_DRAWING' });
 
+    // Log end drawing event
+    try {
+      const endEvent = createInteractionEvent({
+        kind: NSM_PROTOCOL.INTERACTION_KIND_MIN + 102, // 7102 for drawing completion
+        content: JSON.stringify({
+          action: 'endDrawing',
+          tool: context.currentTool,
+          userId: context.userId,
+          pathCount: context.paths.length + 1,
+          shapeCount: context.shapes.length + (context.currentTool === 'shape' ? 1 : 0),
+          timestamp: Date.now()
+        })
+      });
+      logNostrEvent(endEvent);
+      console.log('📝 Logged END_DRAWING interaction event');
+    } catch (error) {
+      console.warn('⚠️ Error logging END_DRAWING event:', error);
+    }
+
     // Notify real-time collaboration about live drawing end
     if (context.realTimeCollaborationService && context.userId) {
       context.realTimeCollaborationService.endLiveDrawing(context.userId);
     }
-  }, [send, context.realTimeCollaborationService, context.userId]);
+  }, [context.currentTool, context.userId, context.paths.length, context.shapes.length, send, context.realTimeCollaborationService]);
 
   // Handle stage click for deselection
   const handleStageClick = useCallback((e: KonvaEventObject<MouseEvent>) => {

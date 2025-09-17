@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XState Inspector Debug Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .debug-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #2d2d30;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+        .debug-section h3 {
+            margin-top: 0;
+            color: #4fc3f7;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #005ea6;
+        }
+        .test-button {
+            background: #4caf50;
+        }
+        .danger-button {
+            background: #f44336;
+        }
+        #log {
+            background: #000;
+            color: #00ff00;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            border: 1px solid #333;
+        }
+        .status {
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 3px;
+            margin: 5px;
+            display: inline-block;
+        }
+        .status.connected {
+            background: #4caf50;
+            color: white;
+        }
+        .status.disconnected {
+            background: #ff9800;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>XState Inspector Debug Console</h1>
+
+    <div class="debug-section">
+        <h3>Environment Check</h3>
+        <div id="env-info"></div>
+        <button class="test-button" onclick="checkEnvironment()">Check Environment</button>
+    </div>
+
+    <div class="debug-section">
+        <h3>Inspector Control</h3>
+        <div id="inspector-status" class="status disconnected">Disconnected</div>
+        <br>
+        <button onclick="testDirectImport()">Test Import</button>
+        <button onclick="createTestInspector()">Create Inspector</button>
+        <button onclick="connectInspector()">Connect</button>
+        <button onclick="disconnectInspector()">Disconnect</button>
+        <button class="danger-button" onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="debug-section">
+        <h3>Test XState Machine</h3>
+        <button onclick="createTestMachine()">Create Test Machine</button>
+        <button onclick="registerMachine()">Register with Inspector</button>
+        <button onclick="sendTestEvent()">Send Test Event</button>
+    </div>
+
+    <div class="debug-section">
+        <h3>Debug Log</h3>
+        <div id="log"></div>
+    </div>
+
+    <script type="module">
+        let inspector = null;
+        let testActor = null;
+
+        function log(message, level = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const levelColor = level === 'error' ? '#ff6b6b' : level === 'warn' ? '#ffa500' : '#00ff00';
+            logDiv.innerHTML += `<div style="color: ${levelColor}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[${level.toUpperCase()}] ${message}`);
+        }
+
+        function updateStatus(connected) {
+            const statusDiv = document.getElementById('inspector-status');
+            if (connected) {
+                statusDiv.textContent = 'Connected';
+                statusDiv.className = 'status connected';
+            } else {
+                statusDiv.textContent = 'Disconnected';
+                statusDiv.className = 'status disconnected';
+            }
+        }
+
+        window.checkEnvironment = function() {
+            log('=== ENVIRONMENT CHECK ===');
+            log(`NODE_ENV: ${typeof process !== 'undefined' ? process.env?.NODE_ENV : 'undefined'}`);
+            log(`Window available: ${typeof window !== 'undefined'}`);
+            log(`Window.open available: ${typeof window?.open}`);
+            log(`Navigator available: ${typeof navigator !== 'undefined'}`);
+            log(`User Agent: ${navigator?.userAgent || 'N/A'}`);
+
+            // Test environment detection
+            const isTestEnvironment =
+                (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') ||
+                typeof globalThis.expect !== 'undefined' ||
+                typeof globalThis.vi !== 'undefined' ||
+                typeof globalThis.jest !== 'undefined';
+
+            log(`Test environment detected: ${isTestEnvironment}`);
+
+            const envInfo = document.getElementById('env-info');
+            envInfo.innerHTML = `
+                <p>Browser: ${navigator?.userAgent?.split(' ').pop() || 'Unknown'}</p>
+                <p>Window: ${typeof window !== 'undefined' ? '✅' : '❌'}</p>
+                <p>Window.open: ${typeof window?.open === 'function' ? '✅' : '❌'}</p>
+                <p>Test Environment: ${isTestEnvironment ? '⚠️' : '✅'}</p>
+            `;
+
+            // Test popup functionality
+            log('Testing popup functionality...');
+            try {
+                const testPopup = window.open('about:blank', 'test-popup', 'width=200,height=200');
+                if (testPopup) {
+                    log('✅ Popup test successful');
+                    setTimeout(() => testPopup.close(), 1000);
+                } else {
+                    log('❌ Popup blocked or failed', 'error');
+                }
+            } catch (error) {
+                log(`❌ Popup error: ${error.message}`, 'error');
+            }
+        };
+
+        window.testDirectImport = async function() {
+            log('=== TESTING DIRECT IMPORT ===');
+            try {
+                log('Attempting dynamic import of @statelyai/inspect...');
+                const module = await import('@statelyai/inspect');
+                log('✅ Import successful');
+                log(`Available exports: ${Object.keys(module).join(', ')}`);
+                log(`createBrowserInspector type: ${typeof module.createBrowserInspector}`);
+            } catch (error) {
+                log(`❌ Import failed: ${error.message}`, 'error');
+                log(`Stack: ${error.stack}`, 'error');
+            }
+        };
+
+        window.createTestInspector = async function() {
+            log('=== CREATING TEST INSPECTOR ===');
+            try {
+                const { createBrowserInspector } = await import('@statelyai/inspect');
+
+                log('Creating browser inspector...');
+                inspector = createBrowserInspector({
+                    url: 'https://stately.ai/viz',
+                    window: window,
+                    iframe: null,
+                    autoStart: false
+                });
+
+                log('✅ Inspector created successfully');
+                log(`Inspector object: ${typeof inspector}`);
+                log(`Inspector methods: ${Object.keys(inspector || {}).join(', ')}`);
+            } catch (error) {
+                log(`❌ Inspector creation failed: ${error.message}`, 'error');
+                log(`Stack: ${error.stack}`, 'error');
+            }
+        };
+
+        window.connectInspector = async function() {
+            log('=== CONNECTING INSPECTOR ===');
+            if (!inspector) {
+                log('❌ No inspector created yet. Create one first.', 'error');
+                return;
+            }
+
+            try {
+                log('Starting inspector...');
+                inspector.start();
+                updateStatus(true);
+                log('✅ Inspector connected! Check for popup window or visit https://stately.ai/viz');
+            } catch (error) {
+                log(`❌ Connection failed: ${error.message}`, 'error');
+                log(`Stack: ${error.stack}`, 'error');
+                updateStatus(false);
+            }
+        };
+
+        window.disconnectInspector = async function() {
+            log('=== DISCONNECTING INSPECTOR ===');
+            if (!inspector) {
+                log('❌ No inspector to disconnect', 'warn');
+                return;
+            }
+
+            try {
+                log('Stopping inspector...');
+                inspector.stop?.();
+                inspector = null;
+                updateStatus(false);
+                log('✅ Inspector disconnected');
+            } catch (error) {
+                log(`❌ Disconnect failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.createTestMachine = async function() {
+            log('=== CREATING TEST MACHINE ===');
+            try {
+                const { createMachine, createActor } = await import('xstate');
+
+                const testMachine = createMachine({
+                    id: 'testMachine',
+                    initial: 'idle',
+                    states: {
+                        idle: {
+                            on: { START: 'active' }
+                        },
+                        active: {
+                            on: { STOP: 'idle' }
+                        }
+                    }
+                });
+
+                testActor = createActor(testMachine);
+                testActor.start();
+
+                log('✅ Test machine created and started');
+                log(`Current state: ${testActor.getSnapshot().value}`);
+            } catch (error) {
+                log(`❌ Machine creation failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.registerMachine = function() {
+            log('=== REGISTERING MACHINE WITH INSPECTOR ===');
+            if (!inspector) {
+                log('❌ No inspector available', 'error');
+                return;
+            }
+            if (!testActor) {
+                log('❌ No test machine available', 'error');
+                return;
+            }
+
+            try {
+                log('Registering actor with inspector...');
+                inspector.actor(testActor, {
+                    status: testActor.getSnapshot()?.status,
+                    context: testActor.getSnapshot()?.context,
+                    value: testActor.getSnapshot()?.value
+                }, {
+                    definition: testActor.logic ? JSON.stringify(testActor.logic, null, 2) : undefined,
+                    parentId: undefined,
+                    rootId: testActor.sessionId
+                });
+
+                log('✅ Machine registered with inspector');
+            } catch (error) {
+                log(`❌ Registration failed: ${error.message}`, 'error');
+                log(`Stack: ${error.stack}`, 'error');
+            }
+        };
+
+        window.sendTestEvent = function() {
+            log('=== SENDING TEST EVENT ===');
+            if (!testActor) {
+                log('❌ No test machine available', 'error');
+                return;
+            }
+
+            try {
+                const currentState = testActor.getSnapshot().value;
+                const event = currentState === 'idle' ? 'START' : 'STOP';
+
+                log(`Sending event: ${event}`);
+                testActor.send({ type: event });
+
+                const newState = testActor.getSnapshot().value;
+                log(`State changed: ${currentState} → ${newState}`);
+            } catch (error) {
+                log(`❌ Event send failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.clearLog = function() {
+            document.getElementById('log').innerHTML = '';
+        };
+
+        // Auto-check environment on load
+        window.addEventListener('load', () => {
+            log('Debug console loaded');
+            checkEnvironment();
+        });
+
+        // Global error handling
+        window.addEventListener('error', (event) => {
+            log(`❌ Global error: ${event.error?.message || event.message}`, 'error');
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            log(`❌ Unhandled promise rejection: ${event.reason}`, 'error');
+        });
+    </script>
+</body>
+</html>

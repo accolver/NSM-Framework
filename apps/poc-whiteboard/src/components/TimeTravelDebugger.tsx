@@ -99,11 +99,18 @@ export const TimeTravelDebugger: React.FC<TimeTravelDebuggerProps> = ({
 
   const getStateDisplayName = (snapshot: StateSnapshot): string => {
     const state = snapshot.state;
-    if (typeof state.value === 'string') {
-      return state.value;
+    // Check if state has value property (machine snapshots do, but other types might not)
+    if ('value' in state) {
+      if (typeof state.value === 'string') {
+        return state.value;
+      }
+      if (typeof state.value === 'object' && state.value !== null) {
+        return JSON.stringify(state.value);
+      }
     }
-    if (typeof state.value === 'object' && state.value !== null) {
-      return JSON.stringify(state.value);
+    // Fall back to status if available
+    if ('status' in state && typeof state.status === 'string') {
+      return state.status;
     }
     return 'unknown';
   };

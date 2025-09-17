@@ -3,7 +3,14 @@
  * Integrates performance tracking with XState state machines
  */
 
-import type { StateNode, State, Transition, ActionObject, EventObject } from 'xstate';
+import type {
+  StateNode,
+  EventObject,
+  AnyStateMachine,
+  StateValue,
+  Actor,
+  Snapshot
+} from 'xstate';
 import { getPerformanceMonitor } from './performance-monitor';
 
 export interface StateMachinePerformanceEntry {
@@ -56,8 +63,8 @@ class StateMachinePerformanceTracker {
     return this.config.enabled && Math.random() < this.config.samplingRate;
   }
 
-  private getTransitionKey(state: State<any>, event: EventObject): string {
-    return `${state.value}-${event.type}-${Date.now()}`;
+  private getTransitionKey(state: Snapshot<any>, event: EventObject): string {
+    return `${(state as any).value || 'unknown'}-${event.type}-${Date.now()}`;
   }
 
   private sanitizeContext(context: any): any {
@@ -77,7 +84,7 @@ class StateMachinePerformanceTracker {
   }
 
   // Transition Performance Tracking
-  public onTransitionStart(state: State<any>, event: EventObject): void {
+  public onTransitionStart(state: Snapshot<any>, event: EventObject): void {
     if (!this.config.trackTransitions || !this.shouldTrack()) return;
 
     const key = this.getTransitionKey(state, event);
@@ -85,10 +92,10 @@ class StateMachinePerformanceTracker {
   }
 
   public onTransitionEnd(
-    fromState: State<any>,
-    toState: State<any>,
+    fromState: Snapshot<any>,
+    toState: Snapshot<any>,
     event: EventObject,
-    transition?: Transition<any, any>
+    transition?: any
   ): void {
     if (!this.config.trackTransitions) return;
 
@@ -100,19 +107,21 @@ class StateMachinePerformanceTracker {
     const duration = performance.now() - startTime;
     this.transitionStarts.delete(key);
 
-    const fromStateString = typeof fromState.value === 'string'
-      ? fromState.value
-      : JSON.stringify(fromState.value);
-    const toStateString = typeof toState.value === 'string'
-      ? toState.value
-      : JSON.stringify(toState.value);
+    const fromStateValue = (fromState as any).value;
+    const toStateValue = (toState as any).value;
+    const fromStateString = typeof fromStateValue === 'string'
+      ? fromStateValue
+      : JSON.stringify(fromStateValue || 'unknown');
+    const toStateString = typeof toStateValue === 'string'
+      ? toStateValue
+      : JSON.stringify(toStateValue || 'unknown');
 
     // Track in performance monitor
     this.performanceMonitor.trackStateTransition(fromStateString, toStateString, duration);
 
     // Create detailed performance entry
     const entry: StateMachinePerformanceEntry = {
-      machineId: fromState.machine?.id || 'unknown',
+      machineId: (fromState as any).machine?.id || 'unknown',
       fromState: fromStateString,
       toState: toStateString,
       event: event.type,
@@ -120,14 +129,14 @@ class StateMachinePerformanceTracker {
       timestamp: Date.now(),
       transitionId: key,
       success: true,
-      context: this.config.trackContextChanges ? this.sanitizeContext(toState.context) : undefined
+      context: this.config.trackContextChanges ? this.sanitizeContext((toState as any).context) : undefined
     };
 
     this.performanceMonitor.emit('stateTransition', entry);
   }
 
   public onTransitionError(
-    state: State<any>,
+    state: Snapshot<any>,
     event: EventObject,
     error: Error
   ): void {
@@ -138,9 +147,10 @@ class StateMachinePerformanceTracker {
     this.transitionStarts.delete(key);
 
     const duration = startTime ? performance.now() - startTime : 0;
-    const stateString = typeof state.value === 'string'
-      ? state.value
-      : JSON.stringify(state.value);
+    const stateValue = (state as any).value;
+    const stateString = typeof stateValue === 'string'
+      ? stateValue
+      : JSON.stringify(stateValue || 'unknown');
 
     // Track error in performance monitor
     this.performanceMonitor.trackStateMachineError(error, {
@@ -150,7 +160,7 @@ class StateMachinePerformanceTracker {
     });
 
     const entry: StateMachinePerformanceEntry = {
-      machineId: state.machine?.id || 'unknown',
+      machineId: (state as any).machine?.id || 'unknown',
       fromState: stateString,
       toState: stateString, // No transition occurred
       event: event.type,
@@ -159,21 +169,21 @@ class StateMachinePerformanceTracker {
       transitionId: key,
       success: false,
       error,
-      context: this.config.trackContextChanges ? this.sanitizeContext(state.context) : undefined
+      context: this.config.trackContextChanges ? this.sanitizeContext((state as any).context) : undefined
     };
 
     this.performanceMonitor.emit('stateTransitionError', entry);
   }
 
   // Action Performance Tracking
-  public onActionStart(action: ActionObject<any, any>, context: any): void {
+  public onActionStart(action: any, context: any): void {
     if (!this.config.trackActions || !this.shouldTrack()) return;
 
     const key = `${action.type}-${Date.now()}`;
     this.actionStarts.set(key, performance.now());
   }
 
-  public onActionEnd(action: ActionObject<any, any>, context: any, key?: string): void {
+  public onActionEnd(action: any, context: any, key?: string): void {
     if (!this.config.trackActions) return;
 
     const actionKey = key || `${action.type}-${Date.now()}`;
@@ -193,7 +203,7 @@ class StateMachinePerformanceTracker {
     });
   }
 
-  public onActionError(action: ActionObject<any, any>, error: Error, context: any): void {
+  public onActionError(action: any, error: Error, context: any): void {
     if (!this.config.trackActions) return;
 
     this.performanceMonitor.emit('actionError', {
@@ -294,14 +304,14 @@ export function createPerformanceInterpreter<TContext, TEvent extends EventObjec
           const originalAction = interpreterOptions.actions[key];
           acc[key] = (context: TContext, event: TEvent) => {
             const actionKey = `${key}-${Date.now()}`;
-            tracker.onActionStart({ type: key } as ActionObject<TContext, TEvent>, context);
+            tracker.onActionStart({ type: key } as any, context);
 
             try {
               const result = originalAction(context, event);
-              tracker.onActionEnd({ type: key } as ActionObject<TContext, TEvent>, context, actionKey);
+              tracker.onActionEnd({ type: key } as any, context, actionKey);
               return result;
             } catch (error) {
-              tracker.onActionError({ type: key } as ActionObject<TContext, TEvent>, error as Error, context);
+              tracker.onActionError({ type: key } as any, error as Error, context);
               throw error;
             }
           };
@@ -311,11 +321,11 @@ export function createPerformanceInterpreter<TContext, TEvent extends EventObjec
     });
 
     // Add transition tracking
-    interpreter.onTransition((state: State<TContext>, event: TEvent) => {
-      if (state.changed) {
+    interpreter.onTransition((state: Snapshot<TContext>, event: TEvent) => {
+      if ((state as any).changed) {
         // This is a simplified approach - in a real implementation,
         // you would need to track the previous state more carefully
-        const fromState = state.history || state;
+        const fromState = (state as any).history || state;
         tracker.onTransitionEnd(fromState, state, event);
       }
     });
@@ -334,17 +344,17 @@ export function createPerformanceMiddleware(
 
   return {
     // Middleware hooks for different XState events
-    onTransition: (state: State<any>, event: EventObject, meta: any) => {
+    onTransition: (state: Snapshot<any>, event: EventObject, meta: any) => {
       if (meta?.prevState) {
         tracker.onTransitionEnd(meta.prevState, state, event);
       }
     },
 
-    onError: (state: State<any>, event: EventObject, error: Error) => {
+    onError: (state: Snapshot<any>, event: EventObject, error: Error) => {
       tracker.onTransitionError(state, event, error);
     },
 
-    onAction: (action: ActionObject<any, any>, context: any) => {
+    onAction: (action: any, context: any) => {
       tracker.onActionStart(action, context);
     },
 
