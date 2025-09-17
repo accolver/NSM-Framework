@@ -351,11 +351,78 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
                   <div className="registered-actors">
                     <h5>Registered Actors:</h5>
                     {inspectorService.getRegisteredActors().length > 0 ? (
-                      <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>
+                      <div style={{ margin: '4px 0' }}>
                         {inspectorService.getRegisteredActors().map(name => (
-                          <li key={name} style={{ color: '#4caf50' }}>{name}</li>
+                          <div key={name} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginBottom: '8px',
+                            padding: '4px 8px',
+                            backgroundColor: '#2d2d2d',
+                            borderRadius: '4px',
+                            border: '1px solid #4caf50'
+                          }}>
+                            <span style={{ color: '#4caf50', fontSize: '12px' }}>{name}</span>
+                            <button
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+
+                                try {
+                                  console.log(`🔍 Copying machine definition for ${name}...`);
+                                  const success = await inspectorService.copyMachineDefinition(name);
+
+                                  if (success) {
+                                    // Show success feedback
+                                    const button = e.target as HTMLButtonElement;
+                                    const originalText = button.textContent;
+                                    button.textContent = '✓ Copied!';
+                                    button.style.backgroundColor = '#4caf50';
+
+                                    setTimeout(() => {
+                                      button.textContent = originalText;
+                                      button.style.backgroundColor = '#007acc';
+                                    }, 2000);
+
+                                    // Also show in console
+                                    console.log(`🔍 Machine definition for ${name} copied successfully`);
+                                    console.log('🔍 Paste it into https://stately.ai/viz to visualize');
+                                  } else {
+                                    console.error(`🔍 Failed to copy machine definition for ${name}`);
+
+                                    // Show error feedback
+                                    const button = e.target as HTMLButtonElement;
+                                    const originalText = button.textContent;
+                                    button.textContent = '✗ Failed';
+                                    button.style.backgroundColor = '#f44336';
+
+                                    setTimeout(() => {
+                                      button.textContent = originalText;
+                                      button.style.backgroundColor = '#007acc';
+                                    }, 2000);
+                                  }
+                                } catch (error) {
+                                  console.error(`🔍 Error copying machine definition for ${name}:`, error);
+                                }
+                              }}
+                              style={{
+                                padding: '2px 6px',
+                                backgroundColor: '#007acc',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '3px',
+                                cursor: 'pointer',
+                                fontSize: '10px',
+                                marginLeft: '8px'
+                              }}
+                              title={`Copy ${name} machine definition to clipboard`}
+                            >
+                              Copy
+                            </button>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     ) : (
                       <p style={{ color: '#ff9800', fontSize: '12px' }}>No actors registered yet</p>
                     )}

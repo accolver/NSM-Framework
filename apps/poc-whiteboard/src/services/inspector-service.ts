@@ -36,6 +36,12 @@ export interface InspectorService {
 
   /** Get list of registered actor names */
   getRegisteredActors(): string[];
+
+  /** Copy machine definition to clipboard for external visualizer */
+  copyMachineDefinition(actorName: string): Promise<boolean>;
+
+  /** Get machine definition as JSON for external visualizer */
+  getMachineDefinition(actorName: string): any;
 }
 
 /**
@@ -319,6 +325,92 @@ class InspectorServiceImpl implements InspectorService {
 
   getRegisteredActors(): string[] {
     return Array.from(this.registeredActors.keys());
+  }
+
+  getMachineDefinition(actorName: string): any {
+    const actor = this.registeredActors.get(actorName);
+    if (!actor) {
+      console.warn(`🔍 Actor ${actorName} not found for machine definition export`);
+      return null;
+    }
+
+    try {
+      // Get the machine logic from the actor
+      const logic = actor.logic;
+      if (!logic || !logic.config) {
+        console.warn(`🔍 Actor ${actorName} has no machine logic or config`);
+        return null;
+      }
+
+      // Extract the machine configuration
+      const machineConfig = logic.config;
+
+      // Create a clean definition suitable for stately.ai visualizer
+      const definition = {
+        id: machineConfig.id || actorName,
+        initial: machineConfig.initial,
+        context: machineConfig.context || {},
+        states: machineConfig.states || {},
+        // Include other relevant properties
+        ...(machineConfig.on && { on: machineConfig.on }),
+        ...(machineConfig.type && { type: machineConfig.type }),
+        ...(machineConfig.schema && { schema: machineConfig.schema }),
+        ...(machineConfig.meta && { meta: machineConfig.meta }),
+        ...(machineConfig.description && { description: machineConfig.description }),
+        ...(machineConfig.tags && { tags: machineConfig.tags })
+      };
+
+      console.log(`🔍 Generated machine definition for ${actorName}:`, definition);
+      return definition;
+    } catch (error) {
+      console.error(`🔍 Failed to generate machine definition for ${actorName}:`, error);
+      return null;
+    }
+  }
+
+  async copyMachineDefinition(actorName: string): Promise<boolean> {
+    try {
+      const definition = this.getMachineDefinition(actorName);
+      if (!definition) {
+        console.warn(`🔍 Cannot copy machine definition: ${actorName} not found or invalid`);
+        return false;
+      }
+
+      // Format as JSON string for easy copying
+      const jsonString = JSON.stringify(definition, null, 2);
+
+      // Use the Clipboard API if available
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(jsonString);
+        console.log(`🔍 Machine definition for ${actorName} copied to clipboard`);
+        console.log('🔍 You can now paste this into https://stately.ai/viz');
+        return true;
+      }
+
+      // Fallback for older browsers - create a temporary textarea
+      const textarea = document.createElement('textarea');
+      textarea.value = jsonString;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+
+      const success = document.execCommand('copy');
+      document.body.removeChild(textarea);
+
+      if (success) {
+        console.log(`🔍 Machine definition for ${actorName} copied to clipboard (fallback method)`);
+        console.log('🔍 You can now paste this into https://stately.ai/viz');
+        return true;
+      } else {
+        console.error('🔍 Failed to copy to clipboard - both modern and fallback methods failed');
+        return false;
+      }
+
+    } catch (error) {
+      console.error(`🔍 Failed to copy machine definition for ${actorName}:`, error);
+      return false;
+    }
   }
 }
 
