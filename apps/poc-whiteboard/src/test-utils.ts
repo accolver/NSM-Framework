@@ -86,3 +86,23 @@ export const screen = {
 
 export { render, fireEvent, waitFor, cleanup } from '@testing-library/react';
 export { default as userEvent } from '@testing-library/user-event';
+
+// Test utilities for Nostr events
+import type { INostrEvent } from '@nsm/core';
+import { NSM_PROTOCOL } from '@nsm/core';
+
+/**
+ * Create a mock Nostr event for testing
+ */
+export const createMockNostrEvent = (overrides: Partial<INostrEvent> = {}): INostrEvent => {
+  return {
+    id: 'mock-' + Math.random().toString(36).substring(2, 15),
+    pubkey: 'npub' + Math.random().toString(36).substring(2, 32),
+    created_at: Math.floor(Date.now() / 1000),
+    kind: NSM_PROTOCOL.DEFINITION_KIND,
+    tags: [],
+    content: 'Mock event content',
+    sig: 'mock-signature-' + Math.random().toString(36).substring(2, 32),
+    ...overrides
+  };
+};

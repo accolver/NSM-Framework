@@ -124,7 +124,12 @@ class InspectorServiceImpl implements InspectorService {
         process.env.NODE_ENV === 'test' ||
         typeof (globalThis as any).expect !== 'undefined' ||
         typeof (globalThis as any).vi !== 'undefined' ||
-        typeof (globalThis as any).jest !== 'undefined';
+        typeof (globalThis as any).jest !== 'undefined' ||
+        typeof (globalThis as any).bun !== 'undefined' ||
+        // Check for happy-dom which is commonly used in test environments
+        typeof (window as any)?.happyDOM !== 'undefined' ||
+        // Check for jsdom
+        navigator?.userAgent?.includes('jsdom');
 
       console.log('🔍 Test environment detected:', isTestEnvironment);
       console.log('🔍 window.open available:', typeof window.open === 'function');
@@ -144,15 +149,33 @@ class InspectorServiceImpl implements InspectorService {
       console.log('🔍 Creating browser inspector with config:', {
         url: 'https://stately.ai/viz',
         hasWindow: !!window,
-        autoStart: false
+        autoStart: false,
+        isTestEnv: isTestEnvironment
       });
 
-      this.inspector = createBrowserInspector({
-        url: 'https://stately.ai/viz',
-        window: window,
-        iframe: null, // Allow popup for now
-        autoStart: false // We'll start manually
-      });
+      // In test environments, create a mock inspector to avoid popup windows
+      if (isTestEnvironment) {
+        console.log('🔍 Creating mock inspector for test environment');
+        this.inspector = {
+          start: () => {
+            console.log('🔍 Mock inspector started');
+          },
+          stop: () => {
+            console.log('🔍 Mock inspector stopped');
+          },
+          actor: () => {
+            console.log('🔍 Mock inspector actor registered');
+          },
+          targetWindow: null // Explicitly null for test environments
+        };
+      } else {
+        this.inspector = createBrowserInspector({
+          url: 'https://stately.ai/viz',
+          window: window,
+          iframe: null, // Allow popup for now
+          autoStart: false // We'll start manually
+        });
+      }
 
       console.log('🔍 Inspector created successfully:', !!this.inspector);
 
@@ -199,8 +222,25 @@ class InspectorServiceImpl implements InspectorService {
   async disconnect(): Promise<void> {
     try {
       if (this.inspector) {
-        // Stop the inspector
-        this.inspector.stop?.();
+        // Check if inspector has a valid stop method and window target
+        if (typeof this.inspector.stop === 'function') {
+          try {
+            // Add safety check for targetWindow before stopping
+            if (this.inspector.targetWindow && typeof this.inspector.targetWindow.postMessage === 'function') {
+              this.inspector.stop();
+            } else {
+              // Inspector window already closed or invalid, just clean up
+              console.log('🔍 Inspector window unavailable, cleaning up silently');
+            }
+          } catch (stopError) {
+            // Ignore postMessage errors - window might be closed
+            if (stopError.message?.includes('postMessage')) {
+              console.log('🔍 Inspector window already closed, ignoring postMessage error');
+            } else {
+              console.warn('🔍 Inspector stop error:', stopError.message);
+            }
+          }
+        }
         this.inspector = null;
       }
 
@@ -309,7 +349,12 @@ export async function createInspectedActor<T extends AnyActorLogic>(
     process.env.NODE_ENV === 'test' ||
     typeof (globalThis as any).expect !== 'undefined' ||
     typeof (globalThis as any).vi !== 'undefined' ||
-    typeof (globalThis as any).jest !== 'undefined';
+    typeof (globalThis as any).jest !== 'undefined' ||
+    typeof (globalThis as any).bun !== 'undefined' ||
+    // Check for happy-dom which is commonly used in test environments
+    typeof (window as any)?.happyDOM !== 'undefined' ||
+    // Check for jsdom
+    navigator?.userAgent?.includes('jsdom');
 
   try {
     const [{ createActor }, { createBrowserInspector }] = await Promise.all([
@@ -331,12 +376,28 @@ export async function createInspectedActor<T extends AnyActorLogic>(
     // Create the inspector with proper error handling
     let inspector: any = null;
     try {
-      inspector = createBrowserInspector({
-        url: 'https://stately.ai/viz',
-        window: window,
-        iframe: null,
-        autoStart: true
-      });
+      // In test environments, create a mock inspector
+      if (isTestEnvironment) {
+        inspector = {
+          inspect: () => {
+            console.log('🔍 Mock inspector inspect called');
+          },
+          start: () => {
+            console.log('🔍 Mock inspector started');
+          },
+          stop: () => {
+            console.log('🔍 Mock inspector stopped');
+          },
+          targetWindow: null
+        };
+      } else {
+        inspector = createBrowserInspector({
+          url: 'https://stately.ai/viz',
+          window: window,
+          iframe: null,
+          autoStart: true
+        });
+      }
     } catch (inspectorError) {
       console.warn('🔍 Failed to create inspector, falling back to normal actor:', inspectorError);
       return { actor: createActor(machine, options) };

@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach, vi } from 'bun:test';
 import { screen, render, fireEvent, waitFor, cleanup, userEvent } from '../../test-utils';
+import { act } from '@testing-library/react';
 // Note: Using custom jest-dom matchers from test-utils instead of @testing-library/jest-dom
 import { EventLogViewer } from '../EventLogViewer';
 import { createEventLogService, type EventLogService } from '../../services/event-log-service';
@@ -222,9 +223,18 @@ describe('EventLogViewer', () => {
       render(<EventLogViewer eventLogService={eventLogService} />);
 
       const searchInput = screen.getByPlaceholderText('Search events...');
-      fireEvent.change(searchInput, { target: { value: 'circle' } });
 
-      expect(screen.getByText('drawing a circle on the whiteboard')).toBeInTheDocument();
+      const user = userEvent.setup();
+
+      await act(async () => {
+        await user.clear(searchInput);
+        await user.type(searchInput, 'circle');
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('drawing a circle on the whiteboard')).toBeInTheDocument();
+      });
+
       expect(screen.queryByText('changing color to red')).not.toBeInTheDocument();
       expect(screen.queryByText('adding a rectangle shape')).not.toBeInTheDocument();
       expect(screen.getByText('1 events')).toBeInTheDocument();
@@ -234,9 +244,18 @@ describe('EventLogViewer', () => {
       render(<EventLogViewer eventLogService={eventLogService} />);
 
       const searchInput = screen.getByPlaceholderText('Search events...');
-      fireEvent.change(searchInput, { target: { value: 'user-123' } });
 
-      expect(screen.getByText('drawing a circle on the whiteboard')).toBeInTheDocument();
+      const user = userEvent.setup();
+
+      await act(async () => {
+        await user.clear(searchInput);
+        await user.type(searchInput, 'user-123');
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('drawing a circle on the whiteboard')).toBeInTheDocument();
+      });
+
       expect(screen.queryByText('changing color to red')).not.toBeInTheDocument();
       expect(screen.getByText('adding a rectangle shape')).toBeInTheDocument();
       expect(screen.getByText('2 events')).toBeInTheDocument();
@@ -246,10 +265,18 @@ describe('EventLogViewer', () => {
       render(<EventLogViewer eventLogService={eventLogService} />);
 
       const searchInput = screen.getByPlaceholderText('Search events...');
-      fireEvent.change(searchInput, { target: { value: 'CIRCLE' } });
 
-      expect(screen.getByText('drawing a circle on the whiteboard')).toBeInTheDocument();
-      expect(screen.getByText('1 events')).toBeInTheDocument();
+      const user = userEvent.setup();
+
+      await act(async () => {
+        await user.clear(searchInput);
+        await user.type(searchInput, 'CIRCLE');
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('drawing a circle on the whiteboard')).toBeInTheDocument();
+        expect(screen.getByText('1 events')).toBeInTheDocument();
+      });
     });
 
     test('should clear search when input is cleared', async () => {
@@ -401,9 +428,15 @@ describe('EventLogViewer', () => {
         tags: null as any
       };
 
-      eventLogService.addEvent(malformedEvent);
+      // Should not throw when adding malformed event
+      expect(() => {
+        eventLogService.addEvent(malformedEvent);
+      }).not.toThrow();
 
-      render(<EventLogViewer eventLogService={eventLogService} />);
+      // Should render without crashing
+      expect(() => {
+        render(<EventLogViewer eventLogService={eventLogService} />);
+      }).not.toThrow();
 
       expect(screen.getByText('1 events')).toBeInTheDocument();
       // Should not crash the component

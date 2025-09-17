@@ -56,8 +56,6 @@ export default defineConfig({
   build: {
     sourcemap: true,
     target: 'es2020',
-    minify: 'esbuild',
-    cssMinify: true,
     rollupOptions: {
       external: [],
       plugins: [],
@@ -91,17 +89,9 @@ export default defineConfig({
     // Force include ESM packages that might be problematic
     force: true
   },
+  // ESBuild configuration
   esbuild: {
-    logOverride: {
-      'this-is-undefined-in-esm': 'silent',
-      // Suppress CJS deprecation warnings
-      'require-resolve-not-external': 'silent'
-    },
-    // Only drop console/debugger in production, keep them in development for debugging
-    ...(process.env.NODE_ENV === 'production' ? { drop: ['console', 'debugger'] } : {}),
-    legalComments: 'none',
-    jsx: 'automatic',
-    include: /\.(jsx?|tsx?)$/
+    target: 'es2020'
   },
   // Configure SSR to handle packages properly
   ssr: {

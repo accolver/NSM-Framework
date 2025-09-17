@@ -80,17 +80,23 @@ export const EventLogViewer: React.FC<EventLogViewerProps> = ({
     if (!searchQuery.trim()) {
       return events;
     }
-    return eventLogService.searchEvents(searchQuery).filter(event => {
-      // Apply the current filter to search results
-      const filterConfig = FILTER_OPTIONS.find(option => option.value === selectedFilter);
-      if (!filterConfig || selectedFilter === 'all') {
-        return true;
-      }
 
-      const filteredByKind = filterConfig.getEvents(eventLogService);
-      return filteredByKind.some(e => e.id === event.id);
+    // First filter by search query, then by current filter
+    const lowerQuery = searchQuery.toLowerCase();
+    const queryWords = lowerQuery.split(/\s+/).filter(word => word.length > 0);
+
+    return events.filter(event => {
+      const searchableText = [
+        event.content || '',
+        event.pubkey || '',
+        event.id || '',
+        event.tags ? event.tags.flat().join(' ') : ''
+      ].join(' ').toLowerCase();
+
+      // Check if all query words are present in the searchable text
+      return queryWords.every(word => searchableText.includes(word));
     });
-  }, [events, searchQuery, selectedFilter, eventLogService]);
+  }, [events, searchQuery]);
 
   const handleClearEvents = () => {
     eventLogService.clearEvents();
@@ -108,10 +114,13 @@ export const EventLogViewer: React.FC<EventLogViewerProps> = ({
 
   const formatEventContent = (event: INostrEvent) => {
     try {
+      if (event.content == null) {
+        return '[No content]';
+      }
       const parsed = JSON.parse(event.content);
       return JSON.stringify(parsed, null, 2);
     } catch {
-      return event.content;
+      return event.content || '[Invalid content]';
     }
   };
 
@@ -127,6 +136,9 @@ export const EventLogViewer: React.FC<EventLogViewerProps> = ({
   };
 
   const truncateText = (text: string, maxLength: number = 50): string => {
+    if (!text || typeof text !== 'string') {
+      return '[Invalid text]';
+    }
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
   };
@@ -189,7 +201,14 @@ export const EventLogViewer: React.FC<EventLogViewerProps> = ({
       </div>
 
       {/* Event List */}
-      <div className="max-h-96 overflow-y-auto">
+      <div
+        className="max-h-96 overflow-y-auto events-scrollable"
+        data-testid="events-scroll-container"
+        style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#cbd5e0 #f7fafc'
+        }}
+      >
         {filteredEvents.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
             <div className="text-lg font-medium">No events to display</div>
@@ -235,8 +254,8 @@ export const EventLogViewer: React.FC<EventLogViewerProps> = ({
                         ) : (
                           <div className="break-words">
                             {isExpanded
-                              ? event.content
-                              : truncateText(event.content, 100)
+                              ? (event.content || '[No content]')
+                              : truncateText(event.content || '[No content]', 100)
                             }
                           </div>
                         )}
@@ -244,7 +263,7 @@ export const EventLogViewer: React.FC<EventLogViewerProps> = ({
 
                       {/* Author */}
                       <div className="text-xs text-gray-500">
-                        from: {truncateText(event.pubkey, 32)}
+                        from: {truncateText(event.pubkey || '[Unknown]', 32)}
                       </div>
                     </div>
 

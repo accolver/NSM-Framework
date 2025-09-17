@@ -111,33 +111,10 @@ export const App: React.FC = () => {
         if (process.env.NODE_ENV === 'development') {
           console.log('🎨 Initializing dev tools (non-blocking)...');
 
-          // Connect inspector asynchronously without blocking
-          setTimeout(async () => {
-            try {
-              console.log('🔍 Attempting inspector connection...');
-              const connected = await inspectorService.connect();
-              if (connected) {
-                // Wait a moment for the inspector to fully initialize
-                setTimeout(() => {
-                  try {
-                    inspectorService.registerActor(actor, 'whiteboard-machine');
-                    console.log('🔍 XState Inspector connected - machine visualization available');
-                    console.log('🔍 Check your browser for a popup window or visit https://stately.ai/viz');
-                    if (!isDestroyed) setInspectorConnected(true);
-                  } catch (regError) {
-                    console.warn('🔍 Inspector registration error:', regError);
-                    if (!isDestroyed) setInspectorConnected(false);
-                  }
-                }, 500);
-              } else {
-                console.log('🔍 XState Inspector failed to connect - visualization not available');
-                if (!isDestroyed) setInspectorConnected(false);
-              }
-            } catch (error) {
-              console.warn('🔍 Inspector connection error:', error);
-              if (!isDestroyed) setInspectorConnected(false);
-            }
-          }, 100);
+          // Inspector connection is now manual only - no automatic connection
+          // The inspector service is available but will only connect when user manually triggers it
+          console.log('🔍 Inspector service ready for manual connection');
+          if (!isDestroyed) setInspectorConnected(false); // Start in disconnected state
 
           // Initialize Time Travel Service asynchronously
           setTimeout(() => {
@@ -160,9 +137,27 @@ export const App: React.FC = () => {
           console.log('🔄 Whiteboard state update:', snapshot.value);
 
           // Log state machine events to EventLogService for real-time updates
+          // CRITICAL FIX: Only log meaningful state changes, not every subscription callback
           try {
-            if (snapshot.value !== state.value || snapshot.context !== state.context) {
-              // Create a state update event for the event log
+            const hasStateChanged = snapshot.value !== state.value;
+            const hasContextChanged = JSON.stringify({
+              currentTool: snapshot.context.currentTool,
+              isDrawing: snapshot.context.isDrawing,
+              pathsCount: snapshot.context.paths.length,
+              shapesCount: snapshot.context.shapes.length,
+              selectedObjects: snapshot.context.selectedObjects.length
+            }) !== JSON.stringify({
+              currentTool: state.context.currentTool,
+              isDrawing: state.context.isDrawing,
+              pathsCount: state.context.paths.length,
+              shapesCount: state.context.shapes.length,
+              selectedObjects: state.context.selectedObjects.length
+            });
+
+            // Only log if there's a meaningful change and it's not idle->idle
+            if ((hasStateChanged || hasContextChanged) &&
+                !(snapshot.value === 'idle' && state.value === 'idle' && !hasContextChanged)) {
+
               const stateEvent = createMockNostrEvent({
                 kind: NSM_PROTOCOL.STATE_UPDATE_KIND,
                 content: JSON.stringify({
@@ -180,7 +175,7 @@ export const App: React.FC = () => {
               });
 
               logNostrEvent(stateEvent);
-              console.log('📝 Logged state change event to EventLogService');
+              console.log('📝 Logged meaningful state change event:', snapshot.value, '->', state.value);
             }
           } catch (error) {
             console.warn('⚠️ Error logging state change:', error);
@@ -468,6 +463,40 @@ export const App: React.FC = () => {
     actor.send(event);
   }, [actor]);
 
+  // Manual inspector connection function
+  const connectInspector = useCallback(async () => {
+    try {
+      console.log('🔍 Manual inspector connection initiated...');
+      const connected = await inspectorService.connect();
+      if (connected) {
+        // Wait a moment for the inspector to fully initialize
+        setTimeout(() => {
+          try {
+            inspectorService.registerActor(actor, 'whiteboard-machine');
+            console.log('🔍 XState Inspector manually connected - machine visualization available');
+            console.log('🔍 Check your browser for a popup window or visit https://stately.ai/viz');
+            setInspectorConnected(true);
+          } catch (regError) {
+            console.warn('🔍 Inspector registration error:', regError);
+            setInspectorConnected(false);
+          }
+        }, 500);
+      } else {
+        console.log('🔍 XState Inspector failed to connect - visualization not available');
+        setInspectorConnected(false);
+      }
+    } catch (error) {
+      console.warn('🔍 Inspector connection error:', error);
+      setInspectorConnected(false);
+    }
+  }, [inspectorService, actor]);
+
+  // Manual visualizer opening function
+  const openVisualizer = useCallback(() => {
+    console.log('🔍 Manual visualizer opening...');
+    window.open('https://stately.ai/viz', '_blank');
+  }, []);
+
   console.log('🎨 App component rendering - RENDER phase, state:', state.value);
 
   return (
@@ -564,6 +593,8 @@ export const App: React.FC = () => {
               eventLogService={eventLogService}
               timeTravelService={timeTravelService}
               inspectorService={inspectorService}
+              connectInspector={connectInspector}
+              openVisualizer={openVisualizer}
             />
           </Suspense>
         )}

@@ -87,6 +87,8 @@ class EventLogServiceImpl implements EventLogService {
   private config: Required<EventLogConfig>;
   private eventListeners: Set<(event: INostrEvent) => void> = new Set();
   private clearListeners: Set<() => void> = new Set();
+  private recentEventHashes: Set<string> = new Set();
+  private lastCleanup: number = Date.now();
 
   constructor(config: EventLogConfig = {}) {
     this.config = {
@@ -117,6 +119,23 @@ class EventLogServiceImpl implements EventLogService {
   }
 
   addEvent(event: INostrEvent): void {
+    // CRITICAL FIX: Prevent event flooding with deduplication
+    const eventHash = this.createEventHash(event);
+
+    // Check if we've seen this exact event recently
+    if (this.recentEventHashes.has(eventHash)) {
+      console.debug('Duplicate event detected, skipping:', event.id.slice(0, 8));
+      return;
+    }
+
+    // Cleanup old hashes periodically to prevent memory leak
+    if (Date.now() - this.lastCleanup > 60000) { // Every minute
+      this.cleanupRecentHashes();
+    }
+
+    // Add event to deduplication tracking
+    this.recentEventHashes.add(eventHash);
+
     // Add event to the end of the array (insertion order)
     this.events.push(event);
 
@@ -135,6 +154,41 @@ class EventLogServiceImpl implements EventLogService {
         }
       });
     }
+  }
+
+  /**
+   * Create a hash for event deduplication
+   */
+  private createEventHash(event: INostrEvent): string {
+    // For state-update events, include content in hash to detect duplicates
+    if (event.kind === NSM_PROTOCOL.STATE_UPDATE_KIND) {
+      try {
+        const content = JSON.parse(event.content);
+        const relevantContent = {
+          state: content.state,
+          previousState: content.previousState,
+          context: content.context
+        };
+        return `${event.kind}-${JSON.stringify(relevantContent)}`;
+      } catch {
+        return `${event.kind}-${event.content}`;
+      }
+    }
+
+    // For other events, use kind + content
+    return `${event.kind}-${event.content}`;
+  }
+
+  /**
+   * Clean up old hashes to prevent memory leak
+   */
+  private cleanupRecentHashes(): void {
+    // Keep only recent hashes (last 100 for performance)
+    if (this.recentEventHashes.size > 100) {
+      const hashArray = Array.from(this.recentEventHashes);
+      this.recentEventHashes = new Set(hashArray.slice(-50)); // Keep last 50
+    }
+    this.lastCleanup = Date.now();
   }
 
   getEvents(): INostrEvent[] {
@@ -163,10 +217,10 @@ class EventLogServiceImpl implements EventLogService {
 
     return this.events.filter(event => {
       const searchableText = [
-        event.content,
-        event.pubkey,
-        event.id,
-        event.tags.flat().join(' ')
+        event.content || '',
+        event.pubkey || '',
+        event.id || '',
+        event.tags ? event.tags.flat().join(' ') : ''
       ].join(' ').toLowerCase();
 
       // Check if all query words are present in the searchable text
@@ -176,6 +230,7 @@ class EventLogServiceImpl implements EventLogService {
 
   clearEvents(): void {
     this.events = [];
+    this.recentEventHashes.clear(); // Clear deduplication hashes too
 
     // Emit clear event to listeners
     this.clearListeners.forEach(callback => {
@@ -202,11 +257,13 @@ class EventLogServiceImpl implements EventLogService {
       nsmEventType = 'interaction';
     }
 
-    // Parse JSON content safely
+    // Parse JSON content safely - handle null/undefined content
     let parsedContent: any | null = null;
     let parseError: string | undefined;
     try {
-      parsedContent = JSON.parse(event.content);
+      if (event.content != null && typeof event.content === 'string') {
+        parsedContent = JSON.parse(event.content);
+      }
     } catch (error) {
       parseError = error instanceof Error ? error.message : 'Invalid JSON';
     }
@@ -215,23 +272,36 @@ class EventLogServiceImpl implements EventLogService {
     const date = new Date(event.created_at * 1000);
     const formattedTimestamp = date.toISOString().replace('T', ' ').substring(0, 19);
 
-    // Calculate relative time
+    // Calculate relative time with better edge case handling
     const now = Date.now();
     const eventTime = event.created_at * 1000;
-    const diffMs = now - eventTime;
+    const diffMs = Math.max(0, now - eventTime); // Ensure non-negative
     const diffMinutes = Math.floor(diffMs / (1000 * 60));
     const diffHours = Math.floor(diffMinutes / 60);
     const diffDays = Math.floor(diffHours / 24);
+    const diffWeeks = Math.floor(diffDays / 7);
+    const diffMonths = Math.floor(diffDays / 30);
 
     let relativeTime: string;
-    if (diffMinutes < 1) {
+
+    // Handle edge cases for very old events
+    if (diffMs < 0) {
+      relativeTime = 'in the future';
+    } else if (diffMinutes < 1) {
       relativeTime = 'just now';
     } else if (diffMinutes < 60) {
       relativeTime = `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
     } else if (diffHours < 24) {
       relativeTime = `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
-    } else {
+    } else if (diffDays < 7) {
       relativeTime = `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+    } else if (diffWeeks < 4) {
+      relativeTime = `${diffWeeks} week${diffWeeks === 1 ? '' : 's'} ago`;
+    } else if (diffMonths < 12) {
+      relativeTime = `${diffMonths} month${diffMonths === 1 ? '' : 's'} ago`;
+    } else {
+      const years = Math.floor(diffMonths / 12);
+      relativeTime = `${years} year${years === 1 ? '' : 's'} ago`;
     }
 
     return {

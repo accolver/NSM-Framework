@@ -264,8 +264,8 @@ describe('EventLogService', () => {
     });
 
     test('should clear all events', () => {
-      eventLogService.addEvent(createMockNostrEvent());
-      eventLogService.addEvent(createMockNostrEvent());
+      eventLogService.addEvent(createMockNostrEvent({ content: 'unique event 1' }));
+      eventLogService.addEvent(createMockNostrEvent({ content: 'unique event 2' }));
 
       expect(eventLogService.getEvents()).toHaveLength(2);
 
@@ -276,8 +276,8 @@ describe('EventLogService', () => {
     test('should get event count', () => {
       expect(eventLogService.getEventCount()).toBe(0);
 
-      eventLogService.addEvent(createMockNostrEvent());
-      eventLogService.addEvent(createMockNostrEvent());
+      eventLogService.addEvent(createMockNostrEvent({ content: 'count test 1' }));
+      eventLogService.addEvent(createMockNostrEvent({ content: 'count test 2' }));
 
       expect(eventLogService.getEventCount()).toBe(2);
     });

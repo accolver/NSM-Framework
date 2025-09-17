@@ -12,6 +12,8 @@ export interface DeveloperDashboardProps {
   eventLogService: EventLogService;
   timeTravelService: TimeTravelService;
   inspectorService: InspectorService;
+  connectInspector: () => Promise<void>;
+  openVisualizer: () => void;
   className?: string;
 }
 
@@ -81,6 +83,8 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
   eventLogService,
   timeTravelService,
   inspectorService,
+  connectInspector,
+  openVisualizer,
   className = ''
 }) => {
   // Layout and UI state
@@ -359,7 +363,7 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
 
                   <div className="inspector-actions" style={{ marginTop: '16px' }}>
                     <button
-                      onClick={() => window.open('https://stately.ai/viz', '_blank')}
+                      onClick={openVisualizer}
                       style={{
                         padding: '8px 16px',
                         backgroundColor: '#007acc',
@@ -383,14 +387,8 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
                           console.log('🔍 Disconnecting first...');
                           await inspectorService.disconnect();
                           console.log('🔍 Disconnected, now reconnecting...');
-                          const reconnected = await inspectorService.connect();
-                          console.log('🔍 Reconnection result:', reconnected);
-
-                          if (reconnected) {
-                            console.log('🔍 Reconnection successful!');
-                            // Force re-render
-                            setLayout(prev => ({ ...prev, activeTab: 'inspector' }));
-                          }
+                          await connectInspector();
+                          console.log('🔍 Manual reconnection completed');
                         } catch (error) {
                           console.error('🔍 Manual reconnection failed:', error);
                           console.error('🔍 Reconnection error details:', {
@@ -437,46 +435,8 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
                         console.log('🔍 RETRY BUTTON CLICKED - Starting manual connection attempt...');
 
                         try {
-                          // Add environment debugging
-                          console.log('🔍 Environment check:', {
-                            NODE_ENV: process.env.NODE_ENV,
-                            hasWindow: typeof window !== 'undefined',
-                            windowOpen: typeof window.open,
-                            isTestEnvironment:
-                              process.env.NODE_ENV === 'test' ||
-                              typeof (globalThis as any).expect !== 'undefined' ||
-                              typeof (globalThis as any).vi !== 'undefined' ||
-                              typeof (globalThis as any).jest !== 'undefined'
-                          });
-
-                          // Add more verbose logging
-                          console.log('🔍 Inspector Service State:', {
-                            isConnected: inspectorService?.isConnected,
-                            hasInspectorService: !!inspectorService,
-                            inspectorServiceType: typeof inspectorService
-                          });
-
-                          // Test dynamic import first
-                          console.log('🔍 Testing dynamic import of @statelyai/inspect...');
-                          try {
-                            const { createBrowserInspector } = await import('@statelyai/inspect');
-                            console.log('🔍 Dynamic import successful:', typeof createBrowserInspector);
-                          } catch (importError) {
-                            console.error('🔍 Dynamic import failed:', importError);
-                            throw importError;
-                          }
-
-                          console.log('🔍 Attempting to connect...');
-                          const connected = await inspectorService.connect();
-                          console.log('🔍 Connection result:', connected);
-
-                          if (connected) {
-                            console.log('🔍 Connection successful! Inspector should now be active.');
-                            // Force re-render to update UI
-                            setLayout(prev => ({ ...prev, activeTab: 'inspector' }));
-                          } else {
-                            console.warn('🔍 Connection failed - no error thrown but returned false');
-                          }
+                          await connectInspector();
+                          console.log('🔍 Manual connection completed');
                         } catch (error) {
                           console.error('🔍 Manual connection failed with error:', error);
                           console.error('🔍 Error details:', {
@@ -712,7 +672,7 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
     <div
       ref={dashboardRef}
       data-testid="dashboard-container"
-      className={`developer-dashboard ${isMobile ? 'mobile-layout' : ''} ${className}`}
+      className={`developer-dashboard ${isMobile ? 'mobile-layout' : 'desktop-layout'} ${className}`}
       style={{ width: layout.width }}
       role="region"
       aria-label="Developer Tools Dashboard"
@@ -737,6 +697,31 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
           position: relative;
           width: 100% !important;
           height: auto;
+          max-height: 100vh;
+        }
+
+        .desktop-layout {
+          max-height: 100vh;
+          overflow: hidden;
+        }
+
+        @media (max-width: 768px) {
+          .desktop-layout {
+            position: relative;
+            width: 100% !important;
+            height: auto;
+            max-height: 100vh;
+          }
+
+          .tabs-horizontal-scroll {
+            overflow-x: auto;
+            flex-wrap: nowrap;
+          }
+
+          .tab {
+            min-width: 120px;
+            flex-shrink: 0;
+          }
         }
 
         .dashboard-header {
@@ -785,6 +770,31 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
           background: #252526;
           border-bottom: 1px solid #333;
           overflow-x: auto;
+        }
+
+        .tabs-horizontal-scroll {
+          overflow-x: auto;
+          overflow-y: hidden;
+          white-space: nowrap;
+          scrollbar-width: thin;
+          scrollbar-color: #555 #252526;
+        }
+
+        .tabs-horizontal-scroll::-webkit-scrollbar {
+          height: 6px;
+        }
+
+        .tabs-horizontal-scroll::-webkit-scrollbar-track {
+          background: #252526;
+        }
+
+        .tabs-horizontal-scroll::-webkit-scrollbar-thumb {
+          background-color: #555;
+          border-radius: 3px;
+        }
+
+        .tabs-horizontal-scroll::-webkit-scrollbar-thumb:hover {
+          background-color: #777;
         }
 
         .vertical-tabs {
@@ -1064,7 +1074,7 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
 
       {/* Tab navigation */}
       <div
-        className={`tab-container ${isMobile ? 'vertical-tabs' : ''}`}
+        className={`tab-container ${isMobile ? 'vertical-tabs' : 'tabs-horizontal-scroll'}`}
         data-testid="tab-container"
         role="tablist"
       >

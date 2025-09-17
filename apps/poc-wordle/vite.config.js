@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'path';
 
 export default defineConfig({
   plugins: [
@@ -41,8 +42,8 @@ export default defineConfig({
   build: {
     sourcemap: true,
     target: 'es2020',
-    minify: 'esbuild',
-    cssMinify: true,
+    minify: false, // Disable minification to avoid ESBuild issues
+    cssMinify: false,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -59,17 +60,31 @@ export default defineConfig({
     assetsInlineLimit: 4096
   },
   optimizeDeps: {
+    // Include packages that need optimization
     include: ['react', 'react-dom', 'xstate', '@xstate/react', 'events'],
+    exclude: [
+      // Exclude workspace packages from optimization to avoid build issues
+      '@nsm/client',
+      '@nsm/client-sdk',
+      '@nsm/core'
+    ],
+    // Force include ESM packages that might be problematic
     force: true
   },
   resolve: {
     alias: {
       '@': '/src',
       events: 'events',
+      // For development, resolve workspace packages to source
+      '@nsm/client': path.resolve(__dirname, '../../packages/nsm-client/src'),
+      '@nsm/client-sdk': path.resolve(__dirname, '../../packages/nsm-client-sdk/src'),
+      '@nsm/core': path.resolve(__dirname, '../../packages/nsm-core/src'),
     },
   },
-  esbuild: {
-    drop: ['console', 'debugger'],
-    legalComments: 'none'
+  // Disable ESBuild to avoid service conflicts
+  esbuild: false,
+  // Configure SSR to handle packages properly
+  ssr: {
+    noExternal: ['events', '@nsm/client', '@nsm/client-sdk', '@nsm/core']
   }
 });
