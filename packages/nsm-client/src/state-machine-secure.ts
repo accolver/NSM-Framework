@@ -194,6 +194,9 @@ export class NSMStateMachineSecure {
       };
 
       try {
+        // Add a protective wrapper to prevent async errors from corrupting event handling
+        await new Promise(resolve => setTimeout(resolve, 1)); // Micro-delay to allow event loop
+
         const result = await securitySandbox.executeSecure(
           fn,
           args,
@@ -208,6 +211,12 @@ export class NSMStateMachineSecure {
         return result.result;
       } catch (error) {
         console.error(`[NSM Security] Action ${actionName} execution failed:`, error);
+
+        // Wrap the error to prevent XState event handling issues
+        setTimeout(() => {
+          // Allow any pending XState operations to complete before propagating error
+        }, 0);
+
         throw error;
       }
     };

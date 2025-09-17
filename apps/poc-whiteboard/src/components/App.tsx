@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense, lazy } from 'react';
 import { createActor } from 'xstate';
 import { whiteboardMachine } from '../whiteboard-machine';
 import { WhiteboardCanvas } from './WhiteboardCanvas';
@@ -140,22 +140,41 @@ export const App: React.FC = () => {
           // CRITICAL FIX: Only log meaningful state changes, not every subscription callback
           try {
             const hasStateChanged = snapshot.value !== state.value;
-            const hasContextChanged = JSON.stringify({
+
+            // Create simplified context snapshots for comparison
+            const currentContext = {
               currentTool: snapshot.context.currentTool,
               isDrawing: snapshot.context.isDrawing,
               pathsCount: snapshot.context.paths.length,
               shapesCount: snapshot.context.shapes.length,
               selectedObjects: snapshot.context.selectedObjects.length
-            }) !== JSON.stringify({
+            };
+
+            const previousContext = {
               currentTool: state.context.currentTool,
               isDrawing: state.context.isDrawing,
               pathsCount: state.context.paths.length,
               shapesCount: state.context.shapes.length,
               selectedObjects: state.context.selectedObjects.length
-            });
+            };
 
-            // Only log if there's a meaningful change and it's not idle->idle
-            if ((hasStateChanged || hasContextChanged) &&
+            // More efficient context comparison
+            const hasContextChanged = Object.keys(currentContext).some(
+              key => currentContext[key] !== previousContext[key]
+            );
+
+            // Only log significant state changes (not micro-updates)
+            const isSignificantChange = hasStateChanged ||
+              (hasContextChanged && (
+                currentContext.currentTool !== previousContext.currentTool ||
+                currentContext.isDrawing !== previousContext.isDrawing ||
+                Math.abs(currentContext.pathsCount - previousContext.pathsCount) > 0 ||
+                Math.abs(currentContext.shapesCount - previousContext.shapesCount) > 0 ||
+                Math.abs(currentContext.selectedObjects - previousContext.selectedObjects) > 0
+              ));
+
+            // Only log if there's a significant change and it's not idle->idle with no context changes
+            if (isSignificantChange &&
                 !(snapshot.value === 'idle' && state.value === 'idle' && !hasContextChanged)) {
 
               const stateEvent = createMockNostrEvent({
@@ -163,19 +182,14 @@ export const App: React.FC = () => {
                 content: JSON.stringify({
                   state: snapshot.value,
                   previousState: state.value,
-                  context: {
-                    currentTool: snapshot.context.currentTool,
-                    isDrawing: snapshot.context.isDrawing,
-                    pathsCount: snapshot.context.paths.length,
-                    shapesCount: snapshot.context.shapes.length,
-                    selectedObjects: snapshot.context.selectedObjects.length
-                  },
-                  timestamp: Date.now()
+                  context: currentContext,
+                  timestamp: Date.now(),
+                  changeType: hasStateChanged ? 'state' : 'context'
                 })
               });
 
               logNostrEvent(stateEvent);
-              console.log('📝 Logged meaningful state change event:', snapshot.value, '->', state.value);
+              console.log('📝 Logged significant state change:', snapshot.value, 'context changed:', hasContextChanged);
             }
           } catch (error) {
             console.warn('⚠️ Error logging state change:', error);
@@ -204,7 +218,11 @@ export const App: React.FC = () => {
           }
 
           // CRITICAL FIX: Same for real-time collaboration - set up once only
-          if (snapshot.context.realTimeCollaborationService && !snapshot.context.realTimeCollaborationService._listenersSet) {
+          // Only set up listeners after collaboration is initialized
+          if (snapshot.context.realTimeCollaborationService &&
+              !snapshot.context.realTimeCollaborationService._listenersSet &&
+              collaborationInitializedRef.current &&
+              currentUserIdRef.current) {
             console.log('⚡ Setting up real-time collaboration listeners (once)');
             const rtService = snapshot.context.realTimeCollaborationService;
 
@@ -221,21 +239,53 @@ export const App: React.FC = () => {
             // Listen for live drawing events
             rtService.onLiveDrawingUpdate((event) => {
               console.log('✏️ Live drawing update:', event);
-              setTimeout(() => actor.send({
-                type: event.type === 'LIVE_DRAWING_START' ? 'START_LIVE_DRAWING' : 'END_LIVE_DRAWING',
-                userId: event.userId,
-                drawingId: event.drawingId
-              }), 0);
+
+              // CRITICAL FIX: Don't send live drawing events back to state machine
+              // This was causing the infinite loop - drawing events trigger the collaboration service,
+              // which emits events that were being sent back to state machine, creating a cycle
+
+              // Log the event for the event log service instead
+              try {
+                const drawingEvent = createMockNostrEvent({
+                  kind: NSM_PROTOCOL.INTERACTION_KIND_MIN + 200, // 7200 for live drawing events
+                  content: JSON.stringify({
+                    action: event.type,
+                    userId: event.userId,
+                    drawingId: event.drawingId,
+                    timestamp: Date.now()
+                  })
+                });
+                logNostrEvent(drawingEvent);
+                console.log('📝 Logged live drawing event to EventLogService:', event.type);
+              } catch (error) {
+                console.warn('⚠️ Error logging live drawing event:', error);
+              }
             });
 
             // Listen for participant updates
             rtService.onParticipantUpdate((event) => {
               console.log('👥 Participant update:', event);
-              setTimeout(() => actor.send({
-                type: event.type === 'PARTICIPANT_JOINED' ? 'PARTICIPANT_JOINED' : 'PARTICIPANT_LEFT',
-                userId: event.userId,
-                userName: event.userName
-              }), 0);
+
+              // CRITICAL FIX: Don't send participant events back to state machine
+              // This was causing the infinite loop - collaboration service events
+              // should only be used for UI updates, not state machine events
+
+              // Log the event for the event log service instead
+              try {
+                const participantEvent = createMockNostrEvent({
+                  kind: NSM_PROTOCOL.COLLABORATION_KIND || NSM_PROTOCOL.INTERACTION_KIND_MIN + 300,
+                  content: JSON.stringify({
+                    action: event.type,
+                    userId: event.userId,
+                    userName: event.userName,
+                    timestamp: Date.now()
+                  })
+                });
+                logNostrEvent(participantEvent);
+                console.log('📝 Logged participant event to EventLogService:', event.type);
+              } catch (error) {
+                console.warn('⚠️ Error logging participant event:', error);
+              }
             });
 
             // Mark listeners as set
@@ -271,7 +321,7 @@ export const App: React.FC = () => {
       }
       console.log('✅ Whiteboard app cleanup complete');
     };
-  }, []); // Remove dependencies that could cause re-execution
+  }, []); // Empty dependency array - only run once on mount
 
   // Handle window resize
   useEffect(() => {
@@ -352,8 +402,30 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [actor, state.context.selectedObjects.length]);
 
-  // Initialize collaboration and join session on mount
+  // CRITICAL FIX: Collaboration initialization with proper lifecycle management
+  const [collaborationInitialized, setCollaborationInitialized] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Use refs to allow access to current values in callbacks without dependency issues
+  const collaborationInitializedRef = useRef(false);
+  const currentUserIdRef = useRef<string | null>(null);
+
+  // Keep refs in sync with state
   useEffect(() => {
+    collaborationInitializedRef.current = collaborationInitialized;
+  }, [collaborationInitialized]);
+
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId;
+  }, [currentUserId]);
+
+  useEffect(() => {
+    // Prevent multiple initializations
+    if (collaborationInitialized) {
+      console.log('🎨 Collaboration already initialized, skipping...');
+      return;
+    }
+
     console.log('🎨 Collaboration initialization useEffect starting...');
 
     // Use setTimeout to ensure this runs after main initialization
@@ -363,6 +435,7 @@ export const App: React.FC = () => {
         const userName = `User ${userId.slice(-4)}`;
 
         console.log('🤝 Initializing collaboration for user:', userId);
+        setCurrentUserId(userId);
 
         // Initialize collaboration service first
         console.log('🤝 Sending INITIALIZE_COLLABORATION');
@@ -387,66 +460,65 @@ export const App: React.FC = () => {
               userName
             });
 
-            setTimeout(() => {
-              console.log('👥 Sending PARTICIPANT_JOINED');
-              actor.send({
-                type: 'PARTICIPANT_JOINED',
-                userId,
-                userName
-              });
+            // CRITICAL FIX: Don't manually send PARTICIPANT_JOINED
+            // The real-time collaboration service will emit this automatically
+            // when addParticipant is called internally
+            console.log('👥 Collaboration initialization complete - participant will be added automatically');
 
-              // Add demo NSM events after everything is set up
-              if (process.env.NODE_ENV === 'development') {
-                console.log('📝 Adding demo NSM events...');
-                try {
-                  // NSM Definition event
-                  logNostrEvent(createMockNostrEvent({
-                    kind: NSM_PROTOCOL.DEFINITION_KIND,
-                    content: JSON.stringify({
-                      type: 'whiteboard',
-                      definition: {
-                        states: ['idle', 'drawing', 'selecting'],
-                        events: ['START_DRAWING', 'END_DRAWING', 'SELECT_TOOL']
-                      }
-                    })
-                  }));
+            // Mark initialization as complete
+            setCollaborationInitialized(true);
 
-                  // NSM State Update event
-                  logNostrEvent(createMockNostrEvent({
-                    kind: NSM_PROTOCOL.STATE_UPDATE_KIND,
-                    content: JSON.stringify({
-                      state: 'idle',
-                      previousState: 'drawing',
-                      timestamp: Date.now()
-                    })
-                  }));
+            // Add demo NSM events after everything is set up
+            if (process.env.NODE_ENV === 'development') {
+              console.log('📝 Adding demo NSM events...');
+              try {
+                // NSM Definition event
+                logNostrEvent(createMockNostrEvent({
+                  kind: NSM_PROTOCOL.DEFINITION_KIND,
+                  content: JSON.stringify({
+                    type: 'whiteboard',
+                    definition: {
+                      states: ['idle', 'drawing', 'selecting'],
+                      events: ['START_DRAWING', 'END_DRAWING', 'SELECT_TOOL']
+                    }
+                  })
+                }));
 
-                  // NSM Interaction events
-                  logNostrEvent(createMockNostrEvent({
-                    kind: NSM_PROTOCOL.INTERACTION_KIND_MIN + 100, // 7100
-                    content: JSON.stringify({
-                      action: 'startDrawing',
-                      tool: 'pen',
-                      coordinates: { x: 150, y: 200 },
-                      userId: userId
-                    })
-                  }));
+                // NSM State Update event
+                logNostrEvent(createMockNostrEvent({
+                  kind: NSM_PROTOCOL.STATE_UPDATE_KIND,
+                  content: JSON.stringify({
+                    state: 'idle',
+                    previousState: 'drawing',
+                    timestamp: Date.now()
+                  })
+                }));
 
-                  logNostrEvent(createMockNostrEvent({
-                    kind: NSM_PROTOCOL.INTERACTION_KIND_MIN + 200, // 7200
-                    content: JSON.stringify({
-                      action: 'endDrawing',
-                      pathId: 'path-' + Math.random().toString(36).substring(2, 9),
-                      userId: userId
-                    })
-                  }));
+                // NSM Interaction events
+                logNostrEvent(createMockNostrEvent({
+                  kind: NSM_PROTOCOL.INTERACTION_KIND_MIN + 100, // 7100
+                  content: JSON.stringify({
+                    action: 'startDrawing',
+                    tool: 'pen',
+                    coordinates: { x: 150, y: 200 },
+                    userId: userId
+                  })
+                }));
 
-                  console.log('✅ Demo NSM events added successfully');
-                } catch (error) {
-                  console.warn('⚠️ Error adding demo NSM events:', error);
-                }
+                logNostrEvent(createMockNostrEvent({
+                  kind: NSM_PROTOCOL.INTERACTION_KIND_MIN + 200, // 7200
+                  content: JSON.stringify({
+                    action: 'endDrawing',
+                    pathId: 'path-' + Math.random().toString(36).substring(2, 9),
+                    userId: userId
+                  })
+                }));
+
+                console.log('✅ Demo NSM events added successfully');
+              } catch (error) {
+                console.warn('⚠️ Error adding demo NSM events:', error);
               }
-            }, 50); // PARTICIPANT_JOINED
+            }
           }, 50); // JOIN_SESSION
         }, 50); // INITIALIZE_REALTIME_COLLABORATION
       } catch (error) {
@@ -457,7 +529,7 @@ export const App: React.FC = () => {
     return () => {
       clearTimeout(initTimeout);
     };
-  }, []); // Remove actor dependency to prevent re-execution
+  }, []); // Empty dependency array - run only once
 
   const send = useCallback((event: any) => {
     actor.send(event);
@@ -474,7 +546,7 @@ export const App: React.FC = () => {
           try {
             inspectorService.registerActor(actor, 'whiteboard-machine');
             console.log('🔍 XState Inspector manually connected - machine visualization available');
-            console.log('🔍 Check your browser for a popup window or visit https://stately.ai/viz');
+            console.log('🔍 Check your browser for a popup window or visit https://stately.ai/registry/new');
             setInspectorConnected(true);
           } catch (regError) {
             console.warn('🔍 Inspector registration error:', regError);
@@ -494,7 +566,7 @@ export const App: React.FC = () => {
   // Manual visualizer opening function
   const openVisualizer = useCallback(() => {
     console.log('🔍 Manual visualizer opening...');
-    window.open('https://stately.ai/viz', '_blank');
+    window.open('https://stately.ai/registry/new', '_blank');
   }, []);
 
   console.log('🎨 App component rendering - RENDER phase, state:', state.value);

@@ -52,33 +52,30 @@ describe('Event Flood Fix', () => {
     // Keep current time for now calculation
     Date.now = () => currentTime;
 
-    // Create events with old timestamps that should not trigger floods
+    // Create events with identical content from same user that should be deduplicated
+    const commonPubkey = 'npub1testuser123456789';
+    const eventContent = JSON.stringify({
+      state: 'idle',
+      previousState: 'idle',
+      context: {
+        currentTool: 'pen',
+        isDrawing: false
+      },
+      timestamp: veryOldTimestamp * 1000
+    });
+
     const stateEvent1 = createMockNostrEvent({
       kind: NSM_PROTOCOL.STATE_UPDATE_KIND,
+      pubkey: commonPubkey,
       created_at: veryOldTimestamp,
-      content: JSON.stringify({
-        state: 'idle',
-        previousState: 'idle',
-        context: {
-          currentTool: 'pen',
-          isDrawing: false
-        },
-        timestamp: veryOldTimestamp * 1000
-      })
+      content: eventContent
     });
 
     const stateEvent2 = createMockNostrEvent({
       kind: NSM_PROTOCOL.STATE_UPDATE_KIND,
-      created_at: veryOldTimestamp,
-      content: JSON.stringify({
-        state: 'idle',
-        previousState: 'idle',
-        context: {
-          currentTool: 'pen',
-          isDrawing: false
-        },
-        timestamp: veryOldTimestamp * 1000
-      })
+      pubkey: commonPubkey,
+      created_at: veryOldTimestamp + 1, // Different timestamp but same content
+      content: eventContent
     });
 
     // Add the first event
@@ -141,18 +138,21 @@ describe('Event Flood Fix', () => {
     });
 
     const baseTimestamp = Math.floor(Date.now() / 1000);
+    const commonPubkey = 'npub1testuser123456789';
+    const commonContent = JSON.stringify({
+      state: 'idle',
+      previousState: 'idle',
+      context: { currentTool: 'pen', isDrawing: false },
+      timestamp: baseTimestamp * 1000 // Keep same timestamp in content
+    });
 
     // Simulate rapid identical state updates (like what causes the flood)
     for (let i = 0; i < 10; i++) {
       logNostrEvent(createMockNostrEvent({
         kind: NSM_PROTOCOL.STATE_UPDATE_KIND,
-        created_at: baseTimestamp + i,
-        content: JSON.stringify({
-          state: 'idle',
-          previousState: 'idle',
-          context: { currentTool: 'pen', isDrawing: false },
-          timestamp: (baseTimestamp + i) * 1000
-        })
+        pubkey: commonPubkey, // Same user
+        created_at: baseTimestamp + i, // Different created_at timestamps
+        content: commonContent // But same content
       }));
     }
 

@@ -26,23 +26,25 @@ describe('Event Flood Fix Demonstration', () => {
 
     // Simulate the exact problem: multiple identical "state-updatekind" events
     const floodTimestamp = Math.floor(Date.now() / 1000) - (1007944 * 60);
+    const commonPubkey = 'npubv4mvl11mc7'; // Same client ID as in the screenshot
+    const commonContent = JSON.stringify({
+      state: 'idle',
+      previousState: 'idle',
+      context: {
+        currentTool: 'pen',
+        isDraw: false // Truncated as in the screenshot
+      },
+      timestamp: floodTimestamp * 1000
+    });
 
     console.log('⚡ Attempting to create 50 identical state-update events (the flood scenario)...');
 
     for (let i = 0; i < 50; i++) {
       logNostrEvent(createMockNostrEvent({
         kind: NSM_PROTOCOL.STATE_UPDATE_KIND,
-        created_at: floodTimestamp,
-        pubkey: 'npubv4mvl11mc7', // Same client ID as in the screenshot
-        content: JSON.stringify({
-          state: 'idle',
-          previousState: 'idle',
-          context: {
-            currentTool: 'pen',
-            isDraw: false // Truncated as in the screenshot
-          },
-          timestamp: floodTimestamp * 1000
-        })
+        created_at: floodTimestamp + i, // Different timestamps but same content
+        pubkey: commonPubkey,
+        content: commonContent
       }));
     }
 

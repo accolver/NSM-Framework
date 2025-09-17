@@ -132,10 +132,12 @@ export type WhiteboardEvent =
   // Real-time collaboration events
   | { type: 'INITIALIZE_REALTIME_COLLABORATION' }
   | { type: 'UPDATE_REMOTE_CURSOR'; userId: string; position: CursorPosition }
-  | { type: 'START_LIVE_DRAWING'; userId: string; drawingId: string }
-  | { type: 'END_LIVE_DRAWING'; userId: string }
-  | { type: 'PARTICIPANT_JOINED'; userId: string; userName: string }
-  | { type: 'PARTICIPANT_LEFT'; userId: string };
+  // Live drawing events removed - handled by collaboration service directly to prevent infinite loops
+  // | { type: 'START_LIVE_DRAWING'; userId: string; drawingId: string }
+  // | { type: 'END_LIVE_DRAWING'; userId: string }
+  // Participant events removed - handled by collaboration service directly
+  // | { type: 'PARTICIPANT_JOINED'; userId: string; userName: string }
+  // | { type: 'PARTICIPANT_LEFT'; userId: string };
 
 // Helper functions
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -362,7 +364,14 @@ const redo = assign({
 
 const joinSession = assign({
   userId: ({ event }) => event.type === 'JOIN_SESSION' ? event.userId : '',
-  userName: ({ event }) => event.type === 'JOIN_SESSION' ? event.userName : ''
+  userName: ({ event }) => event.type === 'JOIN_SESSION' ? event.userName : '',
+  realTimeCollaborationService: ({ context, event }) => {
+    // CRITICAL FIX: Automatically add current user silently when joining session
+    if (event.type === 'JOIN_SESSION' && context.realTimeCollaborationService) {
+      context.realTimeCollaborationService.addParticipantSilent(event.userId, event.userName);
+    }
+    return context.realTimeCollaborationService;
+  }
 });
 
 const updateCollaborators = assign({
@@ -439,43 +448,13 @@ const updateRemoteCursor = assign({
   }
 });
 
-const startLiveDrawing = assign({
-  // Update the realTimeCollaborationService when a user starts drawing
-  realTimeCollaborationService: ({ context, event }) => {
-    if (event.type === 'START_LIVE_DRAWING' && context.realTimeCollaborationService) {
-      context.realTimeCollaborationService.startLiveDrawing(event.userId, event.drawingId);
-    }
-    return context.realTimeCollaborationService;
-  }
-});
+// REMOVED: Live drawing actions no longer needed
+// Live drawing management is handled directly by the canvas component to prevent infinite loops
+// The collaboration service is called directly from WhiteboardCanvas, not through state machine events
 
-const endLiveDrawing = assign({
-  // Update the realTimeCollaborationService when a user ends drawing
-  realTimeCollaborationService: ({ context, event }) => {
-    if (event.type === 'END_LIVE_DRAWING' && context.realTimeCollaborationService) {
-      context.realTimeCollaborationService.endLiveDrawing(event.userId);
-    }
-    return context.realTimeCollaborationService;
-  }
-});
-
-const addParticipant = assign({
-  realTimeCollaborationService: ({ context, event }) => {
-    if (event.type === 'PARTICIPANT_JOINED' && context.realTimeCollaborationService) {
-      context.realTimeCollaborationService.addParticipant(event.userId, event.userName);
-    }
-    return context.realTimeCollaborationService;
-  }
-});
-
-const removeParticipant = assign({
-  realTimeCollaborationService: ({ context, event }) => {
-    if (event.type === 'PARTICIPANT_LEFT' && context.realTimeCollaborationService) {
-      context.realTimeCollaborationService.removeParticipant(event.userId);
-    }
-    return context.realTimeCollaborationService;
-  }
-});
+// REMOVED: Participant actions no longer needed
+// Participant management is handled directly by the collaboration service
+// when JOIN_SESSION is called (via addParticipantSilent in joinSession action)
 
 const receiveRemoteObject = assign({
   paths: ({ context, event }) => {
@@ -610,10 +589,10 @@ export const createWhiteboardMachine = (initialContext?: Partial<WhiteboardConte
           // Real-time collaboration events
           INITIALIZE_REALTIME_COLLABORATION: { actions: initializeRealTimeCollaboration },
           UPDATE_REMOTE_CURSOR: { actions: updateRemoteCursor },
-          START_LIVE_DRAWING: { actions: startLiveDrawing },
-          END_LIVE_DRAWING: { actions: endLiveDrawing },
-          PARTICIPANT_JOINED: { actions: addParticipant },
-          PARTICIPANT_LEFT: { actions: removeParticipant }
+          // REMOVED: Live drawing events no longer handled by state machine
+          // They are managed directly by the collaboration service to prevent infinite loops
+          // REMOVED: Participant events no longer handled by state machine
+          // They are managed directly by the collaboration service
         }
       },
       drawing: {

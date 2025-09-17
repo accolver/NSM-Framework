@@ -6,7 +6,7 @@ import {
   quickSanitizeInput,
   type ClientValidationConfig
 } from "./client-validation.js";
-import { RateLimiter } from "@nsm/core";
+import { RateLimiter, RateLimitAlgorithm } from "@nsm/core";
 import type { INostrEvent } from "@nsm/core";
 
 describe("NSM Client Validation Integration", () => {
@@ -42,7 +42,11 @@ describe("NSM Client Validation Integration", () => {
       });
 
       it("should enforce rate limiting when enabled", () => {
-        const rateLimiter = RateLimiter.getInstance();
+        const rateLimiter = new RateLimiter({
+          algorithm: RateLimitAlgorithm.TOKEN_BUCKET,
+          capacity: 10,
+          refillRate: 5
+        });
         const rateLimitValidator = createValidator({
           userId: "limited-user",
           enableRateLimit: true

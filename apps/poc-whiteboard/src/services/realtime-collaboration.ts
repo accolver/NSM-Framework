@@ -139,6 +139,18 @@ export class RealTimeCollaborationService {
     this.emitParticipantUpdate(event);
   }
 
+  // CRITICAL FIX: Add participant without emitting event (for initial user setup)
+  addParticipantSilent(userId: string, userName: string): void {
+    const participant: SessionParticipant = {
+      userId,
+      userName,
+      joinedAt: new Date()
+    };
+
+    this.sessionParticipants.set(userId, participant);
+    // Intentionally do NOT emit participant update to prevent infinite loop
+  }
+
   removeParticipant(userId: string): void {
     const participant = this.sessionParticipants.get(userId);
     this.sessionParticipants.delete(userId);

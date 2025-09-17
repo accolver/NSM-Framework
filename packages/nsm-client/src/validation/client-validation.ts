@@ -10,6 +10,7 @@ import {
   validateFileUpload,
   validateURL,
   RateLimiter,
+  RateLimitAlgorithm,
   type ValidationResult
 } from "@nsm/core";
 import type { INostrEvent } from "@nsm/core";
@@ -54,7 +55,11 @@ export class NSMClientValidator {
 
   constructor(config: ClientValidationConfig = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.rateLimiter = RateLimiter.getInstance();
+    this.rateLimiter = new RateLimiter({
+      algorithm: RateLimitAlgorithm.TOKEN_BUCKET,
+      capacity: 100,
+      refillRate: 10
+    });
   }
 
   /**

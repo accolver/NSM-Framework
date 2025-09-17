@@ -348,7 +348,7 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
                   <p>The XState Inspector is running. The visualization should be available in:</p>
                   <ul style={{ margin: '8px 0', paddingLeft: '20px', color: '#d4d4d4' }}>
                     <li>A popup window (if not blocked)</li>
-                    <li>Or visit <a href="https://stately.ai/viz" target="_blank" rel="noopener noreferrer" style={{ color: '#4fc3f7' }}>https://stately.ai/viz</a></li>
+                    <li>Or visit <a href="https://stately.ai/registry/new" target="_blank" rel="noopener noreferrer" style={{ color: '#4fc3f7' }}>https://stately.ai/registry/new</a></li>
                   </ul>
 
                   <div className="registered-actors">
@@ -390,7 +390,7 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
 
                                     // Also show in console
                                     console.log(`🔍 Machine definition for ${name} copied successfully`);
-                                    console.log('🔍 Paste it into https://stately.ai/viz to visualize');
+                                    console.log('🔍 Paste it into https://stately.ai/registry/new to visualize');
                                   } else {
                                     console.error(`🔍 Failed to copy machine definition for ${name}`);
 
@@ -566,7 +566,7 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
                           console.log('🔍 Import successful, creating test inspector...');
 
                           const testInspector = createBrowserInspector({
-                            url: 'https://stately.ai/viz',
+                            url: 'https://stately.ai/registry/new',
                             window: window,
                             iframe: null,
                             autoStart: false

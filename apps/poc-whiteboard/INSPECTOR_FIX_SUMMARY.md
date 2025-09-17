@@ -68,7 +68,7 @@ optimizeDeps: { include: ['@statelyai/inspect'] }
 🔍 Dynamic import successful: function
 🔍 CONNECT CALLED - Environment check:
 🔍 Successfully imported @statelyai/inspect
-🔍 Creating browser inspector with config: { url: 'https://stately.ai/viz', ... }
+🔍 Creating browser inspector with config: { url: 'https://stately.ai/registry/new', ... }
 🔍 Inspector created successfully: true
 🔍 Starting inspector...
 🔍 Inspector started successfully
@@ -76,7 +76,7 @@ optimizeDeps: { include: ['@statelyai/inspect'] }
 ```
 
 ### ✅ Network Activity Visible
-- Connection attempts to `https://stately.ai/viz` in Network tab
+- Connection attempts to `https://stately.ai/registry/new` in Network tab
 - Popup window opens (or popup blocked notification)
 - WebSocket connections visible
 
@@ -88,15 +88,15 @@ optimizeDeps: { include: ['@statelyai/inspect'] }
 ## 🌐 XState Inspector Usage
 
 ### **When Connection Succeeds**
-- A popup window opens to `https://stately.ai/viz`
-- OR visit `https://stately.ai/viz` manually if popup is blocked
+- A popup window opens to `https://stately.ai/registry/new`
+- OR visit `https://stately.ai/registry/new` manually if popup is blocked
 - Whiteboard state machine should be visible in the inspector
 - State changes will be reflected in real-time
 
 ### **If Popup is Blocked**
 1. Look for popup blocker icon in browser address bar
 2. Allow popups for `localhost:5173`
-3. OR manually visit `https://stately.ai/viz`
+3. OR manually visit `https://stately.ai/registry/new`
 4. The inspector will connect to your local state machine
 
 ## 📁 Files Modified

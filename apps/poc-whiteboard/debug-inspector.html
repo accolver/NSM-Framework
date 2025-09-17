@@ -184,7 +184,7 @@
 
                 log('Creating browser inspector...');
                 inspector = createBrowserInspector({
-                    url: 'https://stately.ai/viz',
+                    url: 'https://stately.ai/registry/new',
                     window: window,
                     iframe: null,
                     autoStart: false
@@ -210,7 +210,7 @@
                 log('Starting inspector...');
                 inspector.start();
                 updateStatus(true);
-                log('✅ Inspector connected! Check for popup window or visit https://stately.ai/viz');
+                log('✅ Inspector connected! Check for popup window or visit https://stately.ai/registry/new');
             } catch (error) {
                 log(`❌ Connection failed: ${error.message}`, 'error');
                 log(`Stack: ${error.stack}`, 'error');

@@ -8,11 +8,13 @@ import {
   createCryptoSuite,
   BlossomVerifier,
   NostrVerifier,
-  CryptoAuditLogger,
-  type VerificationResult,
-  type HashVerificationOptions,
-  type SignatureVerificationOptions
+  CryptoAuditLogger
 } from '@nsm/crypto';
+import type {
+  VerificationResult,
+  HashVerificationOptions,
+  SignatureVerificationOptions
+} from '@nsm/crypto/src/types';
 import type { INostrEvent } from '@nsm/core';
 
 export interface CryptoBlossomConfig extends BlossomConfig {
@@ -234,7 +236,9 @@ export class CryptoBlossomClient extends BlossomClient {
           // Cache the result
           if (this.verificationCache.size > 500) {
             const firstKey = this.verificationCache.keys().next().value;
-            this.verificationCache.delete(firstKey);
+            if (firstKey) {
+              this.verificationCache.delete(firstKey);
+            }
           }
           this.verificationCache.set(cacheKey, verification);
         }
@@ -353,7 +357,7 @@ export class CryptoBlossomClient extends BlossomClient {
     const uploadPromises = this.getServers().map(async (server, index) => {
       try {
         // Create a temporary client for each server to ensure independent uploads
-        const singleServerConfig = { ...this.config, servers: [server] };
+        const singleServerConfig = { ...this.getConfig(), servers: [server] };
         const tempClient = new CryptoBlossomClient(singleServerConfig);
         return await tempClient.uploadWithCrypto(content, { generateIntegrityProof: true });
       } catch (error) {

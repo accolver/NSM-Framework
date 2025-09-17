@@ -173,7 +173,7 @@ class InspectorServiceImpl implements InspectorService {
 
       // Create browser inspector with explicit window handling
       console.log('🔍 Creating browser inspector with config:', {
-        url: 'https://stately.ai/viz',
+        url: 'https://stately.ai/registry/new',
         hasWindow: !!window,
         autoStart: false,
         isTestEnv: isTestEnvironment
@@ -196,7 +196,7 @@ class InspectorServiceImpl implements InspectorService {
         };
       } else {
         this.inspector = createBrowserInspector({
-          url: 'https://stately.ai/viz',
+          url: 'https://stately.ai/registry/new',
           window: window,
           iframe: null, // Allow popup for now
           autoStart: false // We'll start manually
@@ -316,13 +316,13 @@ class InspectorServiceImpl implements InspectorService {
   }
 
   registerActor(actor: AnyActor, name: string): boolean {
-    // Store the actor even if not currently connected, for re-registration later
+    // Always store the actor for definition extraction and later registration
     this.registeredActors.set(name, actor);
+    console.log(`🔍 Actor ${name} stored for machine definition access`);
 
     if (!this.connected || !this.inspector) {
-      console.warn('🔍 Cannot register actor: inspector not connected');
       console.log(`🔍 Actor ${name} stored for registration when inspector connects`);
-      return false;
+      return false; // Inspector not connected, but actor is stored
     }
 
     try {
@@ -345,7 +345,7 @@ class InspectorServiceImpl implements InspectorService {
 
       console.log(`🔍 Actor registered successfully: ${name}`);
       console.log('🔍 Inspector should now be tracking state transitions');
-      console.log('🔍 Visit https://stately.ai/viz to see the visualization');
+      console.log('🔍 Visit https://stately.ai/registry/new to see the visualization');
 
       return true;
     } catch (error) {
@@ -456,7 +456,7 @@ class InspectorServiceImpl implements InspectorService {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(jsonString);
         console.log(`🔍 Machine definition for ${actorName} copied to clipboard`);
-        console.log('🔍 You can now paste this into https://stately.ai/viz');
+        console.log('🔍 You can now paste this into https://stately.ai/registry/new');
         return true;
       }
 
@@ -473,7 +473,7 @@ class InspectorServiceImpl implements InspectorService {
 
       if (success) {
         console.log(`🔍 Machine definition for ${actorName} copied to clipboard (fallback method)`);
-        console.log('🔍 You can now paste this into https://stately.ai/viz');
+        console.log('🔍 You can now paste this into https://stately.ai/registry/new');
         return true;
       } else {
         console.error('🔍 Failed to copy to clipboard - both modern and fallback methods failed');
@@ -557,7 +557,7 @@ export async function createInspectedActor<T extends AnyActorLogic>(
         };
       } else {
         inspector = createBrowserInspector({
-          url: 'https://stately.ai/viz',
+          url: 'https://stately.ai/registry/new',
           window: window,
           iframe: null,
           autoStart: true

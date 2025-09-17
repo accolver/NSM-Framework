@@ -119,7 +119,7 @@ Added "Test Inspector" button alongside "Retry Connection" with comprehensive di
 - Error messages will include full stack traces
 
 ### ✅ Network Activity
-- XState Inspector should attempt to connect to `https://stately.ai/viz`
+- XState Inspector should attempt to connect to `https://stately.ai/registry/new`
 - Popup window should open (if not blocked by browser)
 - WebSocket connections should be visible in network tab
 
@@ -153,7 +153,7 @@ Added "Test Inspector" button alongside "Retry Connection" with comprehensive di
 **Solution**:
 - Check browser popup blocker settings
 - Look for popup blocker icon in address bar
-- Manually visit `https://stately.ai/viz` if popup fails
+- Manually visit `https://stately.ai/registry/new` if popup fails
 
 ### Issue: @statelyai/inspect Import Fails
 **Solution**:

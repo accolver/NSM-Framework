@@ -42,7 +42,7 @@ export interface NostrEvent {
   pubkey?: string;
 }
 
-interface ServerStats {
+export interface ServerStats {
   health: 'healthy' | 'unhealthy' | 'unknown';
   responseTime: number;
   successRate: number;
@@ -105,6 +105,10 @@ export class BlossomClient {
       stats[server] = { ...stat };
     }
     return stats;
+  }
+
+  getConfig(): BlossomConfig {
+    return { ...this.config };
   }
 
   async checkServerHealth(serverUrl: string): Promise<void> {

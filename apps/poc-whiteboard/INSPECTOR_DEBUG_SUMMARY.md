@@ -58,13 +58,13 @@
 ### Expected Behavior
 - Inspector should attempt to open popup window
 - If popup blocked, manual "Open Visualizer" button should work
-- State machine changes should be visible in https://stately.ai/viz
+- State machine changes should be visible in https://stately.ai/registry/new
 - Connection status should be accurate
 
 ## Browser Requirements
 - Modern browser with `window.open` support
 - Popup blocker should allow popups for localhost (or manual override)
-- Network access to https://stately.ai/viz
+- Network access to https://stately.ai/registry/new
 
 ## Alternative Approaches Available
 1. **Current**: Browser inspector with popup

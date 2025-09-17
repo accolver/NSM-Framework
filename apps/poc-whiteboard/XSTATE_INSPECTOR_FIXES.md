@@ -32,7 +32,7 @@
 
 ### 2. **Inspector Machine Not Visible in External Viewer** ✅
 
-**Problem**: XState Inspector showed "Connected" status and listed "whiteboard-machine" as registered, but the machine visualization wasn't appearing at https://stately.ai/viz.
+**Problem**: XState Inspector showed "Connected" status and listed "whiteboard-machine" as registered, but the machine visualization wasn't appearing at https://stately.ai/registry/new.
 
 **Root Cause**: Complex machine definition with functions and circular references couldn't be serialized properly for transmission to external inspector.
 
@@ -98,7 +98,7 @@
 2. **Inspector Visualization**:
    - Open the whiteboard application
    - Check that Inspector shows "Connected" status
-   - Open https://stately.ai/viz in a new tab/window
+   - Open https://stately.ai/registry/new in a new tab/window
    - Start drawing on the whiteboard
    - **Expected**: Machine visualization should appear and update in real-time
 
@@ -138,7 +138,7 @@ Actor Registration with Inspector
     ↓
 State Transitions
     ↓
-Inspector Sends to stately.ai/viz
+Inspector Sends to stately.ai/registry/new
     ↓
 External Visualization Updates
 ```
@@ -161,7 +161,7 @@ External Visualization Updates
 
 ### If Inspector Still Doesn't Show Machine:
 1. Check for popup blockers
-2. Verify stately.ai/viz is accessible
+2. Verify stately.ai/registry/new is accessible
 3. Look for "🔍 Actor registered successfully" console messages
 4. Try manual reconnection using Developer Dashboard buttons
 

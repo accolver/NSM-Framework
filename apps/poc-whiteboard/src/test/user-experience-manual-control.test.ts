@@ -158,9 +158,9 @@ describe('User Experience - Manual Inspector Control', () => {
 
       try {
         // Simulate the openVisualizer function
-        window.open('https://stately.ai/viz', '_blank');
+        window.open('https://stately.ai/registry/new', '_blank');
 
-        expect(openUrl).toBe('https://stately.ai/viz');
+        expect(openUrl).toBe('https://stately.ai/registry/new');
         expect(openTarget).toBe('_blank');
       } finally {
         global.window.open = originalOpen;
@@ -178,7 +178,7 @@ describe('User Experience - Manual Inspector Control', () => {
       let visualizerOpened = false;
 
       global.window.open = (url: string) => {
-        if (url.includes('stately.ai/viz')) {
+        if (url.includes('stately.ai/registry/new')) {
           visualizerOpened = true;
         }
         return { close: () => {} } as any;
@@ -186,7 +186,7 @@ describe('User Experience - Manual Inspector Control', () => {
 
       try {
         // User can always open visualizer directly
-        window.open('https://stately.ai/viz', '_blank');
+        window.open('https://stately.ai/registry/new', '_blank');
         expect(visualizerOpened).toBe(true);
       } finally {
         global.window.open = originalOpen;

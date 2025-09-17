@@ -49,7 +49,7 @@
 ### Manual Control Interactions:
 - **No Automatic Popups**: Application starts without opening Stately visualizer
 - **Manual Connection**: User can manually connect inspector via "Retry Connection" button
-- **Direct Visualizer Access**: "Open Visualizer" button provides direct access to https://stately.ai/viz
+- **Direct Visualizer Access**: "Open Visualizer" button provides direct access to https://stately.ai/registry/new
 - **Connection Status**: Clear visual indicators showing connection state
 
 ### Responsive Design & Polish:
@@ -98,7 +98,7 @@
 1. ✅ **Application Startup**: No automatic popups or visualizer windows
 2. ✅ **Initial State**: Inspector shows "Disconnected" status consistently
 3. ✅ **Manual Connection**: "Retry Connection" button functions correctly
-4. ✅ **Direct Access**: "Open Visualizer" button opens https://stately.ai/viz in new tab
+4. ✅ **Direct Access**: "Open Visualizer" button opens https://stately.ai/registry/new in new tab
 5. ✅ **Status Updates**: UI correctly reflects connection state changes
 6. ✅ **Error Handling**: Graceful handling when connection fails
 

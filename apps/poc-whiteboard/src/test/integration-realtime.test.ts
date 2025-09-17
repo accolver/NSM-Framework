@@ -68,28 +68,20 @@ describe('Real-Time Collaboration Integration Tests', () => {
     actor.send({ type: 'INITIALIZE_COLLABORATION', userId: 'local-user', userName: 'Local' });
     actor.send({ type: 'INITIALIZE_REALTIME_COLLABORATION' });
 
-    // Start live drawing
-    actor.send({
-      type: 'START_LIVE_DRAWING',
-      userId: 'artist-user',
-      drawingId: 'path-123'
-    });
-
     let state = actor.getSnapshot();
     let rtService = state.context.realTimeCollaborationService;
+
+    // Start live drawing using service method (not state machine event)
+    rtService?.startLiveDrawing('artist-user', 'path-123');
+
     let activeDrawings = rtService?.getActiveDrawings();
 
     expect(activeDrawings?.has('artist-user')).toBe(true);
     expect(activeDrawings?.get('artist-user')).toBe('path-123');
 
-    // End live drawing
-    actor.send({
-      type: 'END_LIVE_DRAWING',
-      userId: 'artist-user'
-    });
+    // End live drawing using service method
+    rtService?.endLiveDrawing('artist-user');
 
-    state = actor.getSnapshot();
-    rtService = state.context.realTimeCollaborationService;
     activeDrawings = rtService?.getActiveDrawings();
 
     expect(activeDrawings?.has('artist-user')).toBe(false);
@@ -100,35 +92,22 @@ describe('Real-Time Collaboration Integration Tests', () => {
     actor.send({ type: 'INITIALIZE_COLLABORATION', userId: 'local-user', userName: 'Local' });
     actor.send({ type: 'INITIALIZE_REALTIME_COLLABORATION' });
 
-    // Add participants
-    actor.send({
-      type: 'PARTICIPANT_JOINED',
-      userId: 'user1',
-      userName: 'Alice'
-    });
-
-    actor.send({
-      type: 'PARTICIPANT_JOINED',
-      userId: 'user2',
-      userName: 'Bob'
-    });
-
     let state = actor.getSnapshot();
     let rtService = state.context.realTimeCollaborationService;
+
+    // Add participants using service method (not state machine events)
+    rtService?.addParticipant('user1', 'Alice');
+    rtService?.addParticipant('user2', 'Bob');
+
     let participants = rtService?.getSessionParticipants();
 
     expect(participants?.size).toBe(2);
     expect(participants?.get('user1')?.userName).toBe('Alice');
     expect(participants?.get('user2')?.userName).toBe('Bob');
 
-    // Remove participant
-    actor.send({
-      type: 'PARTICIPANT_LEFT',
-      userId: 'user1'
-    });
+    // Remove participant using service method
+    rtService?.removeParticipant('user1');
 
-    state = actor.getSnapshot();
-    rtService = state.context.realTimeCollaborationService;
     participants = rtService?.getSessionParticipants();
 
     expect(participants?.size).toBe(1);
@@ -151,20 +130,18 @@ describe('Real-Time Collaboration Integration Tests', () => {
       type: 'INITIALIZE_REALTIME_COLLABORATION'
     });
 
-    // Join session and add as participant
+    // Join session and add as participant using service methods
     actor.send({
       type: 'JOIN_SESSION',
       userId,
       userName
     });
 
-    actor.send({
-      type: 'PARTICIPANT_JOINED',
-      userId,
-      userName
-    });
-
     const state = actor.getSnapshot();
+    const rtService = state.context.realTimeCollaborationService;
+
+    // Add participant using service method
+    rtService?.addParticipant(userId, userName);
 
     // Verify both services are initialized
     expect(state.context.collaborationService).not.toBeNull();
@@ -175,7 +152,7 @@ describe('Real-Time Collaboration Integration Tests', () => {
     expect(state.context.userName).toBe(userName);
 
     // Verify participant is tracked
-    const participants = state.context.realTimeCollaborationService?.getSessionParticipants();
+    const participants = rtService?.getSessionParticipants();
     expect(participants?.has(userId)).toBe(true);
     expect(participants?.get(userId)?.userName).toBe(userName);
   });

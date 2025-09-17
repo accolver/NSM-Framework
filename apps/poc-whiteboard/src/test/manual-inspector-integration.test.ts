@@ -52,7 +52,7 @@ describe('Manual Inspector Control Integration', () => {
 
     try {
       // Simulate the openVisualizer function from App component
-      window.open('https://stately.ai/viz', '_blank');
+      window.open('https://stately.ai/registry/new', '_blank');
       expect(openCalled).toBe(true);
     } finally {
       global.window.open = originalOpen;

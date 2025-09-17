@@ -16,7 +16,16 @@ describe('NSMClient', () => {
         stop: mock(() => {})
       })),
       publish: mock(() => Promise.resolve()),
+      emit: mock(() => {}),
       assertSigner: mock(() => {}),
+      debug: {
+        extend: mock(() => ({
+          extend: mock(() => {})
+        }))
+      },
+      subManager: {
+        dispatchEvent: mock(() => {})
+      },
       signer: {
         sign: mock(() => Promise.resolve('mock-signature')),
         user: mock(() => Promise.resolve({ pubkey: 'mock-pubkey' }))

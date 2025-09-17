@@ -15,7 +15,7 @@ The XState Inspector integration has been **successfully completed** and is work
   - NSM event structure compliance with proper kind values
 
 ### 2. **Machine Visibility in External XState Inspector** ✅
-- **Issue**: Machine not visible at https://stately.ai/viz
+- **Issue**: Machine not visible at https://stately.ai/registry/new
 - **Status**: **RESOLVED** - Machine properly registers and visualizes
 - **Implementation**:
   - Simplified actor registration in `inspector-service.ts`
@@ -56,7 +56,7 @@ The XState Inspector integration has been **successfully completed** and is work
 
 2. **External Inspector Visualization**: ✅ Active
    - Machine registers successfully with inspector
-   - State transitions visible at https://stately.ai/viz
+   - State transitions visible at https://stately.ai/registry/new
    - Connection diagnostics and error handling improved
 
 3. **Event Flow Architecture**: ✅ Implemented
@@ -89,7 +89,7 @@ The XState Inspector integration has been **successfully completed** and is work
 
 2. **Inspector Visualization**:
    - Check console for "Inspector connected" message
-   - Visit https://stately.ai/viz in new tab
+   - Visit https://stately.ai/registry/new in new tab
    - Machine visualization updates in real-time
 
 ### Debug Console Commands

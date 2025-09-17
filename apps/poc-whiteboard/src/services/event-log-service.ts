@@ -160,23 +160,32 @@ class EventLogServiceImpl implements EventLogService {
    * Create a hash for event deduplication
    */
   private createEventHash(event: INostrEvent): string {
-    // For state-update events, include content in hash to detect duplicates
+    // For state-update events, prioritize content-based deduplication to prevent floods
     if (event.kind === NSM_PROTOCOL.STATE_UPDATE_KIND) {
       try {
         const content = JSON.parse(event.content);
+        // Focus on the core state information that defines uniqueness
         const relevantContent = {
           state: content.state,
           previousState: content.previousState,
-          context: content.context
+          // Only include context properties that actually matter for duplication
+          contextSummary: {
+            currentTool: content.context?.currentTool,
+            isDrawing: content.context?.isDrawing,
+            pathsCount: content.context?.pathsCount,
+            shapesCount: content.context?.shapesCount
+          }
         };
-        return `${event.kind}-${JSON.stringify(relevantContent)}`;
+        // Use content-based hash for state updates to prevent identical state floods
+        return `state-${event.kind}-${JSON.stringify(relevantContent)}-${event.pubkey}`;
       } catch {
-        return `${event.kind}-${event.content}`;
+        // Fallback to ID-based for invalid content
+        return `${event.id}-${event.created_at}-${event.kind}-${event.content}`;
       }
     }
 
-    // For other events, use kind + content
-    return `${event.kind}-${event.content}`;
+    // For other events, use ID + timestamp + kind + content for exact deduplication
+    return `${event.id}-${event.created_at}-${event.kind}-${event.content}`;
   }
 
   /**

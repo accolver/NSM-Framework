@@ -9,7 +9,7 @@ The XState inspector in the NSM Developer Dashboard requires several fixes to im
 
 1. **Inspector Connection Issues**: The inspector service (apps/poc-whiteboard/src/services/inspector-service.ts) has complex connection logic with multiple fallback strategies but may fail to establish proper connections in certain environments. Need to improve connection reliability and error handling.
 
-2. **State Machine Registration**: Fix the registerActor method to ensure state machines are properly registered with the inspector and visible in the stately.ai/viz interface. The current implementation calls this.inspector.actor(actor) but may not be passing the correct format or metadata.
+2. **State Machine Registration**: Fix the registerActor method to ensure state machines are properly registered with the inspector and visible in the stately.ai/registry/new interface. The current implementation calls this.inspector.actor(actor) but may not be passing the correct format or metadata.
 
 3. **Code Copy Functionality**: Add functionality to copy state machine definitions to clipboard for pasting into the stately.ai visualizer. This is referenced in the user request but not currently implemented in the codebase. Need to add:
    - Extract machine definition/configuration from registered actors
@@ -36,7 +36,7 @@ Focus on the inspector service reliability, proper actor registration, and imple
    - Create a test state machine with known structure
    - Register it with the inspector
    - Use the copy functionality to extract machine definition
-   - Verify the copied JSON is valid and can be imported into stately.ai/viz
+   - Verify the copied JSON is valid and can be imported into stately.ai/registry/new
    - Test clipboard integration across different browsers
 
 4. **Dashboard Integration Testing**:

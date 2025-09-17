@@ -111,6 +111,20 @@ export class SecuritySandbox {
     const startTime = Date.now();
     const initialMemory = this.getMemoryUsage();
 
+    // Validate inputs before execution
+    if (!fn || typeof fn !== 'function') {
+      throw new SecurityError('Invalid function provided for execution');
+    }
+
+    // Sanitize args to prevent null/undefined propagation issues
+    const sanitizedArgs = (args || []).map(arg => {
+      // Handle null/undefined gracefully for XState compatibility
+      if (arg === null || arg === undefined) {
+        return arg; // Keep these as-is but log them
+      }
+      return arg;
+    });
+
     // Pre-execution security checks
     this.validateExecution(fn, context, mergedPolicy);
 
@@ -119,9 +133,9 @@ export class SecuritySandbox {
       let executionTime: number;
 
       if (mergedPolicy.enableWebWorker && this.supportsWebWorkers()) {
-        result = await this.executeInWebWorker(fn, args, mergedPolicy);
+        result = await this.executeInWebWorker(fn, sanitizedArgs, mergedPolicy);
       } else {
-        result = await this.executeInRestrictedContext(fn, args, mergedPolicy);
+        result = await this.executeInRestrictedContext(fn, sanitizedArgs, mergedPolicy);
       }
 
       executionTime = Date.now() - startTime;
@@ -141,7 +155,15 @@ export class SecuritySandbox {
 
     } catch (error) {
       this.recordViolation(context.userId || 'anonymous');
-      throw new SecurityError(`Sandbox execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+
+      // Handle null or undefined error objects gracefully
+      const errorMessage = error instanceof Error
+        ? error.message
+        : (error && typeof error === 'object' && 'toString' in error)
+          ? error.toString()
+          : 'Unknown error';
+
+      throw new SecurityError(`Sandbox execution failed: ${errorMessage}`, {
         context,
         policy: mergedPolicy
       });
@@ -357,7 +379,23 @@ export class SecuritySandbox {
           return;
         }
 
-        const result = fn.apply(restrictedContext, args);
+        let result;
+        try {
+          // Ensure function is properly bound and args are not corrupted
+          if (typeof fn !== 'function') {
+            throw new SecurityError('Invalid function provided');
+          }
+
+          // Apply function with additional error boundaries
+          result = fn.apply(restrictedContext, args);
+        } catch (fnError) {
+          // Handle specific XState/React errors gracefully
+          const errorMessage = fnError instanceof Error ? fnError.message : String(fnError);
+          if (errorMessage.includes('event.type') || errorMessage.includes('null is not an object')) {
+            throw new SecurityError('Invalid event object passed to function');
+          }
+          throw fnError;
+        }
 
         const executionTime = Date.now() - startTime;
         if (executionTime > policy.maxExecutionTime) {

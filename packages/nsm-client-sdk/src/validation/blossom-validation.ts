@@ -6,9 +6,9 @@
 import {
   validateFileUpload,
   validateURL,
-  sanitizeUserInput,
-  type ValidationResult
-} from "@nsm/core/validation";
+  sanitizeUserInput
+} from "@nsm/core";
+import type { ValidationResult } from "@nsm/core";
 import { calculateSHA256, verifyContentIntegrity, isValidContentType } from "../blossom/utils.js";
 
 /**
@@ -60,9 +60,23 @@ const DEFAULT_BLOSSOM_CONFIG: Required<BlossomValidationConfig> = {
 };
 
 /**
+ * Extended validation result interface that includes risk scoring
+ */
+interface ExtendedValidationResult<T = unknown> extends ValidationResult<T> {
+  /** Security risk score (0-100) */
+  riskScore?: number;
+}
+
+/**
  * Blossom content validation result
  */
-export interface BlossomValidationResult<T = unknown> extends ValidationResult<T> {
+export interface BlossomValidationResult<T = unknown> {
+  /** Validation success status */
+  success: boolean;
+  /** Validation data if successful */
+  data?: T;
+  /** Error message if validation failed */
+  error?: string;
   /** Computed content hash */
   contentHash?: string;
   /** Content type validation result */
@@ -176,7 +190,7 @@ export class BlossomContentValidator {
           success: false,
           error: securityResult.error,
           contentHash,
-          riskScore: securityResult.riskScore || 80
+          riskScore: securityResult.data?.riskScore || 80
         };
       }
 
@@ -187,7 +201,7 @@ export class BlossomContentValidator {
           success: false,
           error: contentSpecificResult.error,
           contentHash,
-          riskScore: contentSpecificResult.riskScore || 60
+          riskScore: contentSpecificResult.data?.riskScore || 60
         };
       }
 
@@ -202,7 +216,7 @@ export class BlossomContentValidator {
         contentHash,
         validContentType: true,
         fileSize,
-        riskScore: securityResult.riskScore || 0
+        riskScore: securityResult.data?.riskScore || 0
       };
 
     } catch (error) {
@@ -346,7 +360,7 @@ export class BlossomContentValidator {
     content: string | Uint8Array,
     contentType: string,
     fileName: string
-  ): Promise<ValidationResult<{ riskScore: number }>> {
+  ): Promise<ExtendedValidationResult<{ riskScore: number }>> {
     let riskScore = 0;
     const errors: string[] = [];
 
@@ -428,7 +442,7 @@ export class BlossomContentValidator {
         return {
           success: false,
           error: `High security risk detected (score: ${riskScore}): ${errors.join(', ')}`,
-          riskScore
+          data: { riskScore }
         };
       }
 
@@ -452,7 +466,7 @@ export class BlossomContentValidator {
   private async validateContentType(
     content: string | Uint8Array,
     contentType: string
-  ): Promise<ValidationResult<{ riskScore: number }>> {
+  ): Promise<ExtendedValidationResult<{ riskScore: number }>> {
     try {
       let riskScore = 0;
 
@@ -494,7 +508,7 @@ export class BlossomContentValidator {
     }
   }
 
-  private validateJavaScript(content: string | Uint8Array): ValidationResult<{ riskScore: number }> {
+  private validateJavaScript(content: string | Uint8Array): ExtendedValidationResult<{ riskScore: number }> {
     try {
       const jsCode = typeof content === 'string' ? content : new TextDecoder().decode(content);
 
@@ -543,7 +557,7 @@ export class BlossomContentValidator {
     }
   }
 
-  private validateJSON(content: string | Uint8Array): ValidationResult<{ riskScore: number }> {
+  private validateJSON(content: string | Uint8Array): ExtendedValidationResult<{ riskScore: number }> {
     try {
       const jsonString = typeof content === 'string' ? content : new TextDecoder().decode(content);
 
@@ -576,7 +590,7 @@ export class BlossomContentValidator {
 
       return {
         success: true,
-        data: { riskScore: 0 }
+        riskScore: 0
       };
 
     } catch (error) {
@@ -588,7 +602,7 @@ export class BlossomContentValidator {
     }
   }
 
-  private validateText(content: string | Uint8Array): ValidationResult<{ riskScore: number }> {
+  private validateText(content: string | Uint8Array): ExtendedValidationResult<{ riskScore: number }> {
     const text = typeof content === 'string' ? content : new TextDecoder().decode(content);
 
     // Use existing sanitization
@@ -611,7 +625,7 @@ export class BlossomContentValidator {
     };
   }
 
-  private validateWebAssembly(content: string | Uint8Array): ValidationResult<{ riskScore: number }> {
+  private validateWebAssembly(content: string | Uint8Array): ExtendedValidationResult<{ riskScore: number }> {
     const wasmData = typeof content === 'string' ? new TextEncoder().encode(content) : content;
 
     // Basic WASM magic number check
@@ -637,11 +651,11 @@ export class BlossomContentValidator {
 
     return {
       success: true,
-      data: { riskScore: 10 } // WASM has some inherent risk
+      riskScore: 10 // WASM has some inherent risk
     };
   }
 
-  private validateImage(content: string | Uint8Array): ValidationResult<{ riskScore: number }> {
+  private validateImage(content: string | Uint8Array): ExtendedValidationResult<{ riskScore: number }> {
     const imageData = typeof content === 'string' ? new TextEncoder().encode(content) : content;
 
     if (imageData.length < 10) {
@@ -682,11 +696,11 @@ export class BlossomContentValidator {
 
     return {
       success: true,
-      data: { riskScore: 5 } // Images have low risk
+      riskScore: 5 // Images have low risk
     };
   }
 
-  private validateMedia(content: string | Uint8Array): ValidationResult<{ riskScore: number }> {
+  private validateMedia(content: string | Uint8Array): ExtendedValidationResult<{ riskScore: number }> {
     const mediaData = typeof content === 'string' ? new TextEncoder().encode(content) : content;
 
     if (mediaData.length < 12) {
@@ -702,7 +716,7 @@ export class BlossomContentValidator {
 
     return {
       success: true,
-      data: { riskScore: 10 } // Media files have low-moderate risk
+      riskScore: 10 // Media files have low-moderate risk
     };
   }
 }
