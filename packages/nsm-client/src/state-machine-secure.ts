@@ -565,8 +565,8 @@ export class NSMStateMachineSecure {
 
   // Memory usage monitoring
   private getMemoryUsage(): number {
-    if (typeof performance !== 'undefined' && performance.memory) {
-      return performance.memory.usedJSHeapSize / (1024 * 1024);
+    if (typeof performance !== 'undefined' && (performance as any).memory) {
+      return (performance as any).memory.usedJSHeapSize / (1024 * 1024);
     }
     return 0;
   }

@@ -208,7 +208,7 @@ export class DoSProtection extends EventEmitter {
       const allowed = results.every(result => result);
 
       if (!allowed) {
-        this.recordViolation(DoSViolationType.RATE_LIMIT_EXCEEDED, userId, ip);
+        this.recordViolation(DoSViolationType.RATE_LIMIT_EXCEEDED, userId ?? undefined, ip ?? undefined);
         // Don't trigger circuit breaker for rate limiting - that's expected
         return {
           allowed: false,

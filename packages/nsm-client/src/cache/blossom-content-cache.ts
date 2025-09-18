@@ -500,7 +500,7 @@ export class BlossomContentCache {
         new TextEncoder().encode(content.data) :
         content.data;
 
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data as unknown as ArrayBuffer);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const computedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 

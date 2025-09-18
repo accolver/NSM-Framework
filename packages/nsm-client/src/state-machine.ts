@@ -12,6 +12,19 @@ export interface MachineSnapshot {
 }
 
 export class NSMStateMachine {
+  private readonly DANGEROUS_GLOBALS = [
+    'eval',
+    'Function',
+    'constructor',
+    'process',
+    'global',
+    '__proto__',
+    'require',
+    'import',
+    'window',
+    'document'
+  ];
+
   private readonly UNSAFE_PATTERNS = [
     /eval\s*\(/,
     /Function\s*\(/,
@@ -286,15 +299,15 @@ export class NSMStateMachine {
     ];
 
     for (const name of safeGlobalNames) {
-      if (typeof globalThis[name] !== 'undefined') {
-        context[name] = globalThis[name];
+      if (typeof (globalThis as any)[name] !== 'undefined') {
+        context[name] = (globalThis as any)[name];
       }
     }
 
     // Add explicitly allowed globals
     for (const name of allowedGlobals) {
-      if (this.isSafeGlobal(name) && typeof globalThis[name] !== 'undefined') {
-        context[name] = globalThis[name];
+      if (this.isSafeGlobal(name) && typeof (globalThis as any)[name] !== 'undefined') {
+        context[name] = (globalThis as any)[name];
       }
     }
 
@@ -412,8 +425,8 @@ export class NSMStateMachine {
 
   private getMemoryUsage(): number {
     // Basic memory usage estimation (would need more sophisticated implementation in production)
-    if (typeof performance !== 'undefined' && performance.memory) {
-      return performance.memory.usedJSHeapSize / (1024 * 1024); // Convert to MB
+    if (typeof performance !== 'undefined' && (performance as any).memory) {
+      return (performance as any).memory.usedJSHeapSize / (1024 * 1024); // Convert to MB
     }
     return 0; // Fallback for environments without performance.memory
   }

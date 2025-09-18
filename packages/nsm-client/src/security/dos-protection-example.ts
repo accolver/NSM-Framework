@@ -155,7 +155,7 @@ export class SecureNSMClient extends NSMClient {
   ): Promise<{ success: boolean; reason?: string; event?: any }> {
     try {
       // Step 1: Check rate limits
-      const rateLimitResult = await this.dosProtection.checkRateLimit(userId, userIP, 'publish');
+      const rateLimitResult = await this.dosProtection.checkRateLimit(userId, userIP || null, 'publish');
       if (!rateLimitResult.allowed) {
         return {
           success: false,
@@ -285,7 +285,8 @@ export class SecureNSMClient extends NSMClient {
    */
   public cleanup(): void {
     this.dosProtection.cleanup();
-    super.cleanup?.();
+    // NSMClient doesn't have a cleanup method, but we can call disconnect
+    this.disconnect();
   }
 }
 

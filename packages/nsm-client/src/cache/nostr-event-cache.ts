@@ -85,8 +85,9 @@ export class NostrEventCache {
       cleanupInterval: 5 * 60 * 1000, // 5 minutes
       onEvict: (key, entry) => {
         // Move evicted events to persistent cache if they're valuable
-        if (this.shouldPersist(entry.event)) {
-          this.persistEventOnly(key, entry).catch(() => {
+        const eventEntry = entry as unknown as EventCacheEntry;
+        if (eventEntry.event && this.shouldPersist(eventEntry.event)) {
+          this.persistEventOnly(key, eventEntry).catch(() => {
             // Ignore persistence errors on eviction
           });
         }

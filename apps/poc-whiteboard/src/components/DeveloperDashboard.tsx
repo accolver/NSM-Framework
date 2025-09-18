@@ -91,6 +91,8 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
   const [layout, setLayout] = useState<DashboardLayout>(DEFAULT_LAYOUT);
   const [isResizing, setIsResizing] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   // Performance monitoring state
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics>({
@@ -116,6 +118,7 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
   // Refs for DOM manipulation
   const dashboardRef = useRef<HTMLDivElement>(null);
   const resizeHandleRef = useRef<HTMLDivElement>(null);
+  const tabContainerRef = useRef<HTMLDivElement>(null);
 
   // Tab definitions
   const tabs = [
@@ -146,17 +149,38 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
     localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(updatedLayout));
   }, [layout]);
 
-  // Handle responsive design
+  // Handle responsive design with proper breakpoints
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
-      setIsMobile(width < 768);
+
+      // Define responsive breakpoints
+      const mobile = width < 768;
+      const tablet = width >= 768 && width < 1024;
+      const desktop = width >= 1024;
+
+      setIsMobile(mobile);
+      setIsTablet(tablet);
+      setIsDesktop(desktop);
+
+      // Adjust layout width based on breakpoints
+      if (mobile) {
+        // Mobile: use full width, override any saved width
+        setLayout(prev => ({ ...prev, width: window.innerWidth }));
+      } else if (tablet) {
+        // Tablet: constrain width but keep reasonable size
+        const tabletWidth = Math.min(350, width * 0.5);
+        setLayout(prev => ({ ...prev, width: Math.max(tabletWidth, prev.width) }));
+      } else if (desktop && layout.width < 400) {
+        // Desktop: ensure minimum width for full feature access
+        setLayout(prev => ({ ...prev, width: Math.max(400, prev.width) }));
+      }
     };
 
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [layout.width]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -180,7 +204,20 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
       const keyIndex = numberKeys.indexOf(e.key);
       if (keyIndex !== -1 && keyIndex < tabs.length) {
         e.preventDefault();
-        saveLayout({ activeTab: tabs[keyIndex]?.id as DashboardTool });
+        const tabId = tabs[keyIndex]?.id as DashboardTool;
+        saveLayout({ activeTab: tabId });
+        setTimeout(() => {
+          if (tabContainerRef.current) {
+            const tabElement = tabContainerRef.current.querySelector(`#tab-${tabId}`) as HTMLElement;
+            if (tabElement) {
+              tabElement.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest',
+                inline: 'center'
+              });
+            }
+          }
+        }, 100);
         return;
       }
 
@@ -190,15 +227,28 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
         if (currentIndex !== -1) {
           const direction = e.key === 'ArrowLeft' ? -1 : 1;
           const nextIndex = (currentIndex + direction + tabs.length) % tabs.length;
+          const nextTabId = tabs[nextIndex]?.id as DashboardTool;
           e.preventDefault();
-          saveLayout({ activeTab: tabs[nextIndex]?.id as DashboardTool });
+          saveLayout({ activeTab: nextTabId });
+          setTimeout(() => {
+            if (tabContainerRef.current) {
+              const tabElement = tabContainerRef.current.querySelector(`#tab-${nextTabId}`) as HTMLElement;
+              if (tabElement) {
+                tabElement.scrollIntoView({
+                  behavior: 'smooth',
+                  block: 'nearest',
+                  inline: 'center'
+                });
+              }
+            }
+          }, 100);
         }
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [layout.activeTab, layout.isMinimized, saveLayout]);
+  }, [layout.activeTab, layout.isMinimized, saveLayout, tabs]);
 
   // Performance monitoring
   useEffect(() => {
@@ -254,9 +304,41 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
     }
   }, [layout.activeTab]);
 
+  // Scroll tab into view
+  const scrollTabIntoView = useCallback((tabId: DashboardTool) => {
+    if (tabContainerRef.current) {
+      const tabElement = tabContainerRef.current.querySelector(`#tab-${tabId}`) as HTMLElement;
+      if (tabElement) {
+        tabElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'center'
+        });
+      }
+    }
+  }, []);
+
   // Handle tab switching
   const handleTabClick = useCallback((tabId: DashboardTool) => {
     saveLayout({ activeTab: tabId });
+    // Ensure the tab is visible after switching
+    setTimeout(() => {
+      if (tabContainerRef.current) {
+        const tabElement = tabContainerRef.current.querySelector(`#tab-${tabId}`) as HTMLElement;
+        if (tabElement) {
+          // Scroll into view
+          tabElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'center'
+          });
+          // Also focus the tab for keyboard accessibility
+          if (document.activeElement === document.body) {
+            tabElement.focus();
+          }
+        }
+      }
+    }, 100);
   }, [saveLayout]);
 
   // Handle minimize/maximize
@@ -741,12 +823,15 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
     return null;
   }
 
+  // Determine layout class based on screen size
+  const layoutClass = isMobile ? 'mobile-layout' : isTablet ? 'tablet-layout' : 'desktop-layout';
+
   return (
     <div
       ref={dashboardRef}
       data-testid="dashboard-container"
-      className={`developer-dashboard ${isMobile ? 'mobile-layout' : 'desktop-layout'} ${className}`}
-      style={{ width: layout.width }}
+      className={`developer-dashboard ${layoutClass} ${className}`}
+      style={{ width: isMobile ? '100%' : layout.width }}
       role="region"
       aria-label="Developer Tools Dashboard"
     >
@@ -766,34 +851,75 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
           flex-direction: column;
         }
 
+        /* Mobile Layout - Stack vertically, full width */
         .mobile-layout {
           position: relative;
           width: 100% !important;
           height: auto;
           max-height: 100vh;
+          left: 0;
+          right: 0;
+          border-left: none;
+          border-top: 1px solid #333;
         }
 
+        /* Tablet Layout - Hybrid behavior */
+        .tablet-layout {
+          max-height: 100vh;
+          overflow: hidden;
+          width: 350px !important;
+          max-width: 50vw;
+        }
+
+        /* Desktop Layout - Side panel */
         .desktop-layout {
           max-height: 100vh;
           overflow: hidden;
+          min-width: 400px;
         }
 
-        @media (max-width: 768px) {
-          .desktop-layout {
+        /* Mobile Breakpoint - Full responsive behavior */
+        @media (max-width: 767px) {
+          .developer-dashboard {
             position: relative;
             width: 100% !important;
             height: auto;
-            max-height: 100vh;
+            max-height: 80vh;
+            left: 0;
+            right: 0;
+            border-left: none;
+            border-top: 1px solid #333;
           }
 
-          .tabs-horizontal-scroll {
-            overflow-x: auto;
-            flex-wrap: nowrap;
+          .dashboard-header {
+            padding: 8px 12px;
+          }
+
+          .dashboard-title h2 {
+            font-size: 12px;
+          }
+
+          .dashboard-title p {
+            display: none; /* Hide subtitle on mobile */
+          }
+        }
+
+        /* Tablet Breakpoint - Hybrid layout */
+        @media (min-width: 768px) and (max-width: 1023px) {
+          .developer-dashboard {
+            width: 350px !important;
+            max-width: 50vw;
           }
 
           .tab {
-            min-width: 120px;
-            flex-shrink: 0;
+            min-width: 100px;
+          }
+        }
+
+        /* Desktop Breakpoint - Full featured layout */
+        @media (min-width: 1024px) {
+          .developer-dashboard {
+            min-width: 400px;
           }
         }
 
@@ -843,14 +969,24 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
           background: #252526;
           border-bottom: 1px solid #333;
           overflow-x: auto;
+          overflow-y: hidden;
+          scrollbar-width: thin;
+          scrollbar-color: #555 #252526;
+          /* Enable momentum scrolling on iOS */
+          -webkit-overflow-scrolling: touch;
         }
 
+        /* Horizontal scrollable tabs - default for all screen sizes */
         .tabs-horizontal-scroll {
+          display: flex;
+          flex-direction: row;
           overflow-x: auto;
           overflow-y: hidden;
           white-space: nowrap;
           scrollbar-width: thin;
           scrollbar-color: #555 #252526;
+          /* Smooth scrolling behavior */
+          scroll-behavior: smooth;
         }
 
         .tabs-horizontal-scroll::-webkit-scrollbar {
@@ -870,8 +1006,11 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
           background-color: #777;
         }
 
+        /* Vertical tabs - only used if explicitly set */
         .vertical-tabs {
           flex-direction: column;
+          overflow-x: hidden;
+          overflow-y: auto;
         }
 
         .tab {
@@ -885,9 +1024,44 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
           display: flex;
           align-items: center;
           gap: 6px;
+          flex-shrink: 0; /* Prevent tabs from shrinking */
+          min-width: fit-content;
+        }
+
+        /* Responsive tab sizing */
+        @media (max-width: 767px) {
+          .tab {
+            min-width: 110px;
+            padding: 8px 10px;
+            font-size: 11px;
+          }
+
+          .tab-shortcut {
+            display: none; /* Hide shortcuts on mobile to save space */
+          }
+        }
+
+        @media (min-width: 768px) and (max-width: 1023px) {
+          .tab {
+            min-width: 100px;
+            padding: 8px 12px;
+          }
+        }
+
+        @media (min-width: 1024px) {
+          .tab {
+            min-width: 120px;
+          }
         }
 
         .tab:hover {
+          background: #333;
+          color: #fff;
+        }
+
+        .tab:focus {
+          outline: 2px solid #007acc;
+          outline-offset: -2px;
           background: #333;
           color: #fff;
         }
@@ -896,6 +1070,11 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
           background: #007acc;
           color: #fff;
           border-bottom: 2px solid #007acc;
+        }
+
+        .tab.active:focus {
+          outline: 2px solid #ffffff;
+          outline-offset: -2px;
         }
 
         .tab-shortcut {
@@ -913,6 +1092,41 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
           display: flex;
           flex-direction: column;
           height: 0; /* This forces flex to respect the container height */
+          /* Improve scrolling on mobile */
+          -webkit-overflow-scrolling: touch;
+        }
+
+        /* Responsive content adjustments */
+        @media (max-width: 767px) {
+          .tool-content {
+            height: auto;
+            min-height: 0;
+            flex: 1 1 auto;
+          }
+
+          .inspector-panel, .app-discovery-panel, .performance-panel {
+            padding: 12px;
+          }
+
+          .metrics-grid {
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 8px;
+            margin: 12px 0;
+          }
+
+          .metric-card {
+            padding: 8px;
+          }
+
+          .metric-value {
+            font-size: 14px;
+          }
+        }
+
+        @media (min-width: 768px) and (max-width: 1023px) {
+          .inspector-panel, .app-discovery-panel, .performance-panel {
+            padding: 14px;
+          }
         }
 
         .service-unavailable {
@@ -1051,10 +1265,27 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
           background: transparent;
           cursor: ew-resize;
           z-index: 10;
+          transition: background-color 0.2s ease;
         }
 
         .resize-handle:hover {
           background: #007acc;
+        }
+
+        /* Hide resize handle on mobile */
+        @media (max-width: 767px) {
+          .resize-handle {
+            display: none;
+          }
+        }
+
+        /* Add smooth transitions for layout changes */
+        .developer-dashboard {
+          transition: width 0.3s ease, max-width 0.3s ease;
+        }
+
+        .tab {
+          transition: all 0.2s ease, min-width 0.3s ease;
         }
 
         .minimized {
@@ -1150,7 +1381,8 @@ export const DeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
 
       {/* Tab navigation */}
       <div
-        className={`tab-container ${isMobile ? 'vertical-tabs' : 'tabs-horizontal-scroll'}`}
+        ref={tabContainerRef}
+        className="tab-container tabs-horizontal-scroll"
         data-testid="tab-container"
         role="tablist"
       >

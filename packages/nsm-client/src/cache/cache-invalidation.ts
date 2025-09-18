@@ -146,7 +146,7 @@ export class CacheInvalidationManager {
           continue;
         }
 
-        this.metrics.rulesTriggered[rule.name]++;
+        this.metrics.rulesTriggered[rule.name] = (this.metrics.rulesTriggered[rule.name] || 0) + 1;
 
         // Handle different strategies
         switch (rule.strategy) {
@@ -580,14 +580,14 @@ export function createNSMInvalidationManager(
   if (caches.nostrEvents) {
     manager.registerCache('nostrEvents', {
       invalidate: (key) => caches.nostrEvents!.deleteEvent(key),
-      clear: () => caches.nostrEvents!.clearEvents()
+      clear: async () => { await caches.nostrEvents!.clearEvents(); }
     });
   }
 
   if (caches.blossomContent) {
     manager.registerCache('blossomContent', {
       invalidate: (key) => caches.blossomContent!.deleteContent(key),
-      clear: () => caches.blossomContent!.clearContent()
+      clear: async () => { await caches.blossomContent!.clearContent(); }
     });
   }
 

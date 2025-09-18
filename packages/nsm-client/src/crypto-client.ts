@@ -9,11 +9,15 @@ import {
   NostrVerifier,
   BlossomVerifier,
   KeyManager,
-  CryptoAuditLogger,
-  type VerificationResult,
-  type SignatureVerificationOptions,
-  type HashVerificationOptions
+  CryptoAuditLogger
 } from '@nsm/crypto';
+
+// Import types explicitly from the types file
+import type {
+  VerificationResult,
+  SignatureVerificationOptions,
+  HashVerificationOptions
+} from '@nsm/crypto/src/types';
 import { NDKEvent } from '@nostr-dev-kit/ndk';
 import type { INostrEvent } from '@nsm/core';
 
@@ -124,7 +128,9 @@ export class CryptoNSMClient extends NSMClient {
     // Cache the result (with size limit)
     if (this.verificationCache.size > 1000) {
       const firstKey = this.verificationCache.keys().next().value;
-      this.verificationCache.delete(firstKey);
+      if (firstKey) {
+        this.verificationCache.delete(firstKey);
+      }
     }
     this.verificationCache.set(cacheKey, result);
 

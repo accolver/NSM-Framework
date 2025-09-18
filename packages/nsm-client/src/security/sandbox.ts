@@ -427,8 +427,8 @@ export class SecuritySandbox {
 
     // Add explicitly safe globals that are allowed
     for (const name of this.SAFE_GLOBALS) {
-      if (allowedGlobals.includes(name) && typeof globalThis[name] !== 'undefined') {
-        context[name] = globalThis[name];
+      if (allowedGlobals.includes(name) && typeof (globalThis as any)[name] !== 'undefined') {
+        context[name] = (globalThis as any)[name];
       }
     }
 
@@ -546,8 +546,8 @@ export class SecuritySandbox {
    * Get current memory usage
    */
   private getMemoryUsage(): number {
-    if (typeof performance !== 'undefined' && performance.memory) {
-      return performance.memory.usedJSHeapSize / (1024 * 1024);
+    if (typeof performance !== 'undefined' && (performance as any).memory) {
+      return (performance as any).memory.usedJSHeapSize / (1024 * 1024);
     }
     return 0;
   }

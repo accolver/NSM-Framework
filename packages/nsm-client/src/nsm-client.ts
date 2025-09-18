@@ -252,8 +252,8 @@ export class NSMClient {
       created_at: Math.floor(Date.now() / 1000)
     });
 
-    // Use the NDK publish method which is easier to mock in tests
-    await this.ndk.publish(event);
+    // Publish the event using NDK
+    await event.publish();
   }
 
   async publishStateUpdate(stateUpdate: StateUpdatePayload): Promise<void> {
@@ -272,8 +272,8 @@ export class NSMClient {
       created_at: Math.floor(Date.now() / 1000)
     });
 
-    // Use the NDK publish method which is easier to mock in tests
-    await this.ndk.publish(event);
+    // Publish the event using NDK
+    await event.publish();
   }
 
   subscribeToApplication(

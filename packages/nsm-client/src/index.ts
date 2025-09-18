@@ -34,7 +34,7 @@ export type {
   SignatureVerificationOptions,
   HashVerificationOptions,
   CryptoAuditEntry
-} from '@nsm/crypto';
+} from '@nsm/crypto/src/types';
 
 // Export DoS protection components
 export {

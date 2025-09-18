@@ -10,8 +10,7 @@
  */
 
 import { createMachine, createActor, type StateMachine, type Actor } from 'xstate';
-import { LRUCache } from './utils/lru-cache';
-import { ObjectPool } from './utils/object-pool';
+// Using local implementations of LRUCache and ObjectPool below
 
 export interface OptimizationConfig {
   enableCompilationCache?: boolean;
@@ -450,7 +449,9 @@ export class OptimizedActor {
     // Keep cache size limited
     if (this.transitionCache.size > 100) {
       const firstKey = this.transitionCache.keys().next().value;
-      this.transitionCache.delete(firstKey);
+      if (firstKey) {
+        this.transitionCache.delete(firstKey);
+      }
     }
 
     this.transitionCache.set(cacheKey, {
@@ -486,7 +487,9 @@ class LRUCache<K, V> {
     } else if (this.cache.size >= this.maxSize) {
       // Remove least recently used (first item)
       const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
+      if (firstKey) {
+        this.cache.delete(firstKey);
+      }
     }
     this.cache.set(key, value);
   }
@@ -528,7 +531,7 @@ class ObjectPool<T> {
 
     // Initialize with template if provided
     if (template) {
-      Object.assign(obj, template);
+      Object.assign(obj as any, template);
     }
 
     this.inUse.add(obj);
