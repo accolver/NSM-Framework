@@ -41,7 +41,7 @@ bun run dev
 
 ### Project Structure
 
-```
+```bash
 nsm-framework/
 ├── packages/
 │   ├── nsm-core/           # Core protocol definitions
@@ -110,25 +110,7 @@ import { NSMClient } from '@nsm/client-sdk';
 // Initialize client
 const client = new NSMClient();
 await client.initialize();
-
-// Create a state machine application
-// (Full examples will be available after Task 3-6 completion)
 ```
-
-## Roadmap
-
-- [x] **Task 1**: Project Foundation and Monorepo Setup
-- [ ] **Task 2**: Core NSM Protocol Implementation
-- [ ] **Task 3**: Client SDK Development
-- [ ] **Task 4**: Blossom Integration
-- [ ] **Task 5**: Wordle Proof of Concept
-- [ ] **Task 6**: Collaborative Whiteboard
-- [ ] **Task 7**: Developer Tools
-- [ ] **Task 8**: Documentation Site
-- [ ] **Task 9**: Testing Infrastructure
-- [ ] **Task 10**: Security Implementation
-- [ ] **Task 11**: Performance Optimization
-- [ ] **Task 12**: Community Engagement
 
 ## Contributing
 
