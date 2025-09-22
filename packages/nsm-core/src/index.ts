@@ -41,6 +41,7 @@ export * from './monitoring/index';
 
 // Package version and metadata
 export const NSM_CORE_VERSION = "0.1.0";
+export const version = NSM_CORE_VERSION;
 
 /**
  * NSM Protocol specification constants

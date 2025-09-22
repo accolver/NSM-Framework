@@ -10,7 +10,7 @@ export const NSMStatus: React.FC<NSMStatusProps> = ({ className = '' }) => {
       <span className="nsm-status-text">NSM: Connected</span>
       <button
         className="nsm-login-button"
-        onClick={() => console.log('NSM login clicked')}
+        onClick={() => {/* NSM login functionality */}}
         aria-label="NSM Login"
       >
         Login

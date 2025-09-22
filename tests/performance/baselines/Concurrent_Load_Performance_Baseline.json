@@ -1,13 +1,13 @@
 {
   "name": "Concurrent Load Performance Baseline",
   "version": "1.0.0",
-  "timestamp": 1758026189138,
+  "timestamp": 1758268470023,
   "metrics": {
-    "avgExecutionTime": 0.4923203670330039,
-    "throughputPerSecond": 40617.600000000006,
-    "memoryUsage": 49172200,
-    "p95Latency": 1.320625,
-    "p99Latency": 1.8335
+    "avgExecutionTime": 0.3910806422293308,
+    "throughputPerSecond": 51129.399999999994,
+    "memoryUsage": 46534065,
+    "p95Latency": 1.004209,
+    "p99Latency": 1.260792
   },
   "environment": {
     "nodeVersion": "v24.3.0",

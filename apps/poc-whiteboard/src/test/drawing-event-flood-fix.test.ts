@@ -15,6 +15,7 @@
  * - Canvas directly calls collaboration service without state machine roundtrip
  */
 
+import { vi } from 'vitest';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createActor } from 'xstate';
 import { whiteboardMachine } from '../whiteboard-machine';

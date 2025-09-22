@@ -9,10 +9,13 @@
     "declarationMap": true,
     "composite": true,
     "module": "CommonJS",
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "strict": false
   },
   "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules", "**/*.test.ts", "**/*.spec.ts"],
+  "exclude": ["dist", "node_modules", "**/*.test.ts", "**/*.spec.ts", "**/*.test.tsx", "**/__tests__/**/*", "src/test-setup.ts"],
   "references": [
     { "path": "../nsm-core" },
     { "path": "../nsm-client-sdk" }

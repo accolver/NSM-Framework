@@ -14,6 +14,7 @@
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules", "**/*.test.ts", "**/*.spec.ts"],
   "references": [
-    { "path": "../nsm-core" }
+    { "path": "../nsm-core" },
+    { "path": "../nsm-crypto" }
   ]
 }

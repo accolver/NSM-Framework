@@ -18,7 +18,9 @@ const TEST_BLOSSOM_SERVERS = [
 
 // Generate test private keys (DO NOT use in production)
 const generateTestKey = (seed: string): string => {
-  return seed.repeat(16).slice(0, 64);
+  // Create a stable hash from the seed and pad to 64 hex chars
+  const hash = seed.split('').map(c => c.charCodeAt(0).toString(16)).join('');
+  return hash.repeat(Math.ceil(64 / hash.length)).slice(0, 64);
 };
 
 describe('Multi-User Scenarios Integration Tests', () => {

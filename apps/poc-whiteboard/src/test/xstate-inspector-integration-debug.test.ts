@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { createActor } from 'xstate';
 import { whiteboardMachine } from '../whiteboard-machine';

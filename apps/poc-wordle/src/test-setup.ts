@@ -1,6 +1,5 @@
 import { Window } from 'happy-dom';
 import '@testing-library/jest-dom';
-import { mock } from 'bun:test';
 
 // Set up happy-dom as global DOM environment
 const window = new Window({
@@ -22,11 +21,11 @@ global.localStorage = window.localStorage as any;
 // Suppress console output during tests
 global.console = {
   ...console,
-  log: mock(() => {}),
-  warn: mock(() => {}),
-  error: mock(() => {}),
-  debug: mock(() => {}),
-  info: mock(() => {}),
+  log: () => {},
+  warn: () => {},
+  error: () => {},
+  debug: () => {},
+  info: () => {},
 };
 
 // Set up NSM mocks to prevent network calls during tests

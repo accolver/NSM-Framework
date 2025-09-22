@@ -5,15 +5,21 @@
  * REFACTOR PHASE - Production-ready React integration with error handling
  */
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { DeveloperDashboard } from '@nsm/dev-tools';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createActor } from 'xstate';
-import { createWordleMachine } from '../wordle-machine';
-import { WordGrid } from './WordGrid';
-import { Keyboard } from './Keyboard';
-import { GameStatus } from './GameStatus';
-import { createWordleNSMDefinition, WordleNSMConnector } from '../nsm-integration';
 import { NSMClient } from '../../../../packages/nsm-client/src/nsm-client';
+import { initializeLogging } from '../config/logging';
+import { createWordleNSMDefinition, WordleNSMConnector } from '../nsm-integration';
+import { getWordleDashboardServices } from '../services/wordleDashboardIntegration';
+import { logStateTransition } from '../utils/gameLogger';
+import { createWordleMachine } from '../wordle-machine';
+import { DeveloperDashboardToggle } from './DeveloperDashboardToggle';
+import { GameStatus } from './GameStatus';
+import { Keyboard } from './Keyboard';
 import './styles.css';
+import { WordGrid } from './WordGrid';
+import { WordleExporter } from './WordleExporter';
 
 interface NSMWordleAppProps {
   enableNSM?: boolean;
@@ -24,7 +30,7 @@ interface NSMWordleAppProps {
 export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
   enableNSM = false,
   relayUrls = ['wss://relay.damus.io'],
-  privateKey
+  privateKey,
 }) => {
   // Create actor ref to persist across renders - initialize as null
   const actorRef = useRef<ReturnType<typeof createActor> | null>(null);
@@ -32,48 +38,65 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
 
   const [nsmClient, setNSMClient] = useState<NSMClient | null>(null);
   const [nsmConnector, setNSMConnector] = useState<WordleNSMConnector | null>(null);
-  const [nsmStatus, setNSMStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  const [nsmStatus, setNSMStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>(
+    'disconnected'
+  );
   const [error, setError] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userPubkey, setUserPubkey] = useState<string | null>(null);
   const mainRef = useRef<HTMLElement>(null);
+  const [isDashboardVisible, setIsDashboardVisible] = useState(true);
+  const [dashboardServices] = useState(() =>
+    getWordleDashboardServices({
+      enableEventLogging: true,
+      enableTimeTravel: true,
+      enableInspector: true,
+      enableAutoConnect: false,
+    })
+  );
 
   // Note: Debug logging can be enabled here for troubleshooting
   // console.log('🔄 NSMWordleApp render:', { currentGuess: state.context.currentGuess, state: state.value });
 
   // Initialize state machine - single effect for actor creation and management
   useEffect(() => {
-    console.log('🔧 Effect running, actorRef.current:', actorRef.current ? 'exists' : 'null');
-
     // Only create actor if it doesn't exist
     if (!actorRef.current) {
-      console.log('🆕 Creating new XState actor');
       actorRef.current = createActor(createWordleMachine());
       actorRef.current.start();
-      console.log('✅ Actor created and started');
     }
+
+    // Initialize logging configuration
+    initializeLogging();
 
     const actor = actorRef.current;
     const initialSnapshot = actor.getSnapshot();
-    console.log('📊 Actor status:', initialSnapshot.status);
     setState(initialSnapshot);
 
-    const subscription = actor.subscribe((snapshot) => {
-      console.log('🔄 State machine updated:', snapshot.value, 'currentGuess:', snapshot.context.currentGuess);
+    let previousState = initialSnapshot.value;
+
+    const subscription = actor.subscribe(snapshot => {
+      // Log state transitions once per change
+      if (snapshot.value !== previousState) {
+        logStateTransition(String(previousState), String(snapshot.value), snapshot.context);
+        previousState = snapshot.value;
+      }
       setState(snapshot);
     });
 
+    // Connect dashboard services to actor
+    dashboardServices.connectToActor(actor);
+
     return () => {
-      console.log('🧹 Effect cleanup, unsubscribing');
       subscription.unsubscribe();
       // Don't stop the actor here - let the unmount effect handle it
+      dashboardServices.cleanup();
     };
-  }, []); // Empty dependency array
+  }, [dashboardServices]); // Empty-like deps aside from stable services
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      console.log('🛑 Component unmounting, stopping actor');
       if (actorRef.current) {
         actorRef.current.stop();
         actorRef.current = null;
@@ -83,21 +106,18 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
 
   // Check if NIP-07 is available on mount and focus main element
   useEffect(() => {
-    if (enableNSM && NSMClient.isNip07Available()) {
-      console.log('NIP-07 extension detected');
-    }
-
     // Focus the main element to enable keyboard events
     if (mainRef.current) {
       mainRef.current.focus();
-      console.log('Main element focused for keyboard input');
     }
   }, [enableNSM]);
 
   // Handle Nostr login
   const handleNostrLogin = async () => {
     if (!NSMClient.isNip07Available()) {
-      setError('No Nostr extension found. Please install Alby, nos2x, or another NIP-07 extension.');
+      setError(
+        'No Nostr extension found. Please install Alby, nos2x, or another NIP-07 extension.'
+      );
       return;
     }
 
@@ -109,7 +129,7 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
       const client = new NSMClient({
         relayUrls: relayUrls || ['wss://relay.damus.io'],
         autoConnect: false,
-        useNip07: true
+        useNip07: true,
       });
 
       // Request permission from extension
@@ -145,12 +165,10 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
 
       // Publish application definition
       try {
-        const definition = await createWordleNSMDefinition();
-        console.log('Wordle NSM definition created:', definition);
+        await createWordleNSMDefinition();
       } catch (defError) {
         console.warn('Could not publish NSM definition:', defError);
       }
-
     } catch (err) {
       console.error('Failed to login with Nostr:', err);
       setError(err instanceof Error ? err.message : 'Failed to login');
@@ -246,34 +264,18 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
   // Event handlers
   const handleKeyPress = useCallback((letter: string) => {
     if (!actorRef.current) return;
-
-    console.log('handleKeyPress called with letter:', letter);
-    console.log('Current state:', state?.value);
-    console.log('Current guess:', state?.context?.currentGuess);
-    console.log('Actor state before send:', actorRef.current.getSnapshot());
-
-    const event = { type: 'KEYPRESS', letter };
-    console.log('Sending event to actor:', event);
-    actorRef.current.send(event);
-
-    console.log('Actor state after send:', actorRef.current.getSnapshot());
-  }, [state?.value, state?.context?.currentGuess]);
+    actorRef.current.send({ type: 'KEYPRESS', letter });
+  }, []);
 
   const handleBackspace = useCallback(() => {
     if (!actorRef.current) return;
-
-    console.log('handleBackspace called');
-    console.log('Current guess:', state?.context?.currentGuess);
     actorRef.current.send({ type: 'BACKSPACE' });
-  }, [state?.context?.currentGuess]);
+  }, []);
 
   const handleEnter = useCallback(() => {
     if (!actorRef.current) return;
-
-    console.log('handleEnter called');
-    console.log('Current guess:', state?.context?.currentGuess);
     actorRef.current.send({ type: 'SUBMIT_GUESS' });
-  }, [state?.context?.currentGuess]);
+  }, []);
 
   const handleReset = useCallback(() => {
     if (!actorRef.current) return;
@@ -282,24 +284,23 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
   }, []);
 
   // Physical keyboard handling
-  const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
-    console.log('handleKeyDown called with key:', event.key);
-    const key = event.key.toUpperCase();
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      const key = event.key.toUpperCase();
 
-    if (key === 'ENTER') {
-      console.log('Enter key detected');
-      event.preventDefault();
-      handleEnter();
-    } else if (key === 'BACKSPACE') {
-      console.log('Backspace key detected');
-      event.preventDefault();
-      handleBackspace();
-    } else if (/^[A-Z]$/.test(key)) {
-      console.log('Letter key detected:', key);
-      event.preventDefault();
-      handleKeyPress(key);
-    }
-  }, [handleEnter, handleBackspace, handleKeyPress]);
+      if (key === 'ENTER') {
+        event.preventDefault();
+        handleEnter();
+      } else if (key === 'BACKSPACE') {
+        event.preventDefault();
+        handleBackspace();
+      } else if (/^[A-Z]$/.test(key)) {
+        event.preventDefault();
+        handleKeyPress(key);
+      }
+    },
+    [handleEnter, handleBackspace, handleKeyPress]
+  );
 
   // NSM status indicator with login - compact header version
   const renderNSMStatus = () => {
@@ -309,28 +310,31 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
       disconnected: '#666',
       connecting: '#f39c12',
       connected: '#27ae60',
-      error: '#e74c3c'
+      error: '#e74c3c',
     };
 
     return (
-      <div className="nsm-status" style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '6px',
-        padding: '8px',
-        backgroundColor: '#2a2a2a',
-        borderRadius: '4px',
-        fontSize: '12px',
-        color: '#ffffff',
-        minWidth: '200px'
-      }}>
+      <div
+        className="nsm-status"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px',
+          padding: '8px',
+          backgroundColor: '#2a2a2a',
+          borderRadius: '4px',
+          fontSize: '12px',
+          color: '#ffffff',
+          minWidth: '200px',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div
             style={{
               width: '6px',
               height: '6px',
               borderRadius: '50%',
-              backgroundColor: statusColors[nsmStatus]
+              backgroundColor: statusColors[nsmStatus],
             }}
           />
           <span style={{ color: '#ffffff', fontSize: '11px' }}>NSM: {nsmStatus}</span>
@@ -350,7 +354,7 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
               cursor: 'pointer',
               fontSize: '11px',
               fontWeight: 'bold',
-              opacity: nsmStatus === 'connecting' ? 0.5 : 1
+              opacity: nsmStatus === 'connecting' ? 0.5 : 1,
             }}
           >
             {nsmStatus === 'connecting' ? 'Connecting...' : 'Login with Nostr'}
@@ -358,7 +362,9 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
         ) : (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '10px', color: '#aaa' }}>
-              {userPubkey ? `${userPubkey.substring(0, 6)}...${userPubkey.substring(userPubkey.length - 6)}` : 'Connected'}
+              {userPubkey
+                ? `${userPubkey.substring(0, 6)}...${userPubkey.substring(userPubkey.length - 6)}`
+                : 'Connected'}
             </span>
             <button
               onClick={handleNostrLogout}
@@ -369,7 +375,7 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
                 border: 'none',
                 borderRadius: '3px',
                 cursor: 'pointer',
-                fontSize: '10px'
+                fontSize: '10px',
               }}
             >
               Logout
@@ -385,6 +391,10 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
       </div>
     );
   };
+
+  const handleDashboardToggle = useCallback((isVisible: boolean) => {
+    setIsDashboardVisible(isVisible);
+  }, []);
 
   return (
     <main
@@ -403,9 +413,10 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
 
       <div id="game-instructions" className="sr-only">
         Guess the 5-letter word in 6 attempts. Use your keyboard or click the virtual keyboard.
-        Green letters are correct, yellow letters are in the word but wrong position,
-        gray letters are not in the word.
-        {enableNSM && ' This game is connected to the NSM network for distributed state management.'}
+        Green letters are correct, yellow letters are in the word but wrong position, gray letters
+        are not in the word.
+        {enableNSM &&
+          ' This game is connected to the NSM network for distributed state management.'}
       </div>
 
       <GameStatus
@@ -423,6 +434,33 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
         onBackspace={handleBackspace}
         onEnter={handleEnter}
       />
+
+      {/* Developer Dashboard Toggle */}
+      <DeveloperDashboardToggle
+        onToggle={handleDashboardToggle}
+        initiallyVisible={isDashboardVisible}
+      />
+
+      {/* State Machine Exporter */}
+      {actorRef.current && (
+        <WordleExporter
+          actor={actorRef.current}
+          showCodeViewer={false}
+          enableGameShortcuts={true}
+        />
+      )}
+
+      {/* Developer Dashboard */}
+      {isDashboardVisible && (
+        <DeveloperDashboard
+          eventLogService={dashboardServices.eventLogService}
+          timeTravelService={dashboardServices.timeTravelService}
+          inspectorService={dashboardServices.inspectorService}
+          connectInspector={dashboardServices.connectInspector}
+          openVisualizer={dashboardServices.openVisualizer}
+          className="wordle-dashboard"
+        />
+      )}
     </main>
   );
 };

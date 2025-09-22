@@ -1,6 +1,7 @@
 import { createMachine, assign } from 'xstate';
 import { getRandomWord, isValidWord } from './word-list';
 import { WordValidator } from './word-validator';
+import { logStateTransition, logGuessSubmitted, logGameEvent } from './utils/gameLogger';
 
 // Types for Wordle game
 export type LetterStatus = 'correct' | 'present' | 'absent';
@@ -61,7 +62,7 @@ const calculateLetterStatus = (guess: string, hiddenWord: string): LetterStatus[
 const setRandomWord = assign({
   hiddenWord: () => {
     const word = getRandomWord();
-    console.log('XState setRandomWord action called, selected word:', word);
+    logGameEvent('New game started', { hiddenWord: word });
     return word;
   }
 });
@@ -72,13 +73,10 @@ const setSpecificWord = (word: string) => assign({
 
 const addLetter = assign({
   currentGuess: ({ context, event }) => {
-    console.log('XState addLetter action called:', { event, currentGuess: context.currentGuess });
     if (event.type === 'KEYPRESS' && context.currentGuess.length < 5) {
       const newGuess = context.currentGuess + event.letter.toUpperCase();
-      console.log('Adding letter, new guess:', newGuess);
       return newGuess;
     }
-    console.log('Letter not added, current guess unchanged');
     return context.currentGuess;
   },
   validationError: undefined // Clear validation error on new input
@@ -86,9 +84,7 @@ const addLetter = assign({
 
 const removeLetter = assign({
   currentGuess: ({ context }) => {
-    console.log('XState removeLetter action called, current guess:', context.currentGuess);
     const newGuess = context.currentGuess.slice(0, -1);
-    console.log('Removed letter, new guess:', newGuess);
     return newGuess;
   },
   validationError: undefined // Clear validation error on input change
@@ -108,19 +104,38 @@ const submitGuess = assign({
 });
 
 const setValidationError = assign({
-  validationError: 'Word not in dictionary'
+  validationError: ({ context }) => {
+    logGuessSubmitted(context.currentGuess, 'invalid', { reason: 'Word not in dictionary' });
+    return 'Word not in dictionary';
+  }
 });
 
 const markGameWon = assign({
-  gameOver: true
+  gameOver: ({ context }) => {
+    logGuessSubmitted(context.currentGuess, 'win', {
+      attempts: context.attemptNumber + 1,
+      hiddenWord: context.hiddenWord
+    });
+    return true;
+  }
 });
 
 const markGameLost = assign({
-  gameOver: true
+  gameOver: ({ context }) => {
+    logGuessSubmitted(context.currentGuess, 'lose', {
+      attempts: context.attemptNumber + 1,
+      hiddenWord: context.hiddenWord
+    });
+    return true;
+  }
 });
 
 const resetGame = assign({
-  hiddenWord: ({ context }) => context.hiddenWord || getRandomWord(),
+  hiddenWord: ({ context }) => {
+    const word = context.hiddenWord || getRandomWord();
+    logGameEvent('Game reset', { hiddenWord: word });
+    return word;
+  },
   currentGuess: '',
   guesses: [],
   attemptNumber: 0,
@@ -130,9 +145,7 @@ const resetGame = assign({
 
 // Guards
 const canAddLetter = ({ context }) => {
-  const result = context.currentGuess.length < 5;
-  console.log('canAddLetter guard:', { currentGuessLength: context.currentGuess.length, result });
-  return result;
+  return context.currentGuess.length < 5;
 };
 
 const canRemoveLetter = ({ context }) => {

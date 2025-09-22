@@ -53,28 +53,22 @@ if (process.env.NODE_ENV === 'development') {
 
 Visual inspection tool for NSM state machines and application state.
 
-```typescript
-// State inspection will be available through the developer dashboard
-// Currently integrated with the NSM Client SDK for real-time debugging
-```
+State inspection will be available through the developer dashboard.
+Currently integrated with the NSM Client SDK for real-time debugging.
 
 ### Event Logging
 
 Comprehensive logging system for NSM protocol events.
 
-```typescript
-// Event logging is built into the NSM Client for development
-// Logs all NSM protocol events including definitions, interactions, and state updates
-```
+Event logging is built into the NSM Client for development.
+Logs all NSM protocol events including definitions, interactions, and state updates.
 
 ### Time Travel Debugging
 
 Ability to step through state machine history and replay events.
 
-```typescript
-// Time travel debugging integrated with XState inspector
-// Allows developers to step through state machine execution
-```
+Time travel debugging integrated with XState inspector.
+Allows developers to step through state machine execution.
 
 ## Integration with NSM Applications
 
@@ -204,26 +198,22 @@ The dashboard provides real-time debugging capabilities:
 
 All NSM protocol events are automatically logged in development:
 
-```typescript
-// Events are logged with detailed information:
-// - Event type (definition, interaction, state-update)
-// - Timestamp and duration
-// - Payload inspection
-// - Network activity
-// - State changes
-```
+Events are logged with detailed information:
+- Event type (definition, interaction, state-update)
+- Timestamp and duration
+- Payload inspection
+- Network activity
+- State changes
 
 ### 4. Time Travel Debugging
 
 Step through application history:
 
-```typescript
-// Available through the dashboard interface:
-// - Previous/Next state navigation
-// - Jump to specific events
-// - Replay sequences
-// - State comparison
-```
+Available through the dashboard interface:
+- Previous/Next state navigation
+- Jump to specific events
+- Replay sequences
+- State comparison
 
 ## Testing Utilities
 
@@ -291,14 +281,12 @@ await expectEventPublished(client, 'INTERACTION', { action: 'START' });
 
 Automatic collection of performance metrics:
 
-```typescript
-// Metrics automatically collected:
-// - Event processing time
-// - Network latency
-// - State transition duration
-// - Memory usage
-// - Render performance (React components)
-```
+Metrics automatically collected:
+- Event processing time
+- Network latency
+- State transition duration
+- Memory usage
+- Render performance (React components)
 
 ### Performance Dashboard
 
@@ -313,13 +301,11 @@ View performance metrics in the developer dashboard:
 
 Automatic detection of performance issues:
 
-```typescript
-// Alerts for:
-// - Slow event processing (>100ms)
-// - High memory usage (>50MB growth)
-// - Network timeouts (>5s)
-// - Excessive re-renders (>10/sec)
-```
+Alerts for:
+- Slow event processing (>100ms)
+- High memory usage (>50MB growth)
+- Network timeouts (>5s)
+- Excessive re-renders (>10/sec)
 
 ## Integration Examples
 

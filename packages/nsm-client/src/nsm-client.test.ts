@@ -221,8 +221,19 @@ describe('NSMClient', () => {
 
   describe('event publishing', () => {
     it('should publish interaction event', async () => {
-      const mockPublish = mock(() => Promise.resolve());
-      mockNDK.publish = mockPublish;
+      // Mock NDKEvent class with proper constructor and publish method
+      const mockPublish = mock(() => Promise.resolve([]));
+      const mockNDKEvent = mock(function (this: any, ndk: any, eventData: any) {
+        this.kind = eventData.kind;
+        this.content = eventData.content;
+        this.tags = eventData.tags;
+        this.publish = mockPublish;
+        return this;
+      });
+
+      // Replace global NDKEvent with our mock
+      const originalNDKEvent = (global as any).NDKEvent;
+      (global as any).NDKEvent = mockNDKEvent;
 
       const interaction = {
         applicationId: 'test-app',
@@ -233,11 +244,29 @@ describe('NSMClient', () => {
       await client.publishInteraction(interaction);
 
       expect(mockPublish).toHaveBeenCalled();
+      expect(mockNDKEvent).toHaveBeenCalledWith(mockNDK, expect.objectContaining({
+        kind: 7000,
+        content: expect.stringContaining('CLICK_BUTTON')
+      }));
+
+      // Restore original
+      (global as any).NDKEvent = originalNDKEvent;
     });
 
     it('should publish state update event', async () => {
-      const mockPublish = mock(() => Promise.resolve());
-      mockNDK.publish = mockPublish;
+      // Mock NDKEvent class with proper constructor and publish method
+      const mockPublish = mock(() => Promise.resolve([]));
+      const mockNDKEvent = mock(function (this: any, ndk: any, eventData: any) {
+        this.kind = eventData.kind;
+        this.content = eventData.content;
+        this.tags = eventData.tags;
+        this.publish = mockPublish;
+        return this;
+      });
+
+      // Replace global NDKEvent with our mock
+      const originalNDKEvent = (global as any).NDKEvent;
+      (global as any).NDKEvent = mockNDKEvent;
 
       const stateUpdate = {
         applicationId: 'test-app',
@@ -248,6 +277,13 @@ describe('NSMClient', () => {
       await client.publishStateUpdate(stateUpdate);
 
       expect(mockPublish).toHaveBeenCalled();
+      expect(mockNDKEvent).toHaveBeenCalledWith(mockNDK, expect.objectContaining({
+        kind: 10079,
+        content: expect.stringContaining('active')
+      }));
+
+      // Restore original
+      (global as any).NDKEvent = originalNDKEvent;
     });
   });
 

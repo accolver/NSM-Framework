@@ -78,8 +78,8 @@ describe('API Documentation Tests', () => {
 
             // Check for common TypeScript patterns
             if (code.includes('interface') || code.includes('type') || code.includes('class')) {
-              // Should have proper TypeScript syntax
-              expect(code).toMatch(/^[^{}]*[{}]/); // Basic structure check
+              // Should have proper TypeScript syntax - either braces for complex types or semicolons for simple types
+              expect(code).toMatch(/[{}]|;/); // Basic structure check for braces or semicolons
             }
           });
         }

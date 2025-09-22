@@ -95,7 +95,9 @@ export class BloomFilter {
   private setBit(index: number): void {
     const byteIndex = Math.floor(index / 8);
     const bitIndex = index % 8;
-    this.bitArray[byteIndex] |= (1 << bitIndex);
+    if (byteIndex < this.bitArray.length) {
+      this.bitArray[byteIndex]! |= (1 << bitIndex);
+    }
   }
 
   /**
@@ -104,7 +106,10 @@ export class BloomFilter {
   private getBit(index: number): boolean {
     const byteIndex = Math.floor(index / 8);
     const bitIndex = index % 8;
-    return (this.bitArray[byteIndex] & (1 << bitIndex)) !== 0;
+    if (byteIndex < this.bitArray.length) {
+      return (this.bitArray[byteIndex]! & (1 << bitIndex)) !== 0;
+    }
+    return false;
   }
 
   /**

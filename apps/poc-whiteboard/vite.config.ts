@@ -39,10 +39,14 @@ export default defineConfig({
   resolve: {
     alias: {
       events: 'events',
+      // Ensure consistent React resolution across all packages
+      react: path.resolve(__dirname, '../../node_modules/react'),
+      'react-dom': path.resolve(__dirname, '../../node_modules/react-dom'),
       // For development, resolve workspace packages to source
       '@nsm/client': path.resolve(__dirname, '../../packages/nsm-client/src'),
       '@nsm/client-sdk': path.resolve(__dirname, '../../packages/nsm-client-sdk/src'),
       '@nsm/core': path.resolve(__dirname, '../../packages/nsm-core/src'),
+      '@nsm/dev-tools': path.resolve(__dirname, '../../packages/nsm-dev-tools/src'),
     },
   },
   server: {
@@ -56,45 +60,45 @@ export default defineConfig({
   build: {
     sourcemap: true,
     target: 'es2020',
+    minify: 'esbuild',
     rollupOptions: {
       external: [],
       plugins: [],
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          ui: ['konva', 'react-konva'],
-          state: ['xstate', '@xstate/react', '@statelyai/inspect'],
-          collab: ['yjs']
-        },
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]'
-      }
+      },
+      maxParallelFileOps: 2
     },
     chunkSizeWarningLimit: 1000,
-    assetsInlineLimit: 4096
+    assetsInlineLimit: 4096,
+    commonjsOptions: {
+      transformMixedEsModules: true
+    }
   },
   optimizeDeps: {
     // Include packages that need optimization
-    include: ['react', 'react-dom', 'konva', 'react-konva', 'xstate', '@xstate/react', 'yjs', 'events', '@statelyai/inspect'],
+    include: ['react', 'react-dom', 'konva', 'react-konva', 'xstate', '@xstate/react', 'yjs', 'events'],
     exclude: [
       'gulp-sourcemaps',
       'vinyl-fs',
       'module',
+      '@statelyai/inspect',
       // Exclude workspace packages from optimization to avoid build issues
       '@nsm/client',
       '@nsm/client-sdk',
-      '@nsm/core'
-    ],
-    // Force include ESM packages that might be problematic
-    force: true
+      '@nsm/core',
+      '@nsm/dev-tools'
+    ]
   },
   // ESBuild configuration
   esbuild: {
-    target: 'es2020'
+    target: 'es2020',
+    keepNames: true
   },
   // Configure SSR to handle packages properly
   ssr: {
-    noExternal: ['events', '@nsm/client', '@nsm/client-sdk', '@nsm/core']
+    noExternal: ['events', '@nsm/client', '@nsm/client-sdk', '@nsm/core', '@nsm/dev-tools']
   }
 });

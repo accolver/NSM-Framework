@@ -3,6 +3,7 @@
  * This simulates the exact user flow that was causing the infinite loop
  */
 
+import { vi } from 'vitest';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createActor } from 'xstate';
 import { whiteboardMachine } from '../whiteboard-machine';

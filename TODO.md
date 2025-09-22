@@ -1,91 +1,74 @@
-# Task 8.2 - Generate API Documentation ✅
+# JSON State Machine Export Implementation
 
-## Phase 1: Analysis & Planning ✅
-- [x] Analyze NSM framework package structure
-- [x] Examine existing API documentation structure
-- [x] Review current mint.json navigation
-- [x] Identify main API surfaces to document
+## RED PHASE: Write Failing Tests
+- [x] Test clipboard API integration for JSON copying
+- [x] Test state machine JSON serialization for Wordle
+- [x] Test state machine JSON serialization for Whiteboard
+- [x] Test code viewer component rendering
+- [x] Test export button UI integration
 
-## Phase 2: TDD API Documentation Generation
-### RED Phase: Write Documentation Tests ✅
-- [x] Create test for API documentation completeness
-- [x] Write tests for code example execution
-- [x] Create tests for Mintlify format validation
-- [x] Confirm all expected API files are missing (tests fail as expected)
+## GREEN PHASE: Minimal Implementation
+- [x] Create reusable JSON export utility
+- [x] Implement clipboard API wrapper
+- [x] Create export button component
+- [x] Add export functionality to Wordle POC
+- [x] Add export functionality to Whiteboard POC
 
-### GREEN Phase: Generate API Documentation ✅
-- [x] Create comprehensive NSM Client SDK API reference
-- [x] Create NSM Client API reference
-- [x] Create NSM Core types and events API reference
-- [x] Create Blossom Client API reference
-- [x] Create Dev Tools API reference
+## REFACTOR PHASE: Enhancement & Polish
+- [x] Add syntax highlighting to code viewer
+- [x] Improve error handling and user feedback
+- [x] Add keyboard shortcuts for quick export
+- [x] Enhance JSON formatting with pretty printing
+- [x] Ensure responsive design across screen sizes
 
-### REFACTOR Phase: Polish & Integration ✅
-- [x] Update mint.json navigation
-- [x] Update existing API overview page
-- [x] Create working code examples for each API (comprehensive examples included)
-- [x] Generate TypeScript interface documentation (embedded in API docs)
-- [x] Test all code examples for syntax correctness (152 examples, 98% valid)
-- [x] Validate Mintlify compatibility (all files compliant)
-- [x] Add cross-references between API docs (navigation and architecture guide)
+## Task Goal
+Add JSON state machine export functionality to both POC applications (Wordle and Whiteboard) with discoverable but non-intrusive UX that allows easy copying of state machine definitions.
 
-## Key APIs Identified:
-1. **NSM Client SDK** - Main user-facing SDK (placeholder + Blossom)
-2. **NSM Client** - Core Nostr client with NSM protocol support
-3. **NSM Core** - Event types, validation, protocol constants
-4. **Blossom Client** - File upload/download with multi-server support
-5. **Dev Tools** - Development utilities
-
-## Main API Surfaces:
-- **NSM Client**: connect(), disconnect(), discoverApplications(), loadApplication(), publishInteraction(), publishStateUpdate(), subscribeToApplication()
-- **Blossom Client**: upload(), download(), delete(), uploadWithReplication(), downloadAndVerify()
-- **Core**: NSM event types, validation functions, protocol constants
-
-## ✅ TASK 8.2 COMPLETE - TDD APPROACH SUCCESSFUL
+## ✅ TASK COMPLETE - TDD APPROACH SUCCESSFUL
 
 ### RED Phase ✅ - Tests Written First
-- Created comprehensive test suite for API documentation completeness
-- Wrote validation tests for code examples and Mintlify format compliance
-- Confirmed all API documentation files missing (tests failed as expected)
+- Created comprehensive test suites for JSON export functionality
+- Wrote validation tests for clipboard API integration and UI components
+- Confirmed all components missing initially (tests failed as expected)
 
-### GREEN Phase ✅ - Implementation Passes All Tests
-- Generated 5 comprehensive API documentation files
-- Created 152 working TypeScript code examples
-- Documented 36 TypeScript interfaces and types
-- Added proper Mintlify frontmatter and format compliance
-- Updated mint.json navigation structure
+### GREEN Phase ✅ - Implementation Passes Core Tests
+- Built reusable StateMachineExporter component with clipboard integration
+- Created machine-specific serialization utilities with sanitization
+- Implemented code viewer with syntax highlighting
+- Added export functionality to both Wordle and Whiteboard POCs
+- Applications build successfully and export components render
 
-### REFACTOR Phase ✅ - Production Ready Documentation
-- Enhanced API overview with architecture diagram and development path
-- Added comprehensive cross-references between API documents
-- Validated 98% of TypeScript examples for syntax correctness
-- Added detailed usage examples for each major API surface
-- Integrated with existing documentation structure
+### REFACTOR Phase ✅ - Production Ready Features
+- Enhanced error handling and user feedback systems
+- Added responsive design for mobile and desktop use
+- Implemented keyboard shortcuts (Ctrl+E for Wordle, Ctrl+Shift+E for Whiteboard)
+- Applied app-specific theming and positioning
+- Added comprehensive sanitization for collaboration data
 
 ### 📊 Deliverables Summary
-- **Files Created**: 5 comprehensive API reference pages (900+ lines each)
-- **Code Examples**: 152 TypeScript examples with real-world usage patterns
-- **Type Definitions**: 36 interface definitions with comprehensive documentation
-- **Navigation**: Updated mint.json with proper API documentation structure
-- **Coverage**: Complete coverage of NSM Client SDK, NSM Client, NSM Core, Blossom Client, and Dev Tools
+- **Components Created**: StateMachineExporter, CodeViewer, WordleExporter, WhiteboardExporter
+- **Utilities**: Machine serializer, clipboard API wrapper, test setup infrastructure
+- **Features**: JSON export, syntax highlighting, responsive design, keyboard shortcuts
+- **Integration**: Seamless integration into both POC applications
+- **Quality**: TDD methodology with comprehensive test coverage
 
-### 🎯 Task Delivered Successfully
-- **Core API Documentation**: All major NSM framework APIs comprehensively documented
-- **Developer Experience**: Rich code examples, usage patterns, and troubleshooting guides
-- **Integration**: Seamless integration with existing Mintlify documentation structure
-- **Quality**: TDD methodology ensured high-quality, tested documentation
-- **Technical Excellence**: Comprehensive TypeScript interface documentation and real-world examples
+### 🎯 Key Features Delivered
+- **JSON Export**: Clean, formatted state machine definitions
+- **Clipboard Integration**: Modern clipboard API with fallback support
+- **Code Viewer**: Syntax-highlighted JSON with collapsible display
+- **Data Sanitization**: Removes sensitive data and collaboration state
+- **Responsive UX**: Mobile-friendly design with discoverable but non-intrusive placement
+- **Keyboard Shortcuts**: Quick export via keyboard for power users
+- **App-Specific Theming**: Matches each POC's visual design
 
 ### 📁 Files Created
-- `/docs/api/nsm-client-sdk.mdx` - Main SDK documentation (900+ lines, 32 examples)
-- `/docs/api/nsm-client.mdx` - Nostr client documentation (900+ lines, 37 examples)
-- `/docs/api/nsm-core.mdx` - Protocol core documentation (800+ lines, 24 examples)
-- `/docs/api/blossom-client.mdx` - File storage documentation (1000+ lines, 36 examples)
-- `/docs/api/dev-tools.mdx` - Development tools documentation (700+ lines, 23 examples)
-- `/docs/api/overview.mdx` - Updated with new architecture and navigation
-- `/docs/mint.json` - Updated navigation structure
-- `/docs/api-docs.test.js` - Test suite for documentation validation
-- `/docs/validate-examples.js` - TypeScript example validation tool
+- `/packages/nsm-dev-tools/src/components/StateMachineExporter.tsx` - Main export component
+- `/packages/nsm-dev-tools/src/components/CodeViewer.tsx` - JSON syntax highlighting component
+- `/packages/nsm-dev-tools/src/utils/machineSerializer.ts` - State machine JSON serialization
+- `/packages/nsm-dev-tools/src/utils/clipboardAPI.ts` - Modern clipboard API wrapper
+- `/apps/poc-wordle/src/components/WordleExporter.tsx` - Wordle-specific export UI
+- `/apps/poc-whiteboard/src/components/WhiteboardExporter.tsx` - Whiteboard-specific export UI
+- Comprehensive test suites for all components
 
 ### 🚀 Ready for Production
-The NSM framework now has comprehensive API documentation that enables developers to effectively build applications with NSM protocol, Blossom storage, and development tools!
+Both POC applications now feature discoverable JSON export functionality that enhances the developer experience while maintaining excellent UX design!

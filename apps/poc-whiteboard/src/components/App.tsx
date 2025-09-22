@@ -3,6 +3,7 @@ import { createActor } from 'xstate';
 import { whiteboardMachine } from '../whiteboard-machine';
 import { WhiteboardCanvas } from './WhiteboardCanvas';
 import { Toolbar } from './Toolbar';
+import { WhiteboardExporter } from './WhiteboardExporter';
 import { getInspectorService } from '../services/inspector-service';
 import { getEventLogService, logNostrEvent } from '../services/event-log-service';
 import { getTimeTravelService } from '../services/time-travel-service';
@@ -160,7 +161,7 @@ export const App: React.FC = () => {
 
             // More efficient context comparison
             const hasContextChanged = Object.keys(currentContext).some(
-              key => currentContext[key] !== previousContext[key]
+              key => currentContext[key as keyof typeof currentContext] !== previousContext[key as keyof typeof previousContext]
             );
 
             // Only log significant state changes (not micro-updates)
@@ -206,7 +207,7 @@ export const App: React.FC = () => {
 
           // CRITICAL FIX: Only set up event callbacks once, not on every state change
           // This was likely causing infinite loops
-          if (snapshot.context.collaborationService && !snapshot.context.collaborationService._callbackSet) {
+          if (snapshot.context.collaborationService && !(snapshot.context.collaborationService as any)._callbackSet) {
             console.log('📡 Setting up collaboration service callback (once)');
             snapshot.context.collaborationService.setEventCallback((event) => {
               console.log('📡 Received remote event:', event);
@@ -214,13 +215,13 @@ export const App: React.FC = () => {
               setTimeout(() => actor.send(event), 0);
             });
             // Mark callback as set
-            snapshot.context.collaborationService._callbackSet = true;
+            (snapshot.context.collaborationService as any)._callbackSet = true;
           }
 
           // CRITICAL FIX: Same for real-time collaboration - set up once only
           // Only set up listeners after collaboration is initialized
           if (snapshot.context.realTimeCollaborationService &&
-              !snapshot.context.realTimeCollaborationService._listenersSet &&
+              !(snapshot.context.realTimeCollaborationService as any)._listenersSet &&
               collaborationInitializedRef.current &&
               currentUserIdRef.current) {
             console.log('⚡ Setting up real-time collaboration listeners (once)');
@@ -289,7 +290,7 @@ export const App: React.FC = () => {
             });
 
             // Mark listeners as set
-            rtService._listenersSet = true;
+            (rtService as any)._listenersSet = true;
           }
         });
         console.log('✅ Actor subscription set up successfully');
@@ -631,12 +632,19 @@ export const App: React.FC = () => {
       {/* Main Content */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Canvas */}
-        <div style={{ flex: 1, overflow: 'hidden' }}>
+        <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
           <WhiteboardCanvas
             context={state.context}
             send={send}
             width={showDashboard ? canvasSize.width * 0.6 : canvasSize.width}
             height={canvasSize.height}
+          />
+
+          {/* State Machine Exporter */}
+          <WhiteboardExporter
+            actor={actor}
+            showCodeViewer={false}
+            enableCanvasShortcuts={true}
           />
         </div>
 

@@ -1,31 +1,74 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { createActor } from 'xstate';
+import { DeveloperDashboard } from '@nsm/dev-tools';
 import { wordleMachine } from '../wordle-machine';
 import { WordGrid } from './WordGrid';
 import { Keyboard } from './Keyboard';
 import { GameStatus } from './GameStatus';
 import { NSMStatus } from './NSMStatus';
+import { DeveloperDashboardToggle } from './DeveloperDashboardToggle';
+import { WordleExporter } from './WordleExporter';
+import { getWordleDashboardServices } from '../services/wordleDashboardIntegration';
+import { logStateTransition, logGameEvent } from '../utils/gameLogger';
+import { initializeLogging } from '../config/logging';
 import './styles.css';
 
 export const App: React.FC = () => {
   const [actor] = useState(() => createActor(wordleMachine));
   const [state, setState] = useState(() => actor.getSnapshot());
 
+  // DASHBOARD FIX: Start with dashboard visible by default for better UX
+  const [isDashboardVisible, setIsDashboardVisible] = useState(true);
+  const [dashboardServices] = useState(() => getWordleDashboardServices({
+    enableEventLogging: true,
+    enableTimeTravel: true,
+    enableInspector: true,
+    enableAutoConnect: false // We'll connect manually after actor starts
+  }));
+
   // Start the machine on mount and subscribe to state changes
   useEffect(() => {
-    console.log('🎮 App component mounted - starting state machine');
+    // Initialize logging system
+    initializeLogging();
+
     actor.start();
+
+    let previousState = actor.getSnapshot().value;
+    let previousContext = actor.getSnapshot().context;
+
     const subscription = actor.subscribe((snapshot) => {
-      console.log('🔄 State machine update:', snapshot.value, snapshot.context);
+      // Log actual state value transitions
+      if (snapshot.value !== previousState) {
+        logStateTransition(
+          String(previousState),
+          String(snapshot.value),
+          snapshot.context
+        );
+        previousState = snapshot.value;
+      }
+
+      // LOGGING FIX: Also log context changes (like keypress updates)
+      if (snapshot.context.currentGuess !== previousContext.currentGuess) {
+        logGameEvent(`Typed: "${snapshot.context.currentGuess}"`, {
+          currentGuess: snapshot.context.currentGuess,
+          letterCount: snapshot.context.currentGuess.length,
+          attemptNumber: snapshot.context.attemptNumber
+        });
+      }
+
+      previousContext = snapshot.context;
       setState(snapshot);
     });
 
+    // Connect dashboard services to the actor
+    dashboardServices.connectToActor(actor);
+
     return () => {
-      console.log('🎮 App component unmounting - stopping state machine');
       subscription.unsubscribe();
       actor.stop();
+      dashboardServices.cleanup();
     };
-  }, [actor]);
+  }, [actor, dashboardServices]);
 
   // Get grid data from state
   const wordGrid = React.useMemo(() => {
@@ -95,20 +138,14 @@ export const App: React.FC = () => {
 
   // Event handlers
   const handleKeyPress = useCallback((letter: string) => {
-    console.log('📤 handleKeyPress called with letter:', letter);
-    console.log('📤 Sending KEYPRESS event to state machine');
     actor.send({ type: 'KEYPRESS', letter });
   }, [actor]);
 
   const handleBackspace = useCallback(() => {
-    console.log('📤 handleBackspace called');
-    console.log('📤 Sending BACKSPACE event to state machine');
     actor.send({ type: 'BACKSPACE' });
   }, [actor]);
 
   const handleEnter = useCallback(() => {
-    console.log('📤 handleEnter called');
-    console.log('📤 Sending SUBMIT_GUESS event to state machine');
     actor.send({ type: 'SUBMIT_GUESS' });
   }, [actor]);
 
@@ -118,43 +155,30 @@ export const App: React.FC = () => {
 
   // Physical keyboard handling
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
-    console.log('🎹 Physical keyboard event detected:', {
-      key: event.key,
-      keyCode: event.keyCode,
-      code: event.code,
-      target: event.target,
-      type: event.type
-    });
-
     const key = event.key.toUpperCase();
-    console.log('🔤 Processed key:', key);
 
     if (key === 'ENTER') {
-      console.log('✅ Enter key detected - calling handleEnter');
       event.preventDefault();
       handleEnter();
     } else if (key === 'BACKSPACE') {
-      console.log('⬅️ Backspace key detected - calling handleBackspace');
       event.preventDefault();
       handleBackspace();
     } else if (/^[A-Z]$/.test(key)) {
-      console.log('🔤 Letter key detected - calling handleKeyPress with:', key);
       event.preventDefault();
       handleKeyPress(key);
-    } else {
-      console.log('❌ Key not recognized for game input:', key);
     }
   }, [handleEnter, handleBackspace, handleKeyPress]);
+
+  // Dashboard toggle handler
+  const handleDashboardToggle = useCallback((isVisible: boolean) => {
+    setIsDashboardVisible(isVisible);
+  }, []);
 
   return (
     <main
       className="app app-compact"
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      onFocus={() => console.log('🎯 Main element gained focus')}
-      onBlur={() => console.log('🎯 Main element lost focus')}
-      onKeyUp={(e) => console.log('⬆️ Key up event:', e.key)}
-      onKeyPress={(e) => console.log('👇 Key press event:', e.key)}
       role="main"
       aria-label="Wordle game"
       aria-describedby="game-instructions"
@@ -185,6 +209,31 @@ export const App: React.FC = () => {
         onBackspace={handleBackspace}
         onEnter={handleEnter}
       />
+
+      {/* Developer Dashboard Toggle */}
+      <DeveloperDashboardToggle
+        onToggle={handleDashboardToggle}
+        initiallyVisible={isDashboardVisible}
+      />
+
+      {/* State Machine Exporter */}
+      <WordleExporter
+        actor={actor}
+        showCodeViewer={false}
+        enableGameShortcuts={true}
+      />
+
+      {/* Developer Dashboard */}
+      {isDashboardVisible && (
+        <DeveloperDashboard
+          eventLogService={dashboardServices.eventLogService}
+          timeTravelService={dashboardServices.timeTravelService}
+          inspectorService={dashboardServices.inspectorService}
+          connectInspector={dashboardServices.connectInspector}
+          openVisualizer={dashboardServices.openVisualizer}
+          className="wordle-dashboard"
+        />
+      )}
     </main>
   );
 };

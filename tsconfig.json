@@ -22,7 +22,9 @@
     "paths": {
       "@nsm/core": ["./packages/nsm-core/src"],
       "@nsm/client-sdk": ["./packages/nsm-client-sdk/src"],
-      "@nsm/dev-tools": ["./packages/nsm-dev-tools/src"]
+      "@nsm/dev-tools": ["./packages/nsm-dev-tools/src"],
+      "@nsm/crypto": ["./packages/nsm-crypto/src"],
+      "@nsm/client": ["./packages/nsm-client/src"]
     },
     "types": ["bun-types"]
   },
@@ -32,6 +34,8 @@
     { "path": "./packages/nsm-core" },
     { "path": "./packages/nsm-client-sdk" },
     { "path": "./packages/nsm-dev-tools" },
+    { "path": "./packages/nsm-crypto" },
+    { "path": "./packages/nsm-client" },
     { "path": "./apps/poc-wordle" },
     { "path": "./apps/poc-whiteboard" },
     { "path": "./apps/dev-tools" },

@@ -1,13 +1,13 @@
 {
   "name": "Memory Usage Regression Test",
   "version": "1.0.0",
-  "timestamp": 1758026189186,
+  "timestamp": 1758268470065,
   "metrics": {
-    "avgExecutionTime": 0.12026126499999991,
-    "throughputPerSecond": 8315.229346706114,
-    "memoryUsage": 12222215,
-    "p95Latency": 0.18039189749999987,
-    "p99Latency": 0.24052252999999982
+    "avgExecutionTime": 0.10884391999999994,
+    "throughputPerSecond": 9187.467706051018,
+    "memoryUsage": 13671875,
+    "p95Latency": 0.16326587999999992,
+    "p99Latency": 0.21768783999999988
   },
   "environment": {
     "nodeVersion": "v24.3.0",

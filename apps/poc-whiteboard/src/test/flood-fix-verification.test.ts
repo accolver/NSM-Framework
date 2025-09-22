@@ -7,6 +7,7 @@
  * 3. Verify no exponential event growth occurs
  */
 
+import { vi } from 'vitest';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createActor } from 'xstate';
 import { whiteboardMachine } from '../whiteboard-machine';

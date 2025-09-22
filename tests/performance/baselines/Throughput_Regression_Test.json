@@ -1,13 +1,13 @@
 {
   "name": "Throughput Regression Test",
   "version": "1.0.0",
-  "timestamp": 1758026192741,
+  "timestamp": 1758268473610,
   "metrics": {
-    "avgExecutionTime": 0.30066924371511855,
-    "throughputPerSecond": 49868.333333333336,
-    "memoryUsage": 34769631,
-    "p95Latency": 0.802917,
-    "p99Latency": 1.219167
+    "avgExecutionTime": 0.24894107157799175,
+    "throughputPerSecond": 60232.666666666664,
+    "memoryUsage": 37279851,
+    "p95Latency": 0.3775,
+    "p99Latency": 0.965584
   },
   "environment": {
     "nodeVersion": "v24.3.0",

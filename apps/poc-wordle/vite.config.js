@@ -48,7 +48,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
-          nsm: ['@nsm/client', '@nsm/core'],
+          nsm: ['@nsm/core'],
           state: ['xstate', '@xstate/react']
         },
         chunkFileNames: 'assets/[name]-[hash].js',
@@ -64,9 +64,9 @@ export default defineConfig({
     include: ['react', 'react-dom', 'xstate', '@xstate/react', 'events'],
     exclude: [
       // Exclude workspace packages from optimization to avoid build issues
-      '@nsm/client',
       '@nsm/client-sdk',
-      '@nsm/core'
+      '@nsm/core',
+      '@nsm/dev-tools'
     ],
     // Force include ESM packages that might be problematic
     force: true
@@ -76,15 +76,15 @@ export default defineConfig({
       '@': '/src',
       events: 'events',
       // For development, resolve workspace packages to source
-      '@nsm/client': path.resolve(__dirname, '../../packages/nsm-client/src'),
       '@nsm/client-sdk': path.resolve(__dirname, '../../packages/nsm-client-sdk/src'),
       '@nsm/core': path.resolve(__dirname, '../../packages/nsm-core/src'),
+      '@nsm/dev-tools': path.resolve(__dirname, '../../packages/nsm-dev-tools/src'),
     },
   },
   // Disable ESBuild to avoid service conflicts
   esbuild: false,
   // Configure SSR to handle packages properly
   ssr: {
-    noExternal: ['events', '@nsm/client', '@nsm/client-sdk', '@nsm/core']
+    noExternal: ['events', '@nsm/client-sdk', '@nsm/core', '@nsm/dev-tools']
   }
 });
