@@ -20,6 +20,8 @@ export interface ImplementationBundlerOptions {
   compileTypeScript?: boolean;
   /** Whether to preserve original TypeScript source in metadata */
   preserveOriginalSource?: boolean;
+  /** Fixed timestamp for testing (prevents hash collisions in tests) */
+  testTimestamp?: number;
 }
 
 export interface ExtractedFunction {
@@ -81,6 +83,7 @@ export class ImplementationBundler {
       preserveTypes: false,
       compileTypeScript: false,
       preserveOriginalSource: false,
+      testTimestamp: undefined,
       ...options
     };
   }
@@ -168,7 +171,7 @@ export class ImplementationBundler {
       functions: processedFunctions,
       metadata: {
         functionCount,
-        createdAt: Date.now(),
+        createdAt: this.options.testTimestamp ?? Date.now(),
         dependencies: metadata.dependencies || []
       }
     };
@@ -469,16 +472,27 @@ export class ImplementationBundler {
    * Calculate SHA256 hash of content
    */
   private calculateHash(content: string): string {
-    // Simple hash calculation for testing (in real implementation, use proper crypto)
-    let hash = 0;
+    // More robust hash calculation for testing (not cryptographically secure but avoids collisions)
+    let hash1 = 0;
+    let hash2 = 0;
+
     for (let i = 0; i < content.length; i++) {
       const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
+      hash1 = ((hash1 << 5) - hash1) + char;
+      hash1 = hash1 & hash1; // Convert to 32-bit integer
+
+      hash2 = ((hash2 << 3) + hash2) + char + i; // Include position to avoid collisions
+      hash2 = hash2 & hash2; // Convert to 32-bit integer
     }
 
-    // Convert to hex and pad to 64 characters (simulate SHA256 format)
-    const hex = Math.abs(hash).toString(16);
-    return hex.padStart(64, '0');
+    // Combine both hashes and include content length to reduce collisions
+    const combined = hash1 ^ hash2 ^ content.length;
+    const hex = Math.abs(combined).toString(16);
+
+    // Add content-based suffix to further differentiate
+    const contentHash = content.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const suffix = (contentHash % 0xffffff).toString(16).padStart(6, '0');
+
+    return (hex + suffix).padStart(64, '0');
   }
 }

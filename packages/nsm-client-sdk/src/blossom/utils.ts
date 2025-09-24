@@ -53,7 +53,8 @@ export function isValidContentType(contentType: string): boolean {
     'application/javascript',
     'application/json',
     'text/plain',
-    'application/octet-stream'
+    'application/octet-stream',
+    'application/x-nsm-implementation'
   ];
 
   // Exact match for known valid types
