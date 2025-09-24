@@ -70,6 +70,42 @@ export interface MachineConfig {
 }
 
 /**
+ * Blossom-stored implementation reference with integrity verification
+ */
+export interface BlossomImplementationReference {
+  /** SHA256 hash of the implementation bundle */
+  hash: string;
+  /** Blossom URI for downloading the implementation */
+  uri: string;
+  /** Content type (should be 'application/x-nsm-implementation') */
+  contentType: string;
+  /** Size in bytes (optional) */
+  size?: number;
+  /** Integrity verification metadata */
+  integrity?: {
+    /** Hashing algorithm used (e.g., 'sha256') */
+    algorithm: string;
+    /** Expected hash for verification */
+    hash: string;
+    /** Timestamp when integrity was last verified */
+    verifiedAt: number;
+  };
+  /** Additional metadata about the implementation bundle */
+  metadata?: {
+    /** List of function names contained in the bundle */
+    functions?: string[];
+    /** Implementation version */
+    version?: string;
+    /** Dependencies required by implementations */
+    dependencies?: string[];
+    /** Timestamp when bundle was created */
+    bundledAt?: number;
+    /** List of inline function names (for mixed implementations) */
+    inlineFunctions?: string[];
+  };
+}
+
+/**
  * Content structure for NSM Definition events
  */
 export interface NSMDefinitionContent {
@@ -88,6 +124,8 @@ export interface NSMDefinitionContent {
   };
   /** Legacy support: external machine URI (deprecated) */
   machineURI?: string;
+  /** Optional reference to Blossom-stored implementation bundle */
+  implementations?: BlossomImplementationReference;
 }
 
 /**
@@ -263,6 +301,25 @@ const UIConfigurationSchema = z.object({
 });
 
 // Zod schemas for validation
+const BlossomImplementationReferenceSchema = z.object({
+  hash: z.string(),
+  uri: z.string(),
+  contentType: z.string(),
+  size: z.number().optional(),
+  integrity: z.object({
+    algorithm: z.string(),
+    hash: z.string(),
+    verifiedAt: z.number(),
+  }).optional(),
+  metadata: z.object({
+    functions: z.array(z.string()).optional(),
+    version: z.string().optional(),
+    dependencies: z.array(z.string()).optional(),
+    bundledAt: z.number().optional(),
+    inlineFunctions: z.array(z.string()).optional(),
+  }).optional(),
+});
+
 const XStateV5SetupConfigSchema = z.object({
   types: z.object({
     context: z.record(z.any()).optional(),
@@ -303,6 +360,7 @@ const NSMDefinitionContentSchema = z.object({
     metadata: z.record(z.any()).optional(),
   }).optional(),
   machineURI: z.string().optional(), // Legacy support
+  implementations: BlossomImplementationReferenceSchema.optional(),
 });
 
 
