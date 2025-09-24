@@ -610,18 +610,16 @@ describe('NSMStateMachine', () => {
           }
         });
 
-        // Test the security validation manually to avoid XState async timing issues
-        let securityWorked = false;
+        // Wrap in try-catch to isolate XState async issues
         try {
           await sandbox.actions.receiveMessage('test', 'https://malicious.com');
+          // If we get here, the security check failed
+          expect(true).toBe(false); // Force test failure
         } catch (error) {
-          if (error instanceof Error && error.message.includes('Sandbox execution failed: Untrusted message origin')) {
-            securityWorked = true;
-          }
+          // Verify it's the expected security error
+          expect(error).toBeInstanceOf(Error);
+          expect(error.message).toContain('Sandbox execution failed: Untrusted message origin');
         }
-
-        // Verify that the security sandbox correctly rejected the untrusted origin
-        expect(securityWorked).toBe(true);
       });
     });
 
@@ -638,7 +636,8 @@ describe('NSMStateMachine', () => {
           }
         });
 
-        await expect(sandbox.actions.validateContent('test content', 'wrong-hash')).rejects.toThrow('Sandbox execution failed: Content hash mismatch');
+        await expect(sandbox.actions.validateContent('test content', 'wrong-hash'))
+          .rejects.toThrow('Sandbox execution failed: Content hash mismatch');
       });
 
       it('should validate Nostr event signatures', async () => {
@@ -663,7 +662,8 @@ describe('NSMStateMachine', () => {
           sig: 'a'.repeat(128)
         };
 
-        await expect(sandbox.actions.validateSignature(invalidEvent)).rejects.toThrow('Sandbox execution failed: Missing signature');
+        await expect(sandbox.actions.validateSignature(invalidEvent))
+          .rejects.toThrow('Sandbox execution failed: Missing signature or public key');
 
         const result = await sandbox.actions.validateSignature(validEvent);
         expect(result.valid).toBe(true);

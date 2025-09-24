@@ -8,7 +8,7 @@
 import { DeveloperDashboard } from '@nsm/dev-tools';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createActor } from 'xstate';
-import { NSMClient } from '../../../../packages/nsm-client/src/nsm-client';
+import { NSMClient } from '@nsm/client';
 import { initializeLogging } from '../config/logging';
 import { createWordleNSMDefinition, WordleNSMConnector } from '../nsm-integration';
 import { getWordleDashboardServices } from '../services/wordleDashboardIntegration';

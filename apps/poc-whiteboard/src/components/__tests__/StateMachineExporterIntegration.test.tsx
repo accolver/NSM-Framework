@@ -1,5 +1,6 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render } from '@testing-library/react';
+import { describe, it, expect, beforeEach } from 'bun:test';
+import { vi } from 'bun:test';
 import React from 'react';
 import { createActor } from 'xstate';
 import { StateMachineExporter } from '@nsm/dev-tools';
@@ -52,7 +53,7 @@ describe('Whiteboard StateMachineExporter Integration', () => {
   it('should render export button for whiteboard machine', () => {
     const actor = createActor(whiteboardMachine);
 
-    render(
+    const { container } = render(
       <StateMachineExporter
         machine={actor}
         buttonText="Export Whiteboard"
@@ -60,9 +61,12 @@ describe('Whiteboard StateMachineExporter Integration', () => {
       />
     );
 
-    const exportButton = screen.getByRole('button', { name: /export/i });
-    expect(exportButton).toBeDefined();
-    expect(exportButton.textContent).toContain('Export Whiteboard');
+    // Check that export button exists using textContent approach
+    expect(container.textContent).toContain('Export Whiteboard');
+
+    // Find the button element
+    const exportButton = container.querySelector('button[aria-label*="Export"]');
+    expect(exportButton).toBeTruthy();
   });
 
   it('should not cause React hooks violations', () => {

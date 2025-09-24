@@ -12,12 +12,12 @@ import {
   CryptoAuditLogger
 } from '@nsm/crypto';
 
-// Import types explicitly from the types file
+// Import types explicitly from the crypto package
 import type {
   VerificationResult,
   SignatureVerificationOptions,
   HashVerificationOptions
-} from '@nsm/crypto/src/types';
+} from '@nsm/crypto';
 import { NDKEvent } from '@nostr-dev-kit/ndk';
 import type { INostrEvent } from '@nsm/core';
 

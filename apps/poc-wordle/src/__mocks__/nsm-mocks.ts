@@ -140,6 +140,152 @@ export const mockDevTools = {
   })
 };
 
+// Enhanced NSM Client Mock for proper testing
+export class MockNSMClient {
+  public isConnected = false;
+  private mockPublishInteraction = mock();
+  private mockPublishStateUpdate = mock();
+  private mockConnect = mock();
+  private mockSubscribe = mock();
+
+  constructor(options: any = {}) {
+    // Mock successful connection by default
+    this.mockConnect.mockImplementation(() => {
+      this.isConnected = true;
+      return Promise.resolve();
+    });
+  }
+
+  async connect() {
+    await this.mockConnect();
+    this.isConnected = true;
+  }
+
+  disconnect() {
+    this.isConnected = false;
+  }
+
+  async publishInteraction(payload: any) {
+    if (!this.isConnected) {
+      throw new Error('Not connected');
+    }
+    this.mockPublishInteraction(payload);
+    return Promise.resolve();
+  }
+
+  async publishStateUpdate(payload: any) {
+    if (!this.isConnected) {
+      throw new Error('Not connected');
+    }
+    this.mockPublishStateUpdate(payload);
+    return Promise.resolve();
+  }
+
+  subscribeToApplication(applicationId: string, handlers: any) {
+    this.mockSubscribe(applicationId, handlers);
+    return {
+      stop: mock(),
+      on: mock()
+    };
+  }
+
+  // Test helper methods
+  getPublishInteractionMock() {
+    return this.mockPublishInteraction;
+  }
+
+  getPublishStateUpdateMock() {
+    return this.mockPublishStateUpdate;
+  }
+
+  getConnectMock() {
+    return this.mockConnect;
+  }
+
+  getSubscribeMock() {
+    return this.mockSubscribe;
+  }
+}
+
+// XState Function Serialization Utilities
+export class XStateFunctionSerializer {
+  static serialize(fn: Function) {
+    return {
+      __type: 'function',
+      name: fn.name,
+      source: fn.toString()
+    };
+  }
+
+  static deserialize(serialized: any) {
+    if (serialized && serialized.__type === 'function') {
+      try {
+        return new Function('return ' + serialized.source)();
+      } catch (error) {
+        console.error('Failed to deserialize function:', error);
+        return null;
+      }
+    }
+    return serialized;
+  }
+
+  static serializeObject(obj: any): any {
+    if (typeof obj === 'function') {
+      return this.serialize(obj);
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.serializeObject(item));
+    }
+
+    if (obj && typeof obj === 'object') {
+      const result: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        result[key] = this.serializeObject(value);
+      }
+      return result;
+    }
+
+    return obj;
+  }
+
+  static deserializeObject(obj: any): any {
+    if (obj && obj.__type === 'function') {
+      return this.deserialize(obj);
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.deserializeObject(item));
+    }
+
+    if (obj && typeof obj === 'object') {
+      const result: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        result[key] = this.deserializeObject(value);
+      }
+      return result;
+    }
+
+    return obj;
+  }
+}
+
+// Mock NDK Event with correct API
+export class MockNDKEvent {
+  private mockPublish = mock();
+
+  constructor(public ndk: any, public eventData: any) {}
+
+  async publish() {
+    this.mockPublish();
+    return Promise.resolve();
+  }
+
+  getPublishMock() {
+    return this.mockPublish;
+  }
+}
+
 // Test helper to verify no network calls occurred
 export function verifyNoNetworkCalls() {
   // Could be enhanced to track and verify mock calls

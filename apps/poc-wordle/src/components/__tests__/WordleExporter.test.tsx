@@ -7,10 +7,11 @@ import { createWordleMachine } from '../../wordle-machine';
 
 // Mock the clipboard API
 const mockWriteText = jest.fn();
-Object.assign(navigator, {
-  clipboard: {
+Object.defineProperty(navigator, 'clipboard', {
+  value: {
     writeText: mockWriteText,
   },
+  writable: true,
 });
 
 describe('WordleExporter', () => {

@@ -2,12 +2,12 @@
   "name": "@nsm/client",
   "version": "0.1.0",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/src/minimal-index.js",
+  "types": "./dist/src/minimal-index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/src/minimal-index.d.ts",
+      "import": "./dist/src/minimal-index.js"
     }
   },
   "scripts": {

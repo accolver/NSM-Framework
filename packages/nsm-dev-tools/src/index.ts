@@ -27,6 +27,7 @@ export { createInspectorService } from './services/inspector-service';
 
 // Utilities
 export * from './utils/machineSerializer';
+export * from './utils/machineValidator';
 export * from './utils/clipboardAPI';
 
 // Legacy placeholder - to be removed

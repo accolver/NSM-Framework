@@ -52,6 +52,7 @@ export const StateMachineExporter: React.FC<StateMachineExporterProps> = ({
     }
 
     try {
+
       return serializeMachine(machine, serializationOptions);
     } catch (error) {
       console.error('Failed to generate JSON:', error);

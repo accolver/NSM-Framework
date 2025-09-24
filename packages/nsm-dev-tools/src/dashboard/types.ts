@@ -40,7 +40,7 @@ export interface NSMApplication {
   id: string;
   name: string;
   type: string;
-  status: 'connected' | 'disconnected' | 'connecting';
+  status: 'connected' | 'disconnected' | 'connecting' | 'discovering';
   url?: string;
   lastSeen: number;
 }

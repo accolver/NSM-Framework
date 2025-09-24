@@ -7,7 +7,7 @@
     "declaration": true,
     "declarationMap": true,
     "composite": true,
-    "module": "CommonJS",
+    "module": "ESNext",
     "moduleResolution": "node"
   },
   "include": ["src/**/*"],

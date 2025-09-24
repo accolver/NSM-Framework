@@ -46,6 +46,7 @@ export const WordleExporter: React.FC<WordleExporterProps> = ({
           includeSensitiveData: false, // Don't export the hidden word in production
           sanitizeCollaboration: false, // Wordle is single-player
           prettyPrint: true,
+          preserveFunctionCode: true, // CRITICAL FIX: Preserve function source code instead of "[Function: assign2]"
         }}
         formatCopiedText={wrapAsCreateMachine}
         onExportSuccess={handleExportSuccess}

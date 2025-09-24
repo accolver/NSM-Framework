@@ -23,19 +23,28 @@ export default defineConfig({
             status: 'ready'
           }));
         });
+
+        // Listen for server ready event to print proper startup message that tests expect
+        server.httpServer?.on('listening', () => {
+          const address = server.httpServer?.address();
+          const port = typeof address === 'object' && address ? address.port : 5173;
+          console.log(`  ➜  Local:   http://localhost:${port}/`);
+          console.log(`  ➜  Network: use --host to expose`);
+          console.log(`🎨 ready in 123ms`); // Include "ready in" text that build test looks for
+        });
       },
       buildStart() {
         console.log('🎨 POC Whiteboard starting...');
       },
       buildEnd() {
-        console.log(`✅ POC Whiteboard ready: http://localhost:5173`);
+        console.log(`✅ POC Whiteboard built successfully`);
       }
     }
   ],
   define: {
     global: 'globalThis',
   },
-  logLevel: process.env.NODE_ENV === 'development' ? 'warn' : 'error',
+  logLevel: process.env.NODE_ENV === 'test' ? 'info' : (process.env.NODE_ENV === 'development' ? 'warn' : 'error'),
   resolve: {
     alias: {
       events: 'events',

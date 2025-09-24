@@ -11,6 +11,9 @@ import { WordleExporter } from './WordleExporter';
 import { getWordleDashboardServices } from '../services/wordleDashboardIntegration';
 import { logStateTransition, logGameEvent } from '../utils/gameLogger';
 import { initializeLogging } from '../config/logging';
+import { NostrAuthService } from '../services/auth';
+import { NSMAuthIntegration } from '../services/nsm-auth-integration';
+import { WordleNSMSetup } from '../services/wordle-nsm-setup';
 import './styles.css';
 
 export const App: React.FC = () => {
@@ -25,6 +28,11 @@ export const App: React.FC = () => {
     enableInspector: true,
     enableAutoConnect: false // We'll connect manually after actor starts
   }));
+
+  // Authentication services
+  const [authService] = useState(() => new NostrAuthService());
+  const [nsmAuthIntegration] = useState(() => new NSMAuthIntegration(authService));
+  const [wordleNSMSetup] = useState(() => new WordleNSMSetup(nsmAuthIntegration, actor));
 
   // Start the machine on mount and subscribe to state changes
   useEffect(() => {
@@ -67,8 +75,9 @@ export const App: React.FC = () => {
       subscription.unsubscribe();
       actor.stop();
       dashboardServices.cleanup();
+      wordleNSMSetup.cleanup();
     };
-  }, [actor, dashboardServices]);
+  }, [actor, dashboardServices, wordleNSMSetup]);
 
   // Get grid data from state
   const wordGrid = React.useMemo(() => {
@@ -185,7 +194,7 @@ export const App: React.FC = () => {
     >
       <header className="app-header">
         <h1>Wordle</h1>
-        <NSMStatus />
+        <NSMStatus authService={authService} />
       </header>
 
       <div id="game-instructions" className="sr-only">

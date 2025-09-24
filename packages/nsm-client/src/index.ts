@@ -1,5 +1,5 @@
-export { NSMClient } from './nsm-client';
-export { CryptoNSMClient } from './crypto-client';
+export { NSMClient } from './nsm-client.js';
+export { CryptoNSMClient } from './crypto-client.js';
 export type {
   NSMClientOptions,
   NSMApplication,
@@ -7,12 +7,12 @@ export type {
   InteractionPayload,
   StateUpdatePayload,
   SubscriptionHandlers
-} from './nsm-client';
+} from './nsm-client.js';
 export type {
   CryptoNSMClientOptions,
   VerifiedEvent,
   ContentIntegrityResult
-} from './crypto-client';
+} from './crypto-client.js';
 
 // Re-export core types for convenience
 export type {
@@ -34,13 +34,13 @@ export type {
   SignatureVerificationOptions,
   HashVerificationOptions,
   CryptoAuditEntry
-} from '@nsm/crypto/src/types';
+} from '@nsm/crypto';
 
 // Export DoS protection components
 export {
   DoSProtection,
   DoSViolationType
-} from './security/dos-protection';
+} from './security/dos-protection.js';
 export type {
   DoSProtectionConfig,
   DoSCheckResult,
@@ -50,7 +50,7 @@ export type {
   EventFilterConfig,
   ResourceMonitorConfig,
   ThrottlingConfig
-} from './security/dos-protection';
+} from './security/dos-protection.js';
 
 // Export security sandbox components
 export {
@@ -58,56 +58,56 @@ export {
   SecurityError,
   CSPManager,
   securitySandbox
-} from './security/sandbox';
+} from './security/sandbox.js';
 export type {
   SecurityPolicy,
   ExecutionContext,
   SecurityMetrics
-} from './security/sandbox';
+} from './security/sandbox.js';
 
 // Export state machine components
-export { NSMStateMachine } from './state-machine';
-export { OptimizedStateMachine, OptimizedActor } from './state-machine-optimized';
-export type { OptimizationConfig, CachedMachine } from './state-machine-optimized';
+export { NSMStateMachine } from './state-machine.js';
+export { OptimizedStateMachine, OptimizedActor } from './state-machine-optimized.js';
+export type { OptimizationConfig, CachedMachine } from './state-machine-optimized.js';
 
 // Export performance utilities
-export { LRUCache } from './utils/lru-cache';
-export { ObjectPool } from './utils/object-pool';
+export { LRUCache } from './utils/lru-cache.js';
+export { ObjectPool } from './utils/object-pool.js';
 
 // Export cache components
-export { MemoryCache } from './cache/memory-cache';
-export { IndexedDBCache } from './cache/indexeddb-cache';
-export { NostrEventCache } from './cache/nostr-event-cache';
-export { BlossomContentCache } from './cache/blossom-content-cache';
-export { CacheInvalidationManager, createNSMInvalidationManager, CommonInvalidationRules } from './cache/cache-invalidation';
+export { MemoryCache } from './cache/memory-cache.js';
+export { IndexedDBCache } from './cache/indexeddb-cache.js';
+export { NostrEventCache } from './cache/nostr-event-cache.js';
+export { BlossomContentCache } from './cache/blossom-content-cache.js';
+export { CacheInvalidationManager, createNSMInvalidationManager, CommonInvalidationRules } from './cache/cache-invalidation.js';
 export type {
   MemoryCacheEntry,
   MemoryCacheOptions,
   CacheStats
-} from './cache/memory-cache';
+} from './cache/memory-cache.js';
 export type {
   CacheEntry,
   CacheOptions,
   CacheQuery
-} from './cache/indexeddb-cache';
+} from './cache/indexeddb-cache.js';
 export type {
   NostrEvent,
   NostrFilter,
   CachePolicy,
   EventCacheEntry,
   CacheMetrics
-} from './cache/nostr-event-cache';
+} from './cache/nostr-event-cache.js';
 export type {
   BlossomContent,
   BlossomCacheEntry,
   BlossomCachePolicy,
   ContentQuery,
   CacheHealth
-} from './cache/blossom-content-cache';
+} from './cache/blossom-content-cache.js';
 export type {
   InvalidationRule,
   InvalidationEvent,
   InvalidationPolicy,
   InvalidationMetrics,
   CacheManager
-} from './cache/cache-invalidation';
+} from './cache/cache-invalidation.js';

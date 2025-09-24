@@ -45,23 +45,10 @@ export const WhiteboardExporter: React.FC<WhiteboardExporterProps> = ({
           includeSensitiveData: false,
           sanitizeCollaboration: true, // Clean up collaboration data for export
           prettyPrint: true,
-          replacer: (key: string, value: any) => {
-            // Custom handling for whiteboard-specific data
-            if (key === 'collaborationService' || key === 'realTimeCollaborationService') {
-              return null; // Always remove service instances
-            }
-
-            // Simplify large path arrays for better readability
-            if (key === 'points' && Array.isArray(value) && value.length > 10) {
-              return [
-                ...value.slice(0, 3),
-                { summary: `... ${value.length - 6} more points ...` },
-                ...value.slice(-3),
-              ];
-            }
-
-            return value;
-          },
+          preserveFunctionCode: true, // CRITICAL FIX: Preserve function source code instead of "[Function: assign2]"
+          // NOTE: Removed custom replacer to allow proper function serialization
+          // The built-in function serialization handles preserveFunctionCode correctly
+          // Custom replacers override the internal function handling
         }}
         formatCopiedText={wrapAsCreateMachine}
         onExportSuccess={handleExportSuccess}

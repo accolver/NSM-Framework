@@ -11,9 +11,11 @@ echo "======================================"
 # Track results
 COLLECTIVE_TESTS=0
 NSM_TESTS=0
+BROWSER_TESTS=0
 CRYPTO_TESTS=0
 COLLECTIVE_PASSED=false
 NSM_PASSED=false
+BROWSER_PASSED=false
 CRYPTO_PASSED=false
 OVERALL_PASSED=false
 
@@ -46,7 +48,25 @@ else
 fi
 
 echo ""
-echo "📋 PHASE 3: NSM Crypto Tests (packages/nsm-crypto)"
+echo "📋 PHASE 3: NSM Browser Tests (apps/nsm-browser)"
+echo "-----------------------------------------------"
+
+# Track browser tests
+BROWSER_TESTS=0
+BROWSER_PASSED=false
+
+# Run NSM Browser tests
+if (cd apps/nsm-browser && npx vitest run) 2>&1; then
+    BROWSER_TESTS=19
+    BROWSER_PASSED=true
+    echo "✅ NSM Browser Tests: PASSED ($BROWSER_TESTS tests)"
+else
+    echo "❌ NSM Browser Tests: FAILED"
+    BROWSER_PASSED=false
+fi
+
+echo ""
+echo "📋 PHASE 4: NSM Crypto Tests (packages/nsm-crypto)"
 echo "------------------------------------------------"
 
 # Build crypto package first
@@ -72,11 +92,12 @@ echo "📊 VALIDATION SUMMARY"
 echo "===================="
 echo "Collective Tests: $(if $COLLECTIVE_PASSED; then echo '✅ PASSED'; else echo '❌ FAILED'; fi) ($COLLECTIVE_TESTS tests)"
 echo "NSM Protocol Tests: $(if $NSM_PASSED; then echo '✅ PASSED'; else echo '❌ FAILED'; fi) ($NSM_TESTS tests)"
+echo "NSM Browser Tests: $(if $BROWSER_PASSED; then echo '✅ PASSED'; else echo '❌ FAILED'; fi) ($BROWSER_TESTS tests)"
 echo "NSM Crypto Tests: $(if $CRYPTO_PASSED; then echo '✅ PASSED'; else echo '❌ FAILED'; fi) ($CRYPTO_TESTS tests)"
-echo "Total Tests: $((COLLECTIVE_TESTS + NSM_TESTS + CRYPTO_TESTS))"
+echo "Total Tests: $((COLLECTIVE_TESTS + NSM_TESTS + BROWSER_TESTS + CRYPTO_TESTS))"
 
 # Determine overall result
-if $COLLECTIVE_PASSED && $NSM_PASSED && $CRYPTO_PASSED; then
+if $COLLECTIVE_PASSED && $NSM_PASSED && $BROWSER_PASSED && $CRYPTO_PASSED; then
     OVERALL_PASSED=true
     echo ""
     echo "🎯 OVERALL VALIDATION: ✅ PASSED"

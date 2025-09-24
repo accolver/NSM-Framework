@@ -19,6 +19,7 @@ log_service_urls() {
     echo "📱 Web Applications:"
     echo "  • POC Whiteboard:  http://localhost:5173"
     echo "  • POC Wordle:      http://localhost:5174"
+    echo "  • NSM Browser:     http://localhost:5175"
     echo "  • Dev Tools App:   http://localhost:3001"
     echo "  • Docs (future):   http://localhost:3000"
     echo ""
@@ -34,6 +35,7 @@ log_service_urls() {
     echo "💡 Quick Access:"
     echo "  • Open Whiteboard: http://localhost:5173"
     echo "  • Open Wordle:     http://localhost:5174"
+    echo "  • Open NSM Browser: http://localhost:5175"
     echo "  • Dev Tools:       http://localhost:3001 (when implemented)"
     echo ""
 }

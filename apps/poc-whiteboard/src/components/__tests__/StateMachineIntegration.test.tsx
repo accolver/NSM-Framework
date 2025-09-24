@@ -1,5 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { render, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach } from 'bun:test';
+import { vi } from 'bun:test';
 import { App } from '../App';
 
 // Mock the lazy-loaded DeveloperDashboard to prevent import issues
@@ -16,10 +17,12 @@ vi.mock('../DeveloperDashboard', () => ({
 describe('Whiteboard State Machine Integration', () => {
   beforeEach(() => {
     // Mock window.navigator.clipboard
-    Object.assign(navigator, {
-      clipboard: {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: {
         writeText: vi.fn().mockResolvedValue(undefined),
       },
+      writable: true,
+      configurable: true
     });
 
     // Mock console methods to reduce noise
@@ -33,46 +36,38 @@ describe('Whiteboard State Machine Integration', () => {
   });
 
   it('should initialize state machine without useState errors', async () => {
-    render(<App />);
+    const { container } = render(<App />);
 
     // Should render the main whiteboard interface
     await waitFor(() => {
-      const header = screen.getByText(/NSM Collaborative Whiteboard/i);
-      expect(header).toBeDefined();
+      expect(container.textContent).toContain('NSM Collaborative Whiteboard');
     });
   });
 
   it('should display current state in header', async () => {
-    render(<App />);
+    const { container } = render(<App />);
 
     // Should show state information
     await waitFor(() => {
-      const stateInfo = screen.getByText(/State:/i);
-      expect(stateInfo).toBeDefined();
+      expect(container.textContent).toContain('State:');
     });
   });
 
   it('should render toolbar without errors', async () => {
-    render(<App />);
+    const { container } = render(<App />);
 
-    // Toolbar should be present
+    // Toolbar should be present - check for drawing tool text
     await waitFor(() => {
-      // Look for any toolbar elements or buttons
-      const toolbar = document.querySelector('[data-testid="toolbar"]') ||
-                     screen.queryByRole('toolbar') ||
-                     screen.queryByText(/pen|brush|eraser/i);
-      expect(toolbar).toBeDefined();
+      expect(container.textContent).toMatch(/pen|brush|eraser/i);
     });
   });
 
   it('should render state machine exporter', async () => {
-    render(<App />);
+    const { container } = render(<App />);
 
-    // Should have an export button or component
+    // Should have export functionality
     await waitFor(() => {
-      const exportButton = screen.queryByRole('button', { name: /export/i }) ||
-                          screen.queryByText(/export/i);
-      expect(exportButton).toBeDefined();
+      expect(container.textContent).toMatch(/export/i);
     });
   });
 
@@ -81,12 +76,11 @@ describe('Whiteboard State Machine Integration', () => {
     const originalEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'development';
 
-    render(<App />);
+    const { container } = render(<App />);
 
     // Should show developer dashboard toggle
     await waitFor(() => {
-      const dashboardButton = screen.getByText(/Developer Dashboard/i);
-      expect(dashboardButton).toBeDefined();
+      expect(container.textContent).toMatch(/Developer Dashboard/i);
     });
 
     // Restore original env
@@ -94,15 +88,12 @@ describe('Whiteboard State Machine Integration', () => {
   });
 
   it('should handle state machine actor properly', async () => {
-    render(<App />);
+    const { container } = render(<App />);
 
     // Should initialize without throwing useState errors
     await waitFor(() => {
-      // Check that the canvas area is rendered
-      const canvasArea = document.querySelector('canvas') ||
-                        screen.queryByRole('main') ||
-                        screen.queryByText(/Objects:/i);
-      expect(canvasArea).toBeDefined();
+      // Check that object count is displayed (indicates proper state management)
+      expect(container.textContent).toMatch(/Objects:/i);
     });
   });
 

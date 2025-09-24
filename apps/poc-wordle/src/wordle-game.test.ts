@@ -111,30 +111,33 @@ describe('WordleGame Wrapper', () => {
 
   describe('Letter Status', () => {
     it('should provide letter status grid', () => {
-      game.pressKey('A');
-      game.pressKey('R');
+      // Test with "HOUSE" against hidden word "ABOUT"
+      // H vs A = absent (H not in ABOUT), O vs B = present (O in ABOUT), U vs O = present (U in ABOUT), S vs U = absent (S not in ABOUT), E vs T = absent (E not in ABOUT)
+      game.pressKey('H');
       game.pressKey('O');
+      game.pressKey('U');
       game.pressKey('S');
       game.pressKey('E');
       game.submitGuess();
 
       const statusGrid = game.getLetterStatusGrid();
-      expect(statusGrid[0]).toEqual(['correct', 'absent', 'correct', 'absent', 'absent']);
+      expect(statusGrid[0]).toEqual(['absent', 'present', 'present', 'absent', 'absent']);
       game.stop();
     });
 
     it('should provide keyboard status', () => {
-      game.pressKey('A');
-      game.pressKey('R');
+      // Test with "HOUSE" against hidden word "ABOUT"
+      game.pressKey('H');
       game.pressKey('O');
+      game.pressKey('U');
       game.pressKey('S');
       game.pressKey('E');
       game.submitGuess();
 
       const keyboardStatus = game.getKeyboardStatus();
-      expect(keyboardStatus['A']).toBe('correct');
-      expect(keyboardStatus['R']).toBe('absent');
-      expect(keyboardStatus['O']).toBe('correct');
+      expect(keyboardStatus['H']).toBe('absent');
+      expect(keyboardStatus['O']).toBe('present');
+      expect(keyboardStatus['U']).toBe('present');
       expect(keyboardStatus['S']).toBe('absent');
       expect(keyboardStatus['E']).toBe('absent');
       game.stop();

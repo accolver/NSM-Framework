@@ -19,7 +19,7 @@
   "scripts": {
     "build": "turbo run build",
     "build:analyze": "turbo run build && node tools/bundle-analyzer.js",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --concurrency=15",
     "test": "turbo run test",
     "test:comprehensive": "./run-all-tests.sh",
     "test:nsm-only": "cd packages/nsm-core && bun test",

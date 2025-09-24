@@ -15,6 +15,8 @@ import type {
 import type { EventLogService } from '../services/event-log-service';
 import type { TimeTravelService } from '../services/time-travel-service';
 import type { InspectorService } from '../services/inspector-service';
+import { NostrAppDiscoveryService, type NSMApplication as NostrNSMApplication } from '../services/nostr-app-discovery';
+import { NSMClient } from '@nsm/client';
 
 // Import modular components
 import { DashboardContainer } from './DashboardContainer';
@@ -33,6 +35,7 @@ export interface DeveloperDashboardProps {
   inspectorService: InspectorService;
   connectInspector: () => Promise<void>;
   openVisualizer: () => void;
+  nsmClient?: NSMClient; // Optional NSMClient for real Nostr app discovery
   className?: string;
 }
 
@@ -73,6 +76,7 @@ export const ModularDeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
   inspectorService,
   connectInspector,
   openVisualizer,
+  nsmClient,
   className = ''
 }) => {
   // Layout and UI state
@@ -93,6 +97,7 @@ export const ModularDeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
   // Application discovery state
   const [discoveredApps, setDiscoveredApps] = useState<NSMApplication[]>([]);
   const [isScanning, setIsScanning] = useState(false);
+  const [appDiscoveryService, setAppDiscoveryService] = useState<NostrAppDiscoveryService | null>(null);
 
   // Refs for DOM manipulation
   const dashboardRef = useRef<HTMLDivElement>(null);
@@ -211,42 +216,102 @@ export const ModularDeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
     return () => clearInterval(interval);
   }, [eventLogService]);
 
-  // Application discovery (mock implementation)
+  // Initialize Nostr App Discovery Service
   useEffect(() => {
-    const discoverApplications = async () => {
-      setIsScanning(true);
+    if (nsmClient && !appDiscoveryService) {
+      const service = new NostrAppDiscoveryService(nsmClient, {
+        autoRefresh: true,
+        refreshInterval: 30000 // 30 seconds
+      });
 
-      // Mock discovery delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Set up event listeners
+      service.on('appDiscovered', (app: NostrNSMApplication) => {
+        // Convert NostrNSMApplication to dashboard NSMApplication format
+        const dashboardApp: NSMApplication = {
+          id: app.id,
+          name: app.name,
+          type: app.type,
+          status: app.status,
+          url: app.url,
+          lastSeen: app.lastSeen
+        };
 
-      // Mock discovered applications
-      const mockApps: NSMApplication[] = [
-        {
-          id: 'whiteboard-app',
-          name: 'NSM Whiteboard',
-          type: 'collaborative-canvas',
-          status: 'connected',
-          url: 'http://localhost:3001',
-          lastSeen: Date.now()
-        },
-        {
-          id: 'wordle-app',
-          name: 'NSM Wordle',
-          type: 'game',
-          status: 'disconnected',
-          url: 'http://localhost:3002',
-          lastSeen: Date.now() - 300000
-        }
-      ];
+        setDiscoveredApps(prev => {
+          const existing = prev.find(a => a.id === app.id);
+          if (existing) {
+            return prev.map(a => a.id === app.id ? dashboardApp : a);
+          }
+          return [...prev, dashboardApp];
+        });
+      });
 
-      setDiscoveredApps(mockApps);
-      setIsScanning(false);
-    };
+      service.on('statusChanged', (appId: string, status: NostrNSMApplication['status']) => {
+        setDiscoveredApps(prev =>
+          prev.map(app =>
+            app.id === appId ? { ...app, status } : app
+          )
+        );
+      });
 
-    if (layout.activeTab === 'appdiscovery') {
-      discoverApplications();
+      service.on('scanningStarted', () => setIsScanning(true));
+      service.on('scanningStopped', () => setIsScanning(false));
+
+      setAppDiscoveryService(service);
+
+      // Cleanup on unmount
+      return () => {
+        service.destroy();
+      };
     }
-  }, [layout.activeTab]);
+  }, [nsmClient, appDiscoveryService]);
+
+  // Application discovery - trigger when tab becomes active
+  useEffect(() => {
+    if (layout.activeTab === 'appdiscovery') {
+      if (appDiscoveryService) {
+        // Use real Nostr discovery service
+        appDiscoveryService.startDiscovery().catch(error => {
+          console.error('Failed to start app discovery:', error);
+        });
+      } else {
+        // Fallback to mock discovery when no NSM client is available
+        const mockDiscovery = async () => {
+          setIsScanning(true);
+
+          // Mock discovery delay
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Mock discovered applications
+          const mockApps: NSMApplication[] = [
+            {
+              id: 'whiteboard-app',
+              name: 'NSM Whiteboard',
+              type: 'collaborative-canvas',
+              status: 'disconnected',
+              url: 'http://localhost:3001',
+              lastSeen: Date.now()
+            },
+            {
+              id: 'wordle-app',
+              name: 'NSM Wordle',
+              type: 'game',
+              status: 'disconnected',
+              url: 'http://localhost:3002',
+              lastSeen: Date.now() - 300000
+            }
+          ];
+
+          setDiscoveredApps(mockApps);
+          setIsScanning(false);
+        };
+
+        mockDiscovery().catch(error => {
+          console.error('Mock discovery failed:', error);
+          setIsScanning(false);
+        });
+      }
+    }
+  }, [layout.activeTab, appDiscoveryService]);
 
   // Handle tab switching
   const handleTabClick = useCallback((tabId: DashboardTool) => {
@@ -265,18 +330,35 @@ export const ModularDeveloperDashboard: React.FC<DeveloperDashboardProps> = ({
   }, []);
 
   // Handle app connection
-  const handleAppConnect = useCallback((appId: string) => {
-    // Mock connection toggle
-    setDiscoveredApps(prev =>
-      prev.map(app => {
-        if (app.id === appId) {
-          const newStatus = app.status === 'connected' ? 'disconnected' : 'connected';
-          return { ...app, status: newStatus };
-        }
-        return app;
-      })
-    );
-  }, []);
+  const handleAppConnect = useCallback(async (appId: string) => {
+    if (!appDiscoveryService) {
+      // Fallback to mock behavior if no service available
+      setDiscoveredApps(prev =>
+        prev.map(app => {
+          if (app.id === appId) {
+            const newStatus = app.status === 'connected' ? 'disconnected' : 'connected';
+            return { ...app, status: newStatus };
+          }
+          return app;
+        })
+      );
+      return;
+    }
+
+    try {
+      const app = discoveredApps.find(a => a.id === appId);
+      if (!app) return;
+
+      if (app.status === 'connected') {
+        await appDiscoveryService.disconnectFromApp(appId);
+      } else {
+        await appDiscoveryService.connectToApp(appId);
+      }
+    } catch (error) {
+      const app = discoveredApps.find(a => a.id === appId);
+      console.error(`Failed to ${app?.status === 'connected' ? 'disconnect from' : 'connect to'} app ${appId}:`, error);
+    }
+  }, [appDiscoveryService, discoveredApps]);
 
   useEffect(() => {
     if (!isResizing) return;
