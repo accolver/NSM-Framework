@@ -1,6 +1,6 @@
 # Task ID: 13
 # Title: Fix NSM Developer Dashboard Scrollable Event Log
-# Status: pending
+# Status: done
 # Dependencies: 7
 # Priority: high
 # Description: Fix the event log container scrolling in the Developer Dashboard by adding proper CSS overflow properties and ensuring the event list is scrollable within its container.

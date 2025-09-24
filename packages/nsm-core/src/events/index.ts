@@ -5,12 +5,22 @@ export type {
   INSMDefinitionEvent,
   NSMDefinitionContent,
   NSMDefinitionEventTags,
-  NSMDefinitionMetadata
+  NSMDefinitionMetadata,
+  // UI Fallback types
+  UIFallbackType,
+  UIFallbackSpec,
+  MCPUISpec,
+  WebComponentsSpec,
+  JSONUISpec,
+  JSONUISchema,
+  JSONUIComponent,
+  UIConfiguration
 } from "./nsm-definition.js";
 
 export {
   validateNSMDefinitionEvent,
-  createNSMDefinitionEvent
+  createNSMDefinitionEvent,
+  extractUIFallbacks
 } from "./nsm-definition.js";
 
 export type {

@@ -1,0 +1,57 @@
+# Task ID: 21
+# Title: Enhance Blossom Integration for Implementation Storage
+# Status: pending
+# Dependencies: 19
+# Priority: medium
+# Description: Optimize Blossom storage to handle separated implementation functions while configs are inline. Store only implementation functions (actions, guards, services) in Blossom while machine configuration stays inline in events. Create implementation bundler for XState actions/guards and secure sandbox for implementation loading.
+# Details:
+This task enhances the existing Blossom integration (Task 4) to create an optimized architecture where XState machine configurations are stored inline in NSM Definition events for fast loading, while implementation functions are stored separately in Blossom for security and modularity.
+
+**1. Extend NSM Definition Event Structure**:
+- Update `packages/nsm-core/src/events/nsm-definition.ts` to support a new `implementations` field in NSMDefinitionContent
+- Add `BlossomImplementationReference` interface with hash, URI, and integrity metadata
+- Support both inline implementations (for simple cases) and Blossom references (for complex implementations)
+- Maintain backward compatibility with existing NSM Definition events
+
+**2. Implementation Bundler System**:
+- Create `packages/nsm-client-sdk/src/blossom/ImplementationBundler.ts` for packaging XState actions, guards, and services
+- Implement function extraction from serialized machines using existing `machineSerializer.ts` patterns
+- Create secure bundle format with metadata, source maps, and integrity hashes
+- Support TypeScript compilation and minification for production bundles
+
+**3. Enhanced Blossom Client for Implementation Storage**:
+- Extend existing `BlossomClient.ts` with implementation-specific upload/download methods
+- Add `uploadImplementations()` and `downloadImplementations()` methods
+- Implement content-type validation for implementation bundles (`application/x-nsm-implementation`)
+- Add integrity verification using existing `packages/nsm-crypto/src/blossom/verifier.ts`
+
+**4. Secure Implementation Loading System**:
+- Enhance `packages/nsm-client/src/security/sandbox.ts` to support implementation loading
+- Create `ImplementationLoader` class with sandboxed execution environment
+- Implement runtime validation of downloaded implementations against NSM schemas
+- Add implementation caching with cache invalidation based on Blossom content hashes
+
+**5. Integration with State Machine System**:
+- Update `packages/nsm-client/src/state-machine.ts` to handle mixed inline/Blossom implementations
+- Implement lazy loading of Blossom implementations when state machine is instantiated
+- Add fallback mechanisms for offline scenarios using cached implementations
+- Support hot-swapping of implementations without full machine reload
+
+**6. Developer Tools Integration**:
+- Update `packages/nsm-dev-tools/src/utils/machineSerializer.ts` to handle implementation separation
+- Add export options in Developer Dashboard for creating Blossom-optimized machines
+- Implement implementation bundling workflow in the state machine exporter
+- Add visual indicators for inline vs. Blossom-stored implementations
+
+# Test Strategy:
+1. **Unit Testing**: Create comprehensive test suites for ImplementationBundler class covering function extraction, bundle creation, and integrity verification. Test enhanced NSM Definition event validation with mixed inline/Blossom implementations.
+
+2. **Integration Testing**: Test complete workflow from machine serialization through Blossom storage to implementation loading. Verify state machine functionality with Blossom-stored implementations matches inline behavior.
+
+3. **Security Testing**: Validate sandbox execution of downloaded implementations, test malicious code rejection, and verify implementation integrity verification prevents tampering.
+
+4. **Performance Testing**: Benchmark loading times for inline vs. Blossom implementations, test caching effectiveness, and measure bundle size optimization gains.
+
+5. **Compatibility Testing**: Verify backward compatibility with existing NSM Definition events, test mixed implementation scenarios, and validate fallback mechanisms.
+
+6. **End-to-End Testing**: Test complete developer workflow from machine creation through publication and consumption, including implementation updates and cache invalidation.

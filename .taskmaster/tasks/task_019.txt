@@ -1,0 +1,39 @@
+# Task ID: 19
+# Title: Refactor NSM Definition Event Structure (kind:30079) - Update the NSM Definition Event to include machine configuration inline in the content field and implement the new structure with XState v5 setup() pattern
+# Status: pending
+# Dependencies: 2
+# Priority: medium
+# Description: Update the NSM Definition Event (kind:30079) structure to include machine configuration inline in the content field for faster loading and atomic updates, implementing separation of configuration from implementation using Blossom storage. Implement the new structure with XState v5 setup() pattern for improved modularity.
+# Details:
+The current NSM Definition Event structure in `packages/nsm-core/src/events/nsm-definition.ts` needs to be refactored to support inline machine configuration for improved performance and atomic updates. This refactoring addresses critical architectural needs:
+
+1. **Update NSMDefinitionContent Interface**: Extend the current structure to include a `machineConfig` field directly in the content, supporting XState v5's setup() pattern with proper type definitions for states, events, context, actions, guards, and services.
+
+2. **Implement Separation of Concerns**: Keep lightweight configuration data (states, initial context, basic event schemas) inline in the Nostr event content for fast loading, while storing heavy implementation details (complex actions, guards, services) in Blossom storage referenced by URI.
+
+3. **XState v5 Integration**: Update the schema to support XState v5's modern `setup()` pattern which provides better TypeScript support, cleaner composition, and improved modularity compared to the legacy machine creation API.
+
+4. **Backward Compatibility Layer**: Implement migration utilities to convert existing NSM Definition Events to the new format while maintaining compatibility with older clients.
+
+5. **Content Validation Enhancement**: Update the Zod validation schemas to properly validate the new inline machineConfig structure, ensuring proper XState v5 format compliance and detecting malformed machine definitions.
+
+6. **Performance Optimizations**: The inline configuration enables faster initial loading since clients don't need to make additional Blossom requests for basic machine structure, only fetching implementation details when needed.
+
+7. **Atomic Updates**: Having machine configuration inline ensures that state machine updates are atomic - either the entire new configuration is available or the old one remains, preventing partial update scenarios.
+
+The refactored structure will support both simple applications with all logic inline and complex applications using the hybrid inline/Blossom approach for optimal performance and maintainability.
+
+# Test Strategy:
+1. **Schema Validation Testing**: Create comprehensive test cases for the new NSMDefinitionContent structure, validating both inline machineConfig and Blossom reference patterns. Test edge cases including malformed XState v5 configurations, missing required fields, and invalid Blossom URIs.
+
+2. **XState v5 Compatibility Testing**: Validate that generated machine configurations work correctly with XState v5's setup() pattern, including proper typing, state transitions, context updates, and action/guard execution.
+
+3. **Migration Testing**: Test backward compatibility utilities that convert existing NSM Definition Events to the new format. Verify that migrated events maintain functional equivalence and that older clients can still interpret basic functionality.
+
+4. **Performance Benchmarking**: Measure loading performance improvements when machine configuration is inline versus requiring separate Blossom fetches. Establish baseline metrics for both simple and complex state machines.
+
+5. **Integration Testing**: Test the complete flow from NSM Definition Event creation through client-side machine instantiation and execution. Verify that both inline-only and hybrid inline/Blossom configurations work correctly.
+
+6. **Validation Error Handling**: Test comprehensive error scenarios including network failures when fetching Blossom content, malformed machine configurations, and schema validation failures.
+
+7. **Cross-Client Compatibility**: Ensure that the new event structure works correctly across different NSM client implementations and maintains interoperability with existing Nostr infrastructure.

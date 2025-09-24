@@ -1,0 +1,57 @@
+# Task ID: 22
+# Title: Update Client SDK for New Event Structure
+# Status: pending
+# Dependencies: 19, 20
+# Priority: medium
+# Description: Refactor NSMClient to support inline configs and hybrid UI loading with the new event structure. Update SDK to parse inline machineConfig, implement UI fallback resolution logic, add MCP-UI intent to NSM event translation, update state machine instantiation with XState v5 setup() pattern, and add migration utilities for existing applications.
+# Details:
+This task refactors the NSMClient in `packages/nsm-client/src/nsm-client.ts` and SDK wrapper in `packages/nsm-client-sdk/src/index.ts` to support the new NSM Definition Event structure from Task 19 and hybrid UI system from Task 20. The refactoring involves several key architectural changes:
+
+**1. Update NSMClient for Inline Machine Configuration**:
+- Modify `parseApplicationFromEvent()` method to handle inline `machineConfig` field from the new NSMDefinitionContent structure
+- Update NSMApplication interface to include `machineConfig` field alongside existing `initialState`, `stateSchema`, and `interactionSchema`
+- Add validation for XState v5 setup() pattern configurations with proper type checking
+- Implement fallback logic to handle both old (Blossom-only) and new (inline + Blossom) event structures during migration period
+
+**2. Implement Progressive UI Fallback Resolution**:
+- Add `UIResolver` class to handle the three-tier progressive UI system: MCP-UI Remote DOM (primary), Web Components (fallback 1), and JSON-UI schema (fallback 2)
+- Parse `ui-fallbacks` tag from NSM Definition events to determine available UI rendering options
+- Implement client capability detection to automatically select best available UI renderer
+- Add UI configuration validation and error handling for unsupported UI specifications
+
+**3. Add MCP-UI to NSM Event Translation**:
+- Create `MCPUITranslator` service to convert MCP-UI Remote DOM interactions into NSM interaction events
+- Map MCP-UI event system to NSM's publishInteraction() method with proper payload transformation
+- Implement bidirectional translation between MCP-UI state updates and NSM state synchronization
+- Add support for MCP-UI intent recognition and routing to appropriate NSM state machine transitions
+
+**4. Update State Machine Instantiation for XState v5**:
+- Refactor state machine creation to use XState v5's setup() pattern instead of deprecated createMachine()
+- Update `loadApplication()` method to instantiate machines with proper setup() configuration
+- Add support for inline machine configuration parsing and validation against XState v5 schema
+- Implement backwards compatibility layer for existing XState v4 configurations during transition period
+
+**5. Add Application Migration Utilities**:
+- Create `MigrationHelper` class with methods to convert existing applications to new event structure
+- Add `migrateApplication()` method to transform old NSM Definition events to new inline configuration format
+- Implement configuration merger to combine Blossom-stored implementations with inline configurations
+- Provide validation and testing utilities for migrated applications
+
+**6. Enhanced SDK Interface**:
+- Update NSMClient constructor to accept UI renderer preferences and XState version compatibility options
+- Add new methods: `getUICapabilities()`, `selectUIRenderer()`, `migrateFromOldFormat()`
+- Extend subscription system to handle UI state synchronization alongside NSM state updates
+- Implement caching layer for UI specifications and machine configurations to improve performance
+
+# Test Strategy:
+1. **Event Structure Compatibility Testing**: Create test cases that verify NSMClient can parse both old (Task 19 baseline) and new (Task 19 + Task 20) NSM Definition event structures. Test edge cases including malformed inline configurations, missing UI fallback specifications, and invalid XState v5 setup() patterns.
+
+2. **UI Fallback Resolution Testing**: Build comprehensive test suite for UIResolver class covering all three UI rendering tiers. Mock different client environments (full MCP-UI support, Web Components only, JSON-UI only) and verify correct fallback selection. Test UI configuration validation and error handling for unsupported specifications.
+
+3. **MCP-UI Translation Testing**: Create integration tests for MCPUITranslator service that verify bidirectional translation between MCP-UI interactions and NSM events. Test intent recognition accuracy, payload transformation correctness, and state synchronization between UI and state machine.
+
+4. **XState v5 Integration Testing**: Test state machine instantiation using XState v5 setup() pattern with various configuration types. Verify backwards compatibility with XState v4 configurations and proper error handling for invalid setups. Test state machine lifecycle including initialization, event processing, and state persistence.
+
+5. **Migration Utility Testing**: Create test applications using old event structure and verify MigrationHelper can successfully convert them to new format. Test configuration merging, validation of migrated applications, and rollback capabilities for failed migrations.
+
+6. **End-to-End SDK Testing**: Build complete test applications that use all new SDK features including inline configurations, progressive UI fallback, and XState v5 state machines. Test application lifecycle from discovery through interaction to state persistence across different client environments.

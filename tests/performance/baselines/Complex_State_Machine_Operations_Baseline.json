@@ -1,13 +1,13 @@
 {
   "name": "Complex State Machine Operations Baseline",
   "version": "1.0.0",
-  "timestamp": 1758268463990,
+  "timestamp": 1758750372817,
   "metrics": {
-    "avgExecutionTime": 0.07037184200000002,
-    "throughputPerSecond": 14210.22914250276,
-    "memoryUsage": 13787452,
-    "p95Latency": 0.10555776300000003,
-    "p99Latency": 0.14074368400000004
+    "avgExecutionTime": 0.07448699599999999,
+    "throughputPerSecond": 13425.162158506166,
+    "memoryUsage": 15154556,
+    "p95Latency": 0.11173049399999999,
+    "p99Latency": 0.14897399199999997
   },
   "environment": {
     "nodeVersion": "v24.3.0",

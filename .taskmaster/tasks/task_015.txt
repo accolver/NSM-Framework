@@ -1,6 +1,6 @@
 # Task ID: 15
 # Title: Fix XState inspector integration in NSM Developer Dashboard - Ensure XState inspector properly shows state machines and enables code copying to visualizer
-# Status: pending
+# Status: done
 # Dependencies: 7
 # Priority: high
 # Description: Fix the XState inspector integration in the NSM Developer Dashboard to ensure proper state machine visualization and enable code copying functionality to the external stately.ai visualizer.

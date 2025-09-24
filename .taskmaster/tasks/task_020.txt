@@ -1,0 +1,64 @@
+# Task ID: 20
+# Title: Implement Progressive UI Fallback System
+# Status: pending
+# Dependencies: 19
+# Priority: medium
+# Description: Build the hybrid UI architecture with MCP-UI as primary UI mechanism and progressive fallbacks for maximum client compatibility, implementing three-tier UI system: MCP-UI Remote DOM (primary), Web Components (fallback 1), and JSON-UI schema (fallback 2).
+# Details:
+This task implements the comprehensive three-tier progressive UI fallback system detailed in the PRD, enabling NSM applications to work across different client capabilities while providing rich experiences where possible.
+
+**1. Extend NSM Definition Event Structure**:
+- Update `packages/nsm-core/src/events/nsm-definition.ts` to support the ui-fallbacks tag containing a JSON array of fallback specifications
+- Add interfaces for `UIFallbackSpec` and `UIConfiguration` with proper typing for MCP-UI, Web Components, and JSON-UI specifications
+- Extend `NSMDefinitionMetadata` interface to include `uiFallbacks?: UIFallbackSpec[]` property
+- Update validation schemas to ensure ui-fallbacks contains properly structured JSON array
+
+**2. MCP-UI Remote DOM Integration (Primary)**:
+- Create `packages/nsm-client-sdk/src/ui/mcp-ui-renderer.ts` implementing MCP-UI Remote DOM specification support
+- Implement sandboxed execution environment for MCP-UI components using iframes or Web Workers
+- Create intent-based message system mapping MCP-UI intents to NSM interaction events
+- Add support for dynamic React component rendering within sandboxed context
+- Implement proper security isolation and content validation for remote MCP-UI specifications
+
+**3. Web Components Fallback System (Fallback 1)**:
+- Create `packages/nsm-client-sdk/src/ui/web-components-renderer.ts` for framework-agnostic Web Components support
+- Implement Web Components bundle loading and registration system
+- Create bridge between Web Component events and NSM interaction events
+- Add support for custom element lifecycle management and cleanup
+- Ensure proper scoping and isolation for multiple NSM applications
+
+**4. JSON-UI Schema Renderer (Fallback 2)**:
+- Create `packages/nsm-client-sdk/src/ui/json-ui-renderer.ts` for minimal declarative UI generation
+- Define JSON-UI schema supporting labels, buttons, text inputs, and basic layouts
+- Implement generic form renderer that converts JSON-UI specs into functional HTML elements
+- Add event handling system mapping form interactions to NSM events
+- Ensure baseline accessibility with proper ARIA labels and semantic markup
+
+**5. Progressive UI Selection Engine**:
+- Create `packages/nsm-client-sdk/src/ui/ui-resolver.ts` implementing capability detection and fallback logic
+- Add client capability detection for MCP-UI support, Web Components support, and baseline HTML support
+- Implement ordered fallback traversal with automatic downgrade on rendering failures
+- Create caching system for UI specifications to improve performance
+- Add error handling and recovery mechanisms for UI loading failures
+
+**6. NSMClient Integration**:
+- Update `packages/nsm-client-sdk/src/index.ts` NSMClient class to integrate progressive UI system
+- Add `renderUI(definitionEvent: INSMDefinitionEvent, containerElement: HTMLElement)` method
+- Implement UI lifecycle management (initialize, update, cleanup) coordinated with state machine transitions
+- Add support for UI hot-swapping when Definition Events are updated
+- Create proper error boundaries and fallback handling for UI rendering failures
+
+# Test Strategy:
+1. **Unit Testing for Individual Renderers**: Create comprehensive test suites for each UI renderer (MCP-UI, Web Components, JSON-UI) using mock specifications and verifying proper event mapping to NSM interactions.
+
+2. **Integration Testing with Mock Applications**: Build test NSM applications with complete ui-spec and ui-fallbacks configurations, verifying correct fallback behavior when higher-tier renderers are unavailable or fail.
+
+3. **Cross-Browser Compatibility Testing**: Test the progressive UI system across different browsers and environments, ensuring Web Components polyfills work correctly and MCP-UI sandboxing functions properly in various contexts.
+
+4. **Security Validation**: Verify that MCP-UI sandboxing properly isolates untrusted code, test CSP compliance, and ensure no XSS vulnerabilities in dynamic UI generation.
+
+5. **Performance Benchmarking**: Measure UI loading times and memory usage for each fallback tier, ensuring the system gracefully handles large UI specifications and multiple concurrent applications.
+
+6. **Accessibility Compliance**: Validate that all three UI tiers meet WCAG 2.1 AA standards, with particular focus on the JSON-UI fallback providing a fully accessible baseline experience.
+
+7. **End-to-End Application Testing**: Create complete NSM applications using the progressive UI system and test the full workflow from Definition Event parsing to interactive UI rendering and state synchronization.

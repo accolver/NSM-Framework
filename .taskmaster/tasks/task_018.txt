@@ -1,6 +1,6 @@
 # Task ID: 18
 # Title: Integrate NSM Developer Dashboard into poc-wordle application
-# Status: pending
+# Status: done
 # Dependencies: 13, 14, 15, 16, 17
 # Priority: low
 # Description: Add the fixed and modularized NSM Developer Dashboard to the poc-wordle application after all dashboard improvements are complete.

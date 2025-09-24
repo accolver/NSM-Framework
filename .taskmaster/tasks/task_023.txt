@@ -1,0 +1,72 @@
+# Task ID: 23
+# Title: Create NSM Browser Application
+# Status: pending
+# Dependencies: 19, 20, 22
+# Priority: medium
+# Description: Build the production-ready NSM browser application with full protocol support and dynamic UI rendering. Create a web application where users can discover, load, and interact with NSM applications using the new protocol.
+# Details:
+This task creates the comprehensive NSM browser application that serves as the primary user interface for discovering and interacting with Nostr State Machine applications. Building upon the existing nsm-browser foundation, this implementation extends functionality to support the complete NSM protocol with progressive UI fallbacks, application discovery, and developer tools.
+
+**1. Enhanced Application Discovery Interface**:
+- Extend `apps/nsm-browser/src/components/BrowseTab.tsx` to implement sophisticated NSM application catalog with search, filtering, and categorization capabilities
+- Add real-time search functionality using Nostr event subscriptions to discover NSM Definition Events (kind:30079)
+- Implement category-based filtering (games, tools, social, productivity) and tag-based search with fuzzy matching
+- Create application preview cards showing metadata, screenshots, author information, and user ratings
+- Add application launching mechanism that loads and instantiates NSM applications within the browser environment
+
+**2. Dynamic UI Renderer with Progressive Fallbacks**:
+- Implement the three-tier progressive UI system from Task 20: MCP-UI Remote DOM (primary), Web Components (fallback 1), and JSON-UI schema (fallback 2)
+- Create `UIRenderer` component that detects client capabilities and selects appropriate UI rendering method
+- Build MCP-UI interpreter that translates NSM events into UI state changes and user interactions back to NSM events
+- Implement Web Components fallback renderer for broader client compatibility
+- Add JSON-UI renderer as final fallback with basic form-based interface generation
+- Integrate UI fallback detection logic that automatically downgrades based on browser capabilities and NSM application requirements
+
+**3. Application Catalog and Search System**:
+- Enhance existing Nostr event fetching in `hooks/useNSMClient.ts` to query NSM Definition Events with advanced filtering capabilities
+- Implement application metadata parsing that extracts title, description, categories, tags, and preview images from NSM Definition Events
+- Add application rating and review system using additional Nostr events for community feedback
+- Create featured applications section highlighting popular, new, and recommended NSM applications
+- Implement application versioning display showing update history and changelog information
+
+**4. State Persistence and Synchronization**:
+- Extend state management beyond current XState integration to support persistent application state using NSM State Update Events (kind:10079)
+- Implement state synchronization across browser sessions and devices using Nostr event sourcing pattern
+- Add conflict resolution mechanisms for multi-user applications based on NSM conflict resolution policies
+- Create state snapshot management using NIP-78 replaceable events for quick application initialization
+- Implement state backup and restore functionality allowing users to export/import their application states
+
+**5. Developer Mode and Debugging Tools**:
+- Integrate the existing NSM Developer Dashboard from `packages/nsm-dev-tools` with enhanced debugging capabilities for running NSM applications
+- Add live state machine visualization showing current application state, available transitions, and event history
+- Implement application performance monitoring with metrics for state transitions, UI rendering, and network operations
+- Create developer console with XState inspector integration for debugging complex state machine logic
+- Add application validation tools that verify NSM Definition Event compliance and state machine correctness
+
+**6. Security and Sandboxing**:
+- Implement secure execution environment for NSM applications using existing sandbox infrastructure from `packages/nsm-client/src/security/sandbox.ts`
+- Add application permission system requiring user consent for sensitive operations (network access, local storage, notifications)
+- Implement content security policies and iframe sandboxing for untrusted NSM application code execution
+- Create application verification system using Blossom hash validation to ensure code integrity
+
+**7. Production Deployment Features**:
+- Add application installation and local caching mechanisms for offline NSM application usage
+- Implement progressive web app (PWA) capabilities with service workers for background synchronization
+- Create application update notifications when NSM Definition Events are updated by developers
+- Add user preference management for default relay selection, UI rendering preferences, and privacy settings
+- Implement accessibility features ensuring NSM applications work with screen readers and keyboard navigation
+
+# Test Strategy:
+1. **UI Rendering Testing**: Create comprehensive test suite validating all three UI rendering tiers (MCP-UI, Web Components, JSON-UI) with mock NSM applications and verify proper fallback behavior across different browser capabilities.
+
+2. **Application Discovery Integration Testing**: Test complete workflow from NSM application discovery through launching, including search functionality, filtering, category browsing, and metadata display using both mock and real NSM Definition Events.
+
+3. **State Management Validation**: Verify state persistence and synchronization across browser sessions using test NSM applications with complex state machines, including conflict resolution scenarios and multi-user state coordination.
+
+4. **Performance and Security Testing**: Conduct load testing with multiple concurrent NSM applications, validate sandbox security measures prevent code injection, and verify application isolation prevents cross-application data leakage.
+
+5. **End-to-End User Workflows**: Test complete user journeys from application discovery to interaction, including authentication, state persistence, application updates, and developer debugging tools integration.
+
+6. **Cross-Browser Compatibility**: Validate progressive UI fallback behavior across Chrome, Firefox, Safari, and Edge, ensuring NSM applications work correctly regardless of client capabilities.
+
+7. **Accessibility Compliance**: Test screen reader compatibility, keyboard navigation, and WCAG compliance for both the browser interface and loaded NSM applications.
