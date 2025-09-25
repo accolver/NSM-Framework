@@ -59,6 +59,9 @@ export interface LoadedImplementations {
   };
 }
 
+// Re-export ExtractedFunction for external use
+export type { ExtractedFunction } from './ImplementationBundler';
+
 export interface MixedImplementations {
   inline: {
     actions: Record<string, ExtractedFunction>;
