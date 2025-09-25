@@ -12,6 +12,26 @@ export interface NSMApplication {
   author: string;
   timestamp: number;
   machine: string;
+  category?: string;
+  tags?: string[];
+  rating?: number;
+  id?: string;
+  version?: string;
+  latestVersion?: string;
+  installed?: boolean;
+  cached?: boolean;
+  changelog?: string;
+  permissions?: string[];
+  metadata?: {
+    version?: string;
+    screenshots?: string[];
+    previewImage?: string;
+  };
+  activity?: {
+    downloads: number;
+    lastUsed: number;
+    userCount: number;
+  };
 }
 
 export function createNSMEvent(

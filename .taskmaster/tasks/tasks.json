@@ -2,7 +2,7 @@
   "master": {
     "tasks": [
       {
-        "id": 1,
+        "id": "1",
         "title": "Project Foundation and Monorepo Setup",
         "description": "Set up the foundational project structure using Turborepo with Bun runtime, establishing the monorepo architecture for the NSM framework development.",
         "status": "done",
@@ -64,7 +64,7 @@
         ]
       },
       {
-        "id": 2,
+        "id": "2",
         "title": "Core NSM Protocol Implementation",
         "description": "Implement the core Nostr State Machine protocol definitions, event schemas, and TypeScript interfaces for the three proposed event kinds (30079, 7000-7999, 10079).",
         "status": "done",
@@ -137,7 +137,7 @@
         ]
       },
       {
-        "id": 3,
+        "id": "3",
         "title": "Client SDK Development",
         "description": "Build the main NSM client SDK that wraps NDK, integrates XState, and provides a simple API for developers to build NSM applications.",
         "status": "done",
@@ -221,7 +221,7 @@
         ]
       },
       {
-        "id": 4,
+        "id": "4",
         "title": "Blossom Integration for Large Asset Storage",
         "description": "Implement Blossom protocol integration for storing and retrieving large application assets like state machine logic files with proper authentication and verification.",
         "status": "done",
@@ -286,7 +286,7 @@
         ]
       },
       {
-        "id": 5,
+        "id": "5",
         "title": "Wordle Proof of Concept Application",
         "description": "Build a single-player Wordle game as the first proof-of-concept NSM application to demonstrate the framework's capabilities with React frontend.",
         "status": "done",
@@ -362,7 +362,7 @@
         ]
       },
       {
-        "id": 6,
+        "id": "6",
         "title": "Collaborative Whiteboard Proof of Concept",
         "description": "Build a multi-user collaborative whiteboard application to demonstrate multi-user state reconciliation and real-time collaboration features.",
         "status": "done",
@@ -438,7 +438,7 @@
         ]
       },
       {
-        "id": 7,
+        "id": "7",
         "title": "Developer Tools and Debugging Interface",
         "description": "Create comprehensive developer tools including state visualizer, event log, and debugging panel for NSM application development.",
         "status": "done",
@@ -513,7 +513,7 @@
         ]
       },
       {
-        "id": 8,
+        "id": "8",
         "title": "Documentation Site Development",
         "description": "Create comprehensive documentation website using Mintlify with API references, guides, and examples for NSM framework adoption.",
         "status": "done",
@@ -587,7 +587,7 @@
         ]
       },
       {
-        "id": 9,
+        "id": "9",
         "title": "Testing Infrastructure and Quality Assurance",
         "description": "Establish comprehensive testing infrastructure including unit tests, integration tests, and end-to-end testing for the entire NSM framework.",
         "status": "done",
@@ -662,7 +662,7 @@
         ]
       },
       {
-        "id": 10,
+        "id": "10",
         "title": "Security Implementation and Auditing",
         "description": "Implement comprehensive security measures including sandboxed execution, input validation, and security auditing for the NSM framework.",
         "status": "done",
@@ -737,7 +737,7 @@
         ]
       },
       {
-        "id": 11,
+        "id": "11",
         "title": "Performance Optimization and Scalability",
         "description": "Optimize performance across the NSM framework including state machine execution, network communication, and UI rendering for production use.",
         "status": "done",
@@ -815,7 +815,7 @@
         ]
       },
       {
-        "id": 12,
+        "id": "12",
         "title": "Community Engagement and NIP Standardization",
         "description": "Engage with the Nostr community to standardize the NSM protocol through formal NIP proposals and gather feedback for framework improvement.",
         "status": "done",
@@ -889,7 +889,7 @@
         ]
       },
       {
-        "id": 13,
+        "id": "13",
         "title": "Fix NSM Developer Dashboard Scrollable Event Log",
         "description": "Fix the event log container scrolling in the Developer Dashboard by adding proper CSS overflow properties and ensuring the event list is scrollable within its container.",
         "details": "The EventLogViewer component in the NSM Developer Dashboard needs proper scrolling functionality to handle large volumes of events. The fix requires:\n\n1. Update EventLogViewer.tsx to ensure the events container (`.events-scrollable` div at line 204-211) has proper overflow handling\n2. Verify the CSS classes in the existing scrollable container are working correctly - the component already has `max-h-96 overflow-y-auto` but may need adjustments\n3. Test with the existing `events-scroll-container` test ID to ensure scrolling is functional\n4. Check if the parent DeveloperDashboard.tsx component (line 556-560 in the 'eventlog' case) needs any container height adjustments\n5. Ensure the event list properly displays long lists of events with smooth scrolling behavior\n6. Verify scrollbar styling works correctly with the existing `scrollbarWidth` and `scrollbarColor` styles\n7. Test that the event log maintains its fixed height while allowing content to scroll within the allocated space\n\nThe EventLogViewer is already structured with a scrollable container but may need refinements to ensure proper scrolling behavior in the context of the full dashboard layout.",
@@ -902,7 +902,7 @@
         "subtasks": []
       },
       {
-        "id": 14,
+        "id": "14",
         "title": "Fix NSM Developer Dashboard timestamp calculation",
         "description": "Correct the 'minutes ago' calculation showing incorrect values like '3007951 minutes ago' in the EventLogViewer component by improving timestamp edge case handling.",
         "details": "The EventLogViewer component in the NSM Developer Dashboard is displaying incorrect relative timestamps like '3007951 minutes ago' for certain events. Based on analysis of the codebase, the issue is in the event-log-service.ts file's getEventMetadata method (lines 275-305). The current implementation has already been partially fixed for the '1007944 minutes ago' issue, but edge cases remain for very large minute values that should be converted to appropriate time units.\n\nRequired fixes:\n1. Review the timestamp calculation logic in src/services/event-log-service.ts lines 275-305\n2. Ensure the diffMinutes calculation properly handles extremely large values (>999999 minutes)\n3. Add additional validation to prevent display of unrealistic minute values\n4. Improve the hierarchical time unit conversion to catch edge cases where minutes exceed reasonable thresholds\n5. Add bounds checking to ensure no timestamp shows more than 525600 minutes (1 year)\n6. Update the existing test cases in src/test/event-flood-fix.test.ts to cover the '3007951 minutes ago' scenario\n7. Verify the fix works with EventLogViewer.tsx which displays metadata.relativeTime at line 241",
@@ -916,7 +916,7 @@
         "subtasks": []
       },
       {
-        "id": 15,
+        "id": "15",
         "title": "Fix XState inspector integration in NSM Developer Dashboard - Ensure XState inspector properly shows state machines and enables code copying to visualizer",
         "description": "Fix the XState inspector integration in the NSM Developer Dashboard to ensure proper state machine visualization and enable code copying functionality to the external stately.ai visualizer.",
         "details": "The XState inspector in the NSM Developer Dashboard requires several fixes to improve functionality and user experience:\n\n1. **Inspector Connection Issues**: The inspector service (apps/poc-whiteboard/src/services/inspector-service.ts) has complex connection logic with multiple fallback strategies but may fail to establish proper connections in certain environments. Need to improve connection reliability and error handling.\n\n2. **State Machine Registration**: Fix the registerActor method to ensure state machines are properly registered with the inspector and visible in the stately.ai/registry/new interface. The current implementation calls this.inspector.actor(actor) but may not be passing the correct format or metadata.\n\n3. **Code Copy Functionality**: Add functionality to copy state machine definitions to clipboard for pasting into the stately.ai visualizer. This is referenced in the user request but not currently implemented in the codebase. Need to add:\n   - Extract machine definition/configuration from registered actors\n   - Serialize machine definition to JSON format compatible with stately.ai\n   - Add \"Copy to Visualizer\" button in the Inspector panel (DeveloperDashboard.tsx lines 364-413)\n   - Implement clipboard API integration with proper error handling\n\n4. **Inspector Panel UX**: Improve the inspector panel in DeveloperDashboard.tsx to:\n   - Show clearer status indicators for connection state\n   - Display registered actors with their current states\n   - Add copy functionality for machine definitions\n   - Better error messages and troubleshooting guidance\n\n5. **Testing Integration**: Update existing test files (xstate-inspector-integration-debug.test.ts, inspector-integration.test.ts) to verify the copy functionality and improved connection reliability.\n\nFocus on the inspector service reliability, proper actor registration, and implementing the missing code copy feature that allows developers to easily transfer state machine definitions to the external visualizer.",
@@ -929,7 +929,7 @@
         "subtasks": []
       },
       {
-        "id": 16,
+        "id": "16",
         "title": "Fix NSM Developer Dashboard layout responsiveness and tab accessibility",
         "description": "Improve the NSM Developer Dashboard layout by implementing proper responsive grid/flexbox design, fixing tab visibility issues on different screen sizes, and ensuring all 5 tabs remain accessible with horizontal scrolling support.",
         "details": "The NSM Developer Dashboard requires layout improvements to enhance usability and accessibility across different screen sizes. Based on analysis of the existing codebase in `apps/poc-whiteboard/src/components/DeveloperDashboard.tsx`, the following improvements are needed:\n\n1. **Tab Container Responsive Design**: The existing tab container at lines 1075-1096 needs enhanced CSS grid/flexbox layout to ensure proper tab visibility. The current implementation has `tabs-horizontal-scroll` CSS class but needs improved responsive breakpoints and better mobile adaptation.\n\n2. **Horizontal Scrolling Implementation**: Enhance the existing `.tabs-horizontal-scroll` CSS class (lines 775-798) to provide better scrolling behavior for all 5 tabs (Inspector, Event Log, Time Travel, App Discovery, Performance). Current implementation exists but needs refinement for consistent cross-browser support.\n\n3. **Mobile Layout Optimization**: Improve the existing mobile responsive design (lines 708-725) by implementing proper CSS Grid for tab container and ensuring tab buttons maintain minimum widths and proper touch targets on mobile devices.\n\n4. **Grid/Flexbox Layout Enhancement**: Update the dashboard container layout using CSS Grid for main structure and Flexbox for tab navigation to provide better control over responsive behavior. The existing layout uses basic flexbox but needs CSS Grid integration for improved responsive design.\n\n5. **Accessibility Improvements**: Ensure all tabs remain keyboard navigable and screen reader accessible across all screen sizes, building on existing ARIA attributes (lines 1086-1090).\n\n6. **CSS Media Query Optimization**: Enhance existing media queries (@media max-width: 768px) with additional breakpoints for tablet and desktop sizes to provide better responsive experience.\n\nImplementation approach:\n- Maintain existing tab functionality and structure\n- Enhance CSS with improved grid/flexbox responsive layout\n- Add CSS variables for consistent spacing and sizing\n- Implement smooth scrolling behavior for tab container\n- Ensure existing test cases continue to pass (especially DeveloperDashboard.ux-fixes.test.tsx)\n- Preserve existing keyboard shortcuts and navigation patterns",
@@ -942,7 +942,7 @@
         "subtasks": []
       },
       {
-        "id": 17,
+        "id": "17",
         "title": "Refactor NSM Developer Dashboard to modular components",
         "description": "Extract the monolithic DeveloperDashboard into reusable, embeddable components that can be integrated into other NSM applications, improving code reusability and maintenance.",
         "details": "The current DeveloperDashboard.tsx is a monolithic 1000+ line component that tightly couples all developer tools into a single interface. This task involves refactoring it into a modular component architecture:\n\n1. **Extract Core Components**: Break down the existing DeveloperDashboard into separate components:\n   - DashboardContainer (layout and state management)\n   - InspectorPanel (XState inspector integration)\n   - EventLogPanel (Nostr event monitoring)\n   - TimeTravelPanel (state replay debugging)\n   - AppDiscoveryPanel (NSM application discovery)\n   - PerformancePanel (metrics tracking)\n   - DashboardTab (reusable tab component)\n\n2. **Create Component Library Structure**: Establish a new structure in packages/nsm-dev-tools/src/components/ with:\n   - Individual component files for each panel\n   - Shared types and interfaces in types.ts\n   - Common utilities in utils.ts\n   - CSS modules for component-specific styling\n   - Index file for clean exports\n\n3. **Implement Embeddable API**: Design components to accept configuration props for:\n   - Service injection (eventLogService, timeTravelService, inspectorService)\n   - Layout preferences (width, height, position)\n   - Feature toggling (which tools to show)\n   - Theming and styling customization\n   - Event handlers for integration\n\n4. **Preserve Existing Functionality**: Maintain all current features:\n   - Tab navigation and persistence\n   - Responsive layout behavior\n   - Performance monitoring\n   - XState inspector integration\n   - Event log scrolling and filtering\n   - Time travel debugging capabilities\n\n5. **Update Package Dependencies**: Modify packages/nsm-dev-tools/package.json to include React dependencies and build configuration for component distribution.\n\n6. **Create Integration Examples**: Provide usage examples showing how other NSM apps can embed specific dashboard components or the full dashboard.\n\n7. **Migration Path**: Update the existing poc-whiteboard app to use the new modular components while maintaining backward compatibility.",
@@ -956,7 +956,7 @@
         "subtasks": []
       },
       {
-        "id": 18,
+        "id": "18",
         "title": "Integrate NSM Developer Dashboard into poc-wordle application",
         "description": "Add the fixed and modularized NSM Developer Dashboard to the poc-wordle application after all dashboard improvements are complete.",
         "details": "After completing all dashboard fixes and modularization, integrate the improved NSM Developer Dashboard into the poc-wordle application:\n\n1. **Wait for Prerequisites**: Ensure all dashboard improvement tasks are complete:\n   - Task 13: Scrollable event log\n   - Task 14: Timestamp calculation fix\n   - Task 15: XState inspector integration\n   - Task 16: Layout responsiveness\n   - Task 17: Modular component refactoring\n\n2. **Import Dashboard Components**: Add the modularized dashboard components from packages/nsm-dev-tools to the poc-wordle application\n\n3. **Configure Dashboard Integration**: Set up the dashboard to work with Wordle's state machine and event system\n\n4. **Add Dashboard Toggle**: Implement a keyboard shortcut or button to show/hide the developer dashboard\n\n5. **Test Integration**: Verify all dashboard features work correctly within the Wordle context",
@@ -973,7 +973,7 @@
         "subtasks": []
       },
       {
-        "id": 19,
+        "id": "19",
         "title": "Refactor NSM Definition Event Structure (kind:30079) - Update the NSM Definition Event to include machine configuration inline in the content field and implement the new structure with XState v5 setup() pattern",
         "description": "Update the NSM Definition Event (kind:30079) structure to include machine configuration inline in the content field for faster loading and atomic updates, implementing separation of configuration from implementation using Blossom storage. Implement the new structure with XState v5 setup() pattern for improved modularity.",
         "details": "The current NSM Definition Event structure in `packages/nsm-core/src/events/nsm-definition.ts` needs to be refactored to support inline machine configuration for improved performance and atomic updates. This refactoring addresses critical architectural needs:\n\n1. **Update NSMDefinitionContent Interface**: Extend the current structure to include a `machineConfig` field directly in the content, supporting XState v5's setup() pattern with proper type definitions for states, events, context, actions, guards, and services.\n\n2. **Implement Separation of Concerns**: Keep lightweight configuration data (states, initial context, basic event schemas) inline in the Nostr event content for fast loading, while storing heavy implementation details (complex actions, guards, services) in Blossom storage referenced by URI.\n\n3. **XState v5 Integration**: Update the schema to support XState v5's modern `setup()` pattern which provides better TypeScript support, cleaner composition, and improved modularity compared to the legacy machine creation API.\n\n4. **Backward Compatibility Layer**: Implement migration utilities to convert existing NSM Definition Events to the new format while maintaining compatibility with older clients.\n\n5. **Content Validation Enhancement**: Update the Zod validation schemas to properly validate the new inline machineConfig structure, ensuring proper XState v5 format compliance and detecting malformed machine definitions.\n\n6. **Performance Optimizations**: The inline configuration enables faster initial loading since clients don't need to make additional Blossom requests for basic machine structure, only fetching implementation details when needed.\n\n7. **Atomic Updates**: Having machine configuration inline ensures that state machine updates are atomic - either the entire new configuration is available or the old one remains, preventing partial update scenarios.\n\nThe refactored structure will support both simple applications with all logic inline and complex applications using the hybrid inline/Blossom approach for optimal performance and maintainability.",
@@ -986,7 +986,7 @@
         "subtasks": []
       },
       {
-        "id": 20,
+        "id": "20",
         "title": "Implement Progressive UI Fallback System",
         "description": "Build the hybrid UI architecture with MCP-UI as primary UI mechanism and progressive fallbacks for maximum client compatibility, implementing three-tier UI system: MCP-UI Remote DOM (primary), Web Components (fallback 1), and JSON-UI schema (fallback 2).",
         "status": "done",
@@ -1050,7 +1050,7 @@
         ]
       },
       {
-        "id": 21,
+        "id": "21",
         "title": "Enhance Blossom Integration for Implementation Storage",
         "description": "Optimize Blossom storage to handle separated implementation functions while configs are inline. Store only implementation functions (actions, guards, services) in Blossom while machine configuration stays inline in events. Create implementation bundler for XState actions/guards and secure sandbox for implementation loading.",
         "details": "This task enhances the existing Blossom integration (Task 4) to create an optimized architecture where XState machine configurations are stored inline in NSM Definition events for fast loading, while implementation functions are stored separately in Blossom for security and modularity.\n\n**1. Extend NSM Definition Event Structure**:\n- Update `packages/nsm-core/src/events/nsm-definition.ts` to support a new `implementations` field in NSMDefinitionContent\n- Add `BlossomImplementationReference` interface with hash, URI, and integrity metadata\n- Support both inline implementations (for simple cases) and Blossom references (for complex implementations)\n- Maintain backward compatibility with existing NSM Definition events\n\n**2. Implementation Bundler System**:\n- Create `packages/nsm-client-sdk/src/blossom/ImplementationBundler.ts` for packaging XState actions, guards, and services\n- Implement function extraction from serialized machines using existing `machineSerializer.ts` patterns\n- Create secure bundle format with metadata, source maps, and integrity hashes\n- Support TypeScript compilation and minification for production bundles\n\n**3. Enhanced Blossom Client for Implementation Storage**:\n- Extend existing `BlossomClient.ts` with implementation-specific upload/download methods\n- Add `uploadImplementations()` and `downloadImplementations()` methods\n- Implement content-type validation for implementation bundles (`application/x-nsm-implementation`)\n- Add integrity verification using existing `packages/nsm-crypto/src/blossom/verifier.ts`\n\n**4. Secure Implementation Loading System**:\n- Enhance `packages/nsm-client/src/security/sandbox.ts` to support implementation loading\n- Create `ImplementationLoader` class with sandboxed execution environment\n- Implement runtime validation of downloaded implementations against NSM schemas\n- Add implementation caching with cache invalidation based on Blossom content hashes\n\n**5. Integration with State Machine System**:\n- Update `packages/nsm-client/src/state-machine.ts` to handle mixed inline/Blossom implementations\n- Implement lazy loading of Blossom implementations when state machine is instantiated\n- Add fallback mechanisms for offline scenarios using cached implementations\n- Support hot-swapping of implementations without full machine reload\n\n**6. Developer Tools Integration**:\n- Update `packages/nsm-dev-tools/src/utils/machineSerializer.ts` to handle implementation separation\n- Add export options in Developer Dashboard for creating Blossom-optimized machines\n- Implement implementation bundling workflow in the state machine exporter\n- Add visual indicators for inline vs. Blossom-stored implementations",
@@ -1068,7 +1068,8 @@
             "dependencies": [],
             "details": "Create BlossomImplementationReference interface with hash, URI, and integrity metadata fields. Add implementations field to NSMDefinitionContent as optional to maintain backward compatibility. Update validation schema and createNSMDefinitionEvent function to handle both inline and Blossom-referenced implementations. Ensure the machineConfig.setup field can contain Blossom URIs instead of actual function implementations.",
             "status": "pending",
-            "testStrategy": "Unit tests for NSMDefinitionContent validation with both inline and Blossom implementations. Test createNSMDefinitionEvent with implementation references. Validate backward compatibility with existing NSM Definition events."
+            "testStrategy": "Unit tests for NSMDefinitionContent validation with both inline and Blossom implementations. Test createNSMDefinitionEvent with implementation references. Validate backward compatibility with existing NSM Definition events.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -1079,7 +1080,8 @@
             ],
             "details": "Create ImplementationBundler.ts that can extract function implementations from XState machine configurations. Implement secure bundle format with metadata, source maps, and integrity hashes using existing patterns from BlossomClient. Add TypeScript compilation support and minification for production bundles. Support bundling actions, guards, and services separately or together based on requirements.",
             "status": "pending",
-            "testStrategy": "Unit tests for function extraction from machine configs. Test bundle creation and integrity hash generation. Validate TypeScript compilation and minification processes. Test bundling of different implementation types (actions, guards, services)."
+            "testStrategy": "Unit tests for function extraction from machine configs. Test bundle creation and integrity hash generation. Validate TypeScript compilation and minification processes. Test bundling of different implementation types (actions, guards, services).",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -1090,7 +1092,8 @@
             ],
             "details": "Add uploadImplementations() and downloadImplementations() methods to BlossomClient.ts. Implement content-type validation for 'application/x-nsm-implementation' bundles. Integrate with existing Blossom verifier.ts for integrity checking. Support batch upload/download operations for multiple implementation files. Add caching mechanisms for frequently accessed implementations.",
             "status": "pending",
-            "testStrategy": "Integration tests with existing BlossomClient functionality. Test upload/download of implementation bundles with proper content-type headers. Validate integrity verification using existing verifier. Test multi-server failover for implementation storage."
+            "testStrategy": "Integration tests with existing BlossomClient functionality. Test upload/download of implementation bundles with proper content-type headers. Validate integrity verification using existing verifier. Test multi-server failover for implementation storage.",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -1101,7 +1104,8 @@
             ],
             "details": "Extend SecuritySandbox.ts with ImplementationLoader class that can safely load and validate downloaded implementations. Add runtime validation against NSM schemas for loaded functions. Implement implementation caching with cache invalidation based on Blossom content hashes. Support both Web Worker and restricted context execution for downloaded implementations. Add integrity verification before execution.",
             "status": "pending",
-            "testStrategy": "Unit tests for implementation loading and validation. Test sandbox execution of downloaded implementations. Validate cache invalidation mechanisms. Test security measures for untrusted implementation code. Integration tests with existing SecuritySandbox functionality."
+            "testStrategy": "Unit tests for implementation loading and validation. Test sandbox execution of downloaded implementations. Validate cache invalidation mechanisms. Test security measures for untrusted implementation code. Integration tests with existing SecuritySandbox functionality.",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -1113,12 +1117,13 @@
             ],
             "details": "Modify state-machine.ts to detect and handle Blossom implementation references in machine configurations. Implement lazy loading of Blossom implementations when state machines are instantiated. Add fallback mechanisms for offline scenarios using cached implementations. Support hot-swapping of implementations without full machine reload. Integrate with enhanced SecuritySandbox for safe execution of loaded implementations.",
             "status": "pending",
-            "testStrategy": "Integration tests for mixed inline/Blossom implementation loading. Test lazy loading behavior during machine instantiation. Validate offline fallback mechanisms with cached implementations. Test hot-swapping functionality without state loss. End-to-end tests with complete implementation separation workflow."
+            "testStrategy": "Integration tests for mixed inline/Blossom implementation loading. Test lazy loading behavior during machine instantiation. Validate offline fallback mechanisms with cached implementations. Test hot-swapping functionality without state loss. End-to-end tests with complete implementation separation workflow.",
+            "parentId": "undefined"
           }
         ]
       },
       {
-        "id": 22,
+        "id": "22",
         "title": "Update Client SDK for New Event Structure",
         "description": "Refactor NSMClient to support inline configs and hybrid UI loading with the new event structure. Update SDK to parse inline machineConfig, implement UI fallback resolution logic, add MCP-UI intent to NSM event translation, update state machine instantiation with XState v5 setup() pattern, and add migration utilities for existing applications.",
         "details": "This task refactors the NSMClient in `packages/nsm-client/src/nsm-client.ts` and SDK wrapper in `packages/nsm-client-sdk/src/index.ts` to support the new NSM Definition Event structure from Task 19 and hybrid UI system from Task 20. The refactoring involves several key architectural changes:\n\n**1. Update NSMClient for Inline Machine Configuration**:\n- Modify `parseApplicationFromEvent()` method to handle inline `machineConfig` field from the new NSMDefinitionContent structure\n- Update NSMApplication interface to include `machineConfig` field alongside existing `initialState`, `stateSchema`, and `interactionSchema`\n- Add validation for XState v5 setup() pattern configurations with proper type checking\n- Implement fallback logic to handle both old (Blossom-only) and new (inline + Blossom) event structures during migration period\n\n**2. Implement Progressive UI Fallback Resolution**:\n- Add `UIResolver` class to handle the three-tier progressive UI system: MCP-UI Remote DOM (primary), Web Components (fallback 1), and JSON-UI schema (fallback 2)\n- Parse `ui-fallbacks` tag from NSM Definition events to determine available UI rendering options\n- Implement client capability detection to automatically select best available UI renderer\n- Add UI configuration validation and error handling for unsupported UI specifications\n\n**3. Add MCP-UI to NSM Event Translation**:\n- Create `MCPUITranslator` service to convert MCP-UI Remote DOM interactions into NSM interaction events\n- Map MCP-UI event system to NSM's publishInteraction() method with proper payload transformation\n- Implement bidirectional translation between MCP-UI state updates and NSM state synchronization\n- Add support for MCP-UI intent recognition and routing to appropriate NSM state machine transitions\n\n**4. Update State Machine Instantiation for XState v5**:\n- Refactor state machine creation to use XState v5's setup() pattern instead of deprecated createMachine()\n- Update `loadApplication()` method to instantiate machines with proper setup() configuration\n- Add support for inline machine configuration parsing and validation against XState v5 schema\n- Implement backwards compatibility layer for existing XState v4 configurations during transition period\n\n**5. Add Application Migration Utilities**:\n- Create `MigrationHelper` class with methods to convert existing applications to new event structure\n- Add `migrateApplication()` method to transform old NSM Definition events to new inline configuration format\n- Implement configuration merger to combine Blossom-stored implementations with inline configurations\n- Provide validation and testing utilities for migrated applications\n\n**6. Enhanced SDK Interface**:\n- Update NSMClient constructor to accept UI renderer preferences and XState version compatibility options\n- Add new methods: `getUICapabilities()`, `selectUIRenderer()`, `migrateFromOldFormat()`\n- Extend subscription system to handle UI state synchronization alongside NSM state updates\n- Implement caching layer for UI specifications and machine configurations to improve performance",
@@ -1132,12 +1137,12 @@
         "subtasks": []
       },
       {
-        "id": 23,
+        "id": "23",
         "title": "Create NSM Browser Application",
         "description": "Build the production-ready NSM browser application with full protocol support and dynamic UI rendering. Create a web application where users can discover, load, and interact with NSM applications using the new protocol.",
         "details": "This task creates the comprehensive NSM browser application that serves as the primary user interface for discovering and interacting with Nostr State Machine applications. Building upon the existing nsm-browser foundation, this implementation extends functionality to support the complete NSM protocol with progressive UI fallbacks, application discovery, and developer tools.\n\n**1. Enhanced Application Discovery Interface**:\n- Extend `apps/nsm-browser/src/components/BrowseTab.tsx` to implement sophisticated NSM application catalog with search, filtering, and categorization capabilities\n- Add real-time search functionality using Nostr event subscriptions to discover NSM Definition Events (kind:30079)\n- Implement category-based filtering (games, tools, social, productivity) and tag-based search with fuzzy matching\n- Create application preview cards showing metadata, screenshots, author information, and user ratings\n- Add application launching mechanism that loads and instantiates NSM applications within the browser environment\n\n**2. Dynamic UI Renderer with Progressive Fallbacks**:\n- Implement the three-tier progressive UI system from Task 20: MCP-UI Remote DOM (primary), Web Components (fallback 1), and JSON-UI schema (fallback 2)\n- Create `UIRenderer` component that detects client capabilities and selects appropriate UI rendering method\n- Build MCP-UI interpreter that translates NSM events into UI state changes and user interactions back to NSM events\n- Implement Web Components fallback renderer for broader client compatibility\n- Add JSON-UI renderer as final fallback with basic form-based interface generation\n- Integrate UI fallback detection logic that automatically downgrades based on browser capabilities and NSM application requirements\n\n**3. Application Catalog and Search System**:\n- Enhance existing Nostr event fetching in `hooks/useNSMClient.ts` to query NSM Definition Events with advanced filtering capabilities\n- Implement application metadata parsing that extracts title, description, categories, tags, and preview images from NSM Definition Events\n- Add application rating and review system using additional Nostr events for community feedback\n- Create featured applications section highlighting popular, new, and recommended NSM applications\n- Implement application versioning display showing update history and changelog information\n\n**4. State Persistence and Synchronization**:\n- Extend state management beyond current XState integration to support persistent application state using NSM State Update Events (kind:10079)\n- Implement state synchronization across browser sessions and devices using Nostr event sourcing pattern\n- Add conflict resolution mechanisms for multi-user applications based on NSM conflict resolution policies\n- Create state snapshot management using NIP-78 replaceable events for quick application initialization\n- Implement state backup and restore functionality allowing users to export/import their application states\n\n**5. Developer Mode and Debugging Tools**:\n- Integrate the existing NSM Developer Dashboard from `packages/nsm-dev-tools` with enhanced debugging capabilities for running NSM applications\n- Add live state machine visualization showing current application state, available transitions, and event history\n- Implement application performance monitoring with metrics for state transitions, UI rendering, and network operations\n- Create developer console with XState inspector integration for debugging complex state machine logic\n- Add application validation tools that verify NSM Definition Event compliance and state machine correctness\n\n**6. Security and Sandboxing**:\n- Implement secure execution environment for NSM applications using existing sandbox infrastructure from `packages/nsm-client/src/security/sandbox.ts`\n- Add application permission system requiring user consent for sensitive operations (network access, local storage, notifications)\n- Implement content security policies and iframe sandboxing for untrusted NSM application code execution\n- Create application verification system using Blossom hash validation to ensure code integrity\n\n**7. Production Deployment Features**:\n- Add application installation and local caching mechanisms for offline NSM application usage\n- Implement progressive web app (PWA) capabilities with service workers for background synchronization\n- Create application update notifications when NSM Definition Events are updated by developers\n- Add user preference management for default relay selection, UI rendering preferences, and privacy settings\n- Implement accessibility features ensuring NSM applications work with screen readers and keyboard navigation",
         "testStrategy": "1. **UI Rendering Testing**: Create comprehensive test suite validating all three UI rendering tiers (MCP-UI, Web Components, JSON-UI) with mock NSM applications and verify proper fallback behavior across different browser capabilities.\n\n2. **Application Discovery Integration Testing**: Test complete workflow from NSM application discovery through launching, including search functionality, filtering, category browsing, and metadata display using both mock and real NSM Definition Events.\n\n3. **State Management Validation**: Verify state persistence and synchronization across browser sessions using test NSM applications with complex state machines, including conflict resolution scenarios and multi-user state coordination.\n\n4. **Performance and Security Testing**: Conduct load testing with multiple concurrent NSM applications, validate sandbox security measures prevent code injection, and verify application isolation prevents cross-application data leakage.\n\n5. **End-to-End User Workflows**: Test complete user journeys from application discovery to interaction, including authentication, state persistence, application updates, and developer debugging tools integration.\n\n6. **Cross-Browser Compatibility**: Validate progressive UI fallback behavior across Chrome, Firefox, Safari, and Edge, ensuring NSM applications work correctly regardless of client capabilities.\n\n7. **Accessibility Compliance**: Test screen reader compatibility, keyboard navigation, and WCAG compliance for both the browser interface and loaded NSM applications.",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           "19",
           "20",
@@ -1149,14 +1154,12 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-09-24T21:52:49.565Z",
+      "lastModified": "2025-09-25T00:51:07.488Z",
       "taskCount": 23,
       "completedCount": 20,
       "tags": [
         "master"
-      ],
-      "created": "2025-09-24T21:52:55.100Z",
-      "description": "Tasks for master context"
+      ]
     }
   }
 }
