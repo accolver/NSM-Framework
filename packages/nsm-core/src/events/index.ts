@@ -6,6 +6,9 @@ export type {
   NSMDefinitionContent,
   NSMDefinitionEventTags,
   NSMDefinitionMetadata,
+  BlossomImplementationReference,
+  MachineConfig,
+  XStateV5SetupConfig,
   // UI Fallback types
   UIFallbackType,
   UIFallbackSpec,

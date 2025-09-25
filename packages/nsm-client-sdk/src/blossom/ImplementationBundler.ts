@@ -21,7 +21,7 @@ export interface ImplementationBundlerOptions {
   /** Whether to preserve original TypeScript source in metadata */
   preserveOriginalSource?: boolean;
   /** Fixed timestamp for testing (prevents hash collisions in tests) */
-  testTimestamp?: number;
+  testTimestamp?: number | undefined;
 }
 
 export interface ExtractedFunction {
@@ -72,7 +72,7 @@ export interface BundleMetadata {
 }
 
 export class ImplementationBundler {
-  private options: Required<ImplementationBundlerOptions>;
+  private options: Required<Omit<ImplementationBundlerOptions, 'testTimestamp'>> & { testTimestamp?: number };
 
   constructor(options: ImplementationBundlerOptions = {}) {
     this.options = {
@@ -83,7 +83,7 @@ export class ImplementationBundler {
       preserveTypes: false,
       compileTypeScript: false,
       preserveOriginalSource: false,
-      testTimestamp: undefined,
+      testTimestamp: options.testTimestamp,
       ...options
     };
   }
@@ -91,7 +91,7 @@ export class ImplementationBundler {
   /**
    * Get current configuration options
    */
-  getConfig(): Required<ImplementationBundlerOptions> {
+  getConfig(): Required<Omit<ImplementationBundlerOptions, 'testTimestamp'>> & { testTimestamp?: number } {
     return { ...this.options };
   }
 
