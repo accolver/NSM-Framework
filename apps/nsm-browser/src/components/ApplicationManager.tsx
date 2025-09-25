@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 
 interface ApplicationManagerProps {
   applications: Array<{
@@ -21,7 +21,7 @@ interface ApplicationManagerProps {
   enableNotifications?: boolean;
 }
 
-export default function ApplicationManager({
+function ApplicationManager({
   applications,
   onLaunchApplication,
   syncStatus = 'idle',
@@ -36,6 +36,10 @@ export default function ApplicationManager({
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [history, setHistory] = useState<Array<{ id: string; lastUsed: number }>>([]);
   const [uninstallConfirm, setUninstallConfirm] = useState<string | null>(null);
+  const [retryingOperations, setRetryingOperations] = useState<Set<string>>(new Set());
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [updating, setUpdating] = useState<Set<string>>(new Set());
+  const [showChangelog, setShowChangelog] = useState<string | null>(null);
 
   useEffect(() => {
     // Load favorites from localStorage
@@ -85,18 +89,35 @@ export default function ApplicationManager({
     };
   }, [onSync, queuedOperations]);
 
-  const handleInstall = async (appId: string) => {
+  const handleInstall = useCallback(async (appId: string) => {
     if (installingApps.has(appId)) return;
 
     setInstallingApps(prev => new Set([...prev, appId]));
+    setErrors(prev => ({ ...prev, [appId]: '' }));
 
     try {
       // Mock IndexedDB storage
       if ('indexedDB' in window) {
-        const db = await indexedDB.open('nsm-applications', 1);
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open('nsm-applications', 1);
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => resolve(request.result);
+          request.onupgradeneeded = (event) => {
+            const db = (event.target as IDBOpenDBRequest).result;
+            if (!db.objectStoreNames.contains('applications')) {
+              db.createObjectStore('applications', { keyPath: 'id' });
+            }
+          };
+        });
+
         const transaction = db.transaction(['applications'], 'readwrite');
         const store = transaction.objectStore('applications');
-        await store.put({ id: appId, installed: true });
+
+        await new Promise<void>((resolve, reject) => {
+          const request = store.put({ id: appId, installed: true });
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => resolve();
+        });
       }
 
       // Mock caching with Cache API
@@ -105,10 +126,18 @@ export default function ApplicationManager({
         await cache.add(`/app/${appId}`);
       }
     } catch (error) {
-      if (error instanceof Error && error.name === 'QuotaExceededError') {
-        throw new Error('Insufficient storage space');
+      let errorMessage = 'Installation failed';
+
+      if (error instanceof Error) {
+        if (error.name === 'QuotaExceededError') {
+          errorMessage = 'Insufficient storage space';
+        } else {
+          errorMessage = error.message || errorMessage;
+        }
       }
-      throw error;
+
+      setErrors(prev => ({ ...prev, [appId]: errorMessage }));
+      throw new Error(errorMessage);
     } finally {
       setInstallingApps(prev => {
         const newSet = new Set(prev);
@@ -116,7 +145,7 @@ export default function ApplicationManager({
         return newSet;
       });
     }
-  };
+  }, [installingApps]);
 
   const handleUninstall = async (appId: string) => {
     if (!uninstallConfirm) {
@@ -138,7 +167,53 @@ export default function ApplicationManager({
     }
   };
 
-  const handleFavorite = (appId: string) => {
+  const handleRetry = useCallback(async (appId: string) => {
+    if (retryingOperations.has(appId)) return;
+
+    setRetryingOperations(prev => new Set([...prev, appId]));
+    setErrors(prev => ({ ...prev, [appId]: '' }));
+
+    try {
+      await handleInstall(appId);
+    } catch (error) {
+      // Error is already handled in handleInstall
+    } finally {
+      setRetryingOperations(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(appId);
+        return newSet;
+      });
+    }
+  }, [handleInstall, retryingOperations]);
+
+  const handleUpdate = useCallback(async (appId: string) => {
+    if (updating.has(appId)) return;
+
+    setUpdating(prev => new Set([...prev, appId]));
+    setErrors(prev => ({ ...prev, [appId]: '' }));
+
+    try {
+      // Mock update process
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Update would typically involve downloading new version
+      if ('caches' in window) {
+        const cache = await caches.open('nsm-applications');
+        await cache.add(`/app/${appId}`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Update failed';
+      setErrors(prev => ({ ...prev, [appId]: errorMessage }));
+    } finally {
+      setUpdating(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(appId);
+        return newSet;
+      });
+    }
+  }, [updating]);
+
+  const handleFavorite = useCallback((appId: string) => {
     const newFavorites = new Set(favorites);
     if (newFavorites.has(appId)) {
       newFavorites.delete(appId);
@@ -148,9 +223,9 @@ export default function ApplicationManager({
 
     setFavorites(newFavorites);
     localStorage.setItem('nsm-favorites', JSON.stringify([...newFavorites]));
-  };
+  }, [favorites]);
 
-  const handleLaunch = (app: any) => {
+  const handleLaunch = useCallback((app: any) => {
     // Add to history
     const newHistory = [
       { id: app.id || app.name, lastUsed: Date.now() },
@@ -162,7 +237,20 @@ export default function ApplicationManager({
     if (onLaunchApplication) {
       onLaunchApplication(app);
     }
-  };
+  }, [history, onLaunchApplication]);
+
+  const checkPermissions = useCallback(async (permissions: string[]) => {
+    for (const permission of permissions) {
+      if (permission === 'notifications') {
+        if ('Notification' in window) {
+          const result = await Notification.requestPermission();
+          if (result === 'denied') {
+            throw new Error('Notification permission denied');
+          }
+        }
+      }
+    }
+  }, []);
 
   const formatStorageSize = (bytes: number) => {
     const mb = bytes / (1024 * 1024);
@@ -237,8 +325,11 @@ export default function ApplicationManager({
         {applications.map(app => {
           const appId = app.id || app.name;
           const isInstalling = installingApps.has(appId);
+          const isUpdating = updating.has(appId);
+          const isRetrying = retryingOperations.has(appId);
           const isFavorited = favorites.has(appId);
           const hasUpdate = app.version && app.latestVersion && app.version !== app.latestVersion;
+          const hasError = errors[appId];
 
           return (
             <div key={appId} className="app-item">
@@ -261,6 +352,12 @@ export default function ApplicationManager({
                     ))}
                   </div>
                 )}
+
+                {hasError && (
+                  <div className="error-message" data-testid="error-message">
+                    {hasError}
+                  </div>
+                )}
               </div>
 
               <div className="app-actions">
@@ -271,12 +368,21 @@ export default function ApplicationManager({
                   {isFavorited ? '★' : '☆'}
                 </button>
 
-                {!app.installed && (
+                {!app.installed && !hasError && (
                   <button
                     onClick={() => handleInstall(appId)}
                     disabled={isInstalling || offlineMode}
                   >
                     {isInstalling ? 'Installing...' : 'Install'}
+                  </button>
+                )}
+
+                {!app.installed && hasError && (
+                  <button
+                    onClick={() => handleRetry(appId)}
+                    disabled={isRetrying}
+                  >
+                    {isRetrying ? 'Retrying...' : 'Retry'}
                   </button>
                 )}
 
@@ -292,11 +398,20 @@ export default function ApplicationManager({
                 )}
 
                 {hasUpdate && app.installed && (
-                  <button>Update</button>
+                  <button
+                    onClick={() => handleUpdate(appId)}
+                    disabled={isUpdating}
+                  >
+                    {isUpdating ? 'Updating...' : 'Update'}
+                  </button>
                 )}
 
                 {app.changelog && hasUpdate && (
-                  <button>What's New</button>
+                  <button onClick={() => setShowChangelog(appId)}>What's New</button>
+                )}
+
+                {app.permissions && !app.installed && (
+                  <button>Grant Permissions</button>
                 )}
               </div>
             </div>
@@ -315,6 +430,30 @@ export default function ApplicationManager({
           </button>
         </div>
       )}
+
+      {showChangelog && (
+        <div className="modal-overlay" onClick={() => setShowChangelog(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>What's New</h2>
+              <button
+                className="modal-close"
+                onClick={() => setShowChangelog(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              {(() => {
+                const app = applications.find(app => (app.id || app.name) === showChangelog);
+                return app?.changelog || 'No changelog available';
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+export default memo(ApplicationManager);

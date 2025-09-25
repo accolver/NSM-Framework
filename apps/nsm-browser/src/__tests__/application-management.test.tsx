@@ -1,37 +1,26 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import ApplicationManager from '../components/ApplicationManager';
 import { NSMApplication } from '../utils/nostr-events';
+import {
+  renderWithAct,
+  actAsync,
+  setupUserEvent,
+  mockStorage,
+  mockIndexedDB,
+  mockCacheAPI,
+  mockServiceWorker,
+  mockStorageAPI,
+  mockNetworkStatus,
+  waitForEffects
+} from './test-utils';
 
-// Mock IndexedDB for application storage
-const mockIndexedDB = {
-  open: vi.fn(),
-  transaction: vi.fn(),
-  objectStore: vi.fn(),
-  get: vi.fn(),
-  put: vi.fn(),
-  delete: vi.fn()
-};
-
-Object.defineProperty(window, 'indexedDB', {
-  value: mockIndexedDB,
-  writable: true
-});
-
-// Mock service worker for offline support
-const mockServiceWorker = {
-  register: vi.fn().mockResolvedValue({
-    installing: null,
-    waiting: null,
-    active: { state: 'activated' }
-  })
-};
-
-Object.defineProperty(window.navigator, 'serviceWorker', {
-  value: mockServiceWorker,
-  writable: true
-});
+// Declare mock variables
+let mockIndexedDBs: any;
+let mockServiceWorkers: any;
+let mockCaches: any;
+let storage: any;
 
 // Mock applications data
 const mockApplications: NSMApplication[] = [
@@ -56,14 +45,25 @@ const mockApplications: NSMApplication[] = [
 ];
 
 describe('Application Manager', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
-    localStorage.clear();
+
+    // Setup test environment
+    storage = mockStorage();
+    mockIndexedDBs = mockIndexedDB();
+    mockServiceWorkers = mockServiceWorker();
+    mockCaches = mockCacheAPI();
+    mockStorageAPI();
+    mockNetworkStatus(true);
   });
 
   describe('Application Installation and Caching', () => {
-    it('should show install button for uninstalled applications', () => {
-      render(<ApplicationManager applications={mockApplications} />);
+    it('should show install button for uninstalled applications', async () => {
+      await act(async () => {
+        render(<ApplicationManager applications={mockApplications} />);
+      });
+
+      await waitForEffects();
 
       const installButtons = screen.getAllByText(/install/i);
       expect(installButtons).toHaveLength(2); // One for each app
@@ -175,29 +175,38 @@ describe('Application Manager', () => {
       expect(storedFavorites).toContain('app-1');
     });
 
-    it('should display favorites section', () => {
+    it('should display favorites section', async () => {
       localStorage.setItem('nsm-favorites', JSON.stringify(['app-1']));
-      render(<ApplicationManager applications={mockApplications} />);
+      await act(async () => {
+        render(<ApplicationManager applications={mockApplications} />);
+      });
+      await waitForEffects();
 
       expect(screen.getByText(/favorites/i)).toBeInTheDocument();
-      expect(screen.getByTestId('favorites-section')).toContainElement(
-        screen.getByText('Counter App')
-      );
+      const favoritesSection = screen.getByTestId('favorites-section');
+      expect(favoritesSection).toBeInTheDocument();
+      expect(favoritesSection.textContent).toContain('Counter App');
     });
 
     it('should track application launch history', async () => {
       const user = userEvent.setup();
       const mockOnLaunch = vi.fn();
+      const installedApps = mockApplications.map(app => ({ ...app, installed: true }));
 
-      render(
-        <ApplicationManager
-          applications={mockApplications}
-          onLaunchApplication={mockOnLaunch}
-        />
-      );
+      await act(async () => {
+        render(
+          <ApplicationManager
+            applications={installedApps}
+            onLaunchApplication={mockOnLaunch}
+          />
+        );
+      });
+      await waitForEffects();
 
       const launchButton = screen.getAllByText(/launch/i)[0];
-      await user.click(launchButton);
+      await act(async () => {
+        await user.click(launchButton);
+      });
 
       const storedHistory = localStorage.getItem('nsm-history');
       expect(storedHistory).toContain('app-1');
@@ -218,6 +227,7 @@ describe('Application Manager', () => {
     it('should limit history to last 10 applications', async () => {
       const user = userEvent.setup();
       const mockOnLaunch = vi.fn();
+      const installedApps = mockApplications.map(app => ({ ...app, installed: true }));
 
       // Pre-populate with 10 items
       const existingHistory = Array.from({ length: 10 }, (_, i) => ({
@@ -226,15 +236,20 @@ describe('Application Manager', () => {
       }));
       localStorage.setItem('nsm-history', JSON.stringify(existingHistory));
 
-      render(
-        <ApplicationManager
-          applications={mockApplications}
-          onLaunchApplication={mockOnLaunch}
-        />
-      );
+      await act(async () => {
+        render(
+          <ApplicationManager
+            applications={installedApps}
+            onLaunchApplication={mockOnLaunch}
+          />
+        );
+      });
+      await waitForEffects();
 
       const launchButton = screen.getAllByText(/launch/i)[0];
-      await user.click(launchButton);
+      await act(async () => {
+        await user.click(launchButton);
+      });
 
       const storedHistory = JSON.parse(localStorage.getItem('nsm-history') || '[]');
       expect(storedHistory).toHaveLength(10); // Should still be 10
@@ -282,12 +297,19 @@ describe('Application Manager', () => {
         }
       ];
 
-      render(<ApplicationManager applications={appsWithUpdates} />);
+      await act(async () => {
+        render(<ApplicationManager applications={appsWithUpdates} />);
+      });
+      await waitForEffects();
 
-      const updateButton = screen.getByText(/update/i);
-      await user.click(updateButton);
+      const updateButton = screen.getByRole('button', { name: /^update$/i });
+      await act(async () => {
+        await user.click(updateButton);
+      });
 
-      expect(screen.getByText(/updating/i)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText(/updating/i)).toBeInTheDocument();
+      });
     });
 
     it('should show changelog when update is available', async () => {
