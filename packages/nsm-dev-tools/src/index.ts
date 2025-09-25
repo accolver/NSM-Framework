@@ -2,7 +2,7 @@
 import { version } from '../package.json';
 
 export { version };
-export * from '@nsm/core';
+// Note: @nsm/client-sdk already re-exports @nsm/core, so we don't need to export @nsm/core separately
 export * from '@nsm/client-sdk';
 
 // Dashboard Components and Services

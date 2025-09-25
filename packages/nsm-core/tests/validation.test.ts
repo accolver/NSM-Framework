@@ -30,6 +30,18 @@ describe("NSM Protocol Validation Utilities", () => {
           ["engineCodeURI", "https://example.com/engine.js"]
         ],
         content: JSON.stringify({
+          machineConfig: {
+            id: "test-machine",
+            initial: "idle",
+            states: {
+              idle: {
+                on: {
+                  START: { target: "active" }
+                }
+              },
+              active: {}
+            }
+          },
           initialState: {},
           stateSchema: { type: "object" },
           interactionSchema: { type: "object" }
@@ -225,6 +237,18 @@ describe("NSM Protocol Validation Utilities", () => {
         ["engineCodeURI", "https://example.com/engine.js"]
       ],
       content: JSON.stringify({
+        machineConfig: {
+          id: "test-machine",
+          initial: "idle",
+          states: {
+            idle: {
+              on: {
+                START: { target: "active" }
+              }
+            },
+            active: {}
+          }
+        },
         initialState: { count: 0 },
         stateSchema: { type: "object", properties: { count: { type: "number" } } },
         interactionSchema: { type: "object" }

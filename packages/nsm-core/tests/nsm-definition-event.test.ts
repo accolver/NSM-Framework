@@ -23,6 +23,20 @@ describe("NSM Definition Event (kind:30079)", () => {
           ["version", "1.0.0"]
         ],
         content: JSON.stringify({
+          machineConfig: {
+            id: "wordle-machine",
+            initial: "playing",
+            states: {
+              playing: {
+                on: {
+                  KEYPRESS: { target: "playing" },
+                  SUBMIT_GUESS: { target: "playing" }
+                }
+              },
+              won: {},
+              lost: {}
+            }
+          },
           initialState: { currentGuess: "", guesses: [], gameStatus: "playing" },
           stateSchema: {
             type: "object",
@@ -64,6 +78,23 @@ describe("NSM Definition Event (kind:30079)", () => {
         ["engineCodeURI", "https://example.com/engine.js"]
       ],
       content: JSON.stringify({
+        machineConfig: {
+          id: "test-machine",
+          initial: "idle",
+          states: {
+            idle: {
+              on: {
+                INCREMENT: { target: "active" },
+                DECREMENT: { target: "active" }
+              }
+            },
+            active: {
+              on: {
+                RESET: { target: "idle" }
+              }
+            }
+          }
+        },
         initialState: { count: 0 },
         stateSchema: {
           type: "object",
@@ -162,6 +193,23 @@ describe("NSM Definition Event (kind:30079)", () => {
       };
 
       const content: NSMDefinitionContent = {
+        machineConfig: {
+          id: "test-machine",
+          initial: "idle",
+          states: {
+            idle: {
+              on: {
+                INCREMENT: { target: "active" },
+                DECREMENT: { target: "active" }
+              }
+            },
+            active: {
+              on: {
+                RESET: { target: "idle" }
+              }
+            }
+          }
+        },
         initialState: { count: 0 },
         stateSchema: {
           type: "object",
