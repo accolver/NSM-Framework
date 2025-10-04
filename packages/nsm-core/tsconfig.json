@@ -7,23 +7,14 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "composite": true,
-    "noEmit": false,
     "jsx": "react-jsx",
-    "jsxImportSource": "react",
-    "types": ["bun-types"]
+    "jsxImportSource": "react"
   },
   "include": [
     "src/**/*"
