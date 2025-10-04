@@ -18,6 +18,18 @@ https://accolver.github.io/NSM-Framework/wordle/  # POC Wordle app
 
 ### Build Configuration
 
+#### Package Dependencies
+The deployment requires these packages to be built first:
+1. **@nsm/core** - Core types and interfaces
+2. **@nsm/crypto** - Cryptographic utilities
+3. **@nsm/client-sdk** - Client SDK (depends on core and crypto)
+4. **@nsm/client** - Browser client (depends on all above)
+
+**Important**: All packages use simplified TypeScript configuration:
+- No `extends` or project references
+- Simple `tsc` build command (no bundlers)
+- Standalone configuration for GitHub Actions compatibility
+
 #### Landing Page
 - **Location**: `apps/landing-page`
 - **Base Path**: `/NSM-Framework/`
@@ -191,3 +203,101 @@ The workflow requires these GitHub permissions:
 - `id-token: write` - Authentication for deployment
 
 These are configured in `.github/workflows/deploy.yml`.
+
+## Build Configuration Details
+
+### TypeScript Configuration Pattern
+
+All packages use a simplified, standalone TypeScript configuration for GitHub Actions compatibility:
+
+```json
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ES2022",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["dist", "node_modules", "**/*.test.ts"]
+}
+```
+
+**Key Features**:
+- No `extends` - Standalone configuration
+- No `composite` - Avoids project reference issues
+- No `references` - Each package is independent
+- `moduleResolution: "bundler"` - Modern module resolution
+- `skipLibCheck: true` - Faster builds in CI
+
+### Package Build Scripts
+
+All packages use a simple build script:
+
+```json
+{
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch --pretty false"
+  }
+}
+```
+
+**Why this works**:
+- TypeScript handles the compilation
+- No complex bundling needed for workspace packages
+- Vite handles bundling for final applications
+- Turborepo manages dependency order
+
+### Verified Build Sequence
+
+The correct build sequence for deployment:
+
+```bash
+# 1. Clean previous builds
+bun run clean
+
+# 2. Build workspace packages (Turbo handles order)
+bun run build --filter='@nsm/core' --filter='@nsm/crypto' --filter='@nsm/client-sdk' --filter='@nsm/client'
+
+# 3. Build landing page
+cd apps/landing-page && bun run build
+
+# 4. Build POC Wordle
+cd apps/poc-wordle && bun run build
+```
+
+### Common Import Issues
+
+**Problem**: Incorrect import paths causing build failures
+
+❌ **Wrong**:
+```typescript
+import type { VerificationResult } from '@nsm/crypto/src/types';
+```
+
+✅ **Correct**:
+```typescript
+import type { VerificationResult } from '@nsm/crypto';
+```
+
+**Solution**: Always import from package root, not internal paths. The package's `index.ts` exports all public APIs.
+
+### Package Exclusions
+
+The following packages are **NOT** required for deployment:
+- `@nsm/dev-tools` - Development utilities only
+- `nsm-dev-tools-app` - Developer tools application
+- `nsm-browser` - Alternative browser implementation
+
+These can be skipped in deployment builds to avoid unnecessary complexity.

@@ -14,7 +14,7 @@ import type {
   VerificationResult,
   HashVerificationOptions,
   SignatureVerificationOptions
-} from '@nsm/crypto/src/types';
+} from '@nsm/crypto';
 import type { INostrEvent } from '@nsm/core';
 
 export interface CryptoBlossomConfig extends BlossomConfig {

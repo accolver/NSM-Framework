@@ -1,19 +1,20 @@
 {
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
+    "rootDir": "./src",
     "noEmit": false,
     "allowImportingTsExtensions": false,
     "declaration": true,
     "declarationMap": true,
-    "composite": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
     "module": "ESNext",
-    "moduleResolution": "node"
+    "moduleResolution": "bundler",
+    "target": "ES2022",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"],
-  "references": [
-    { "path": "../nsm-core" },
-    { "path": "../nsm-crypto" }
-  ]
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }
