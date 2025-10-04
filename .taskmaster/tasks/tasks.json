@@ -1150,13 +1150,94 @@
         ],
         "priority": "medium",
         "subtasks": []
+      },
+      {
+        "id": "24",
+        "title": "Create NSM Framework Landing Page",
+        "description": "Build a standalone React SPA landing page in the monorepo apps/landing-page directory using Vite + Bun + TypeScript, featuring hero section, developer/user-focused content, live demo integration, and modern UI with semantic color tokens.",
+        "details": "This task creates a comprehensive marketing landing page for the NSM Framework that serves as the primary entry point for developers and users interested in the platform.\n\n**1. Project Setup and Structure**:\n- Create `apps/landing-page/` directory following existing Turborepo monorepo patterns from apps/nsm-browser\n- Initialize package.json with Vite + React + TypeScript + Bun configuration, similar to existing apps but optimized for static build\n- Configure Vite for static HTML output targeting GitHub Pages deployment with proper base path handling\n- Set up TailwindCSS with semantic color token system (--color-success, --color-danger, --color-warning) instead of hardcoded values\n- Integrate ShadCN/UI components using the Ocean Breeze theme (bunx shadcn@latest add https://tweakcn.com/r/themes/ocean-breeze.json)\n- Configure TypeScript with strict mode and proper path aliases for component imports\n\n**2. Landing Page Content Architecture**:\n- **Hero Section**: Compelling headline highlighting NSM's value proposition (\"Build Censorship-Resistant Apps on Nostr\"), subheading explaining the framework's benefits, and prominent CTAs for GitHub star and live demo\n- **Developer-Focused Section**: Technical benefits section showcasing 0% platform fees, deterministic state machines, multi-user collaboration, and getting started guide with code examples\n- **User-Focused Section**: End-user benefits emphasizing data sovereignty, censorship resistance, and application portability across NSM-compatible clients\n- **Live Demo Integration**: Embedded iframe or component showcasing the Wordle POC from Task 5, demonstrating real NSM application functionality\n- **Feature Showcase**: Interactive cards highlighting core framework features with technical details and use cases\n- **Dual Call-to-Action Footer**: GitHub star button with current star count API integration and \"Try Example Apps\" linking to NSM Browser\n\n**3. Design System and UI Implementation**:\n- Implement responsive design using TailwindCSS with mobile-first approach, ensuring excellent experience across all device sizes\n- Create semantic color system using CSS custom properties (success: emerald tones, danger: red tones, warning: amber tones, info: blue tones)\n- Design wireframe/layout proposals using ShadCN components with Ocean Breeze theme for consistent, modern aesthetic\n- Implement accessibility features including proper ARIA labels, keyboard navigation, and WCAG 2.1 AA compliance\n- Create reusable component library for hero sections, feature cards, code blocks, and CTA buttons\n- Optimize for performance with lazy loading, code splitting, and optimized asset delivery\n\n**4. Analytics and Monitoring Integration**:\n- Integrate PostHog analytics for static sites with proper privacy controls and GDPR compliance\n- Set up conversion tracking for GitHub stars, demo interactions, and external link clicks\n- Implement performance monitoring with Core Web Vitals tracking\n- Configure error boundary components for graceful error handling and reporting\n\n**5. Build and Deployment Configuration**:\n- Configure Vite build process for static HTML generation with proper asset optimization\n- Set up GitHub Pages deployment workflow with automatic builds on main branch updates\n- Implement proper SEO meta tags, Open Graph properties, and Twitter Card support\n- Configure service worker for offline capability and improved performance\n- Set up build pipeline integration with existing Turborepo scripts and CI/CD",
+        "testStrategy": "1. **Component and Layout Testing**: Create comprehensive test suite using Vitest and React Testing Library to validate all landing page sections render correctly, responsive design works across viewport sizes, and semantic color tokens apply properly. Test ShadCN component integration and Ocean Breeze theme implementation.\n\n2. **Interactive Feature Testing**: Test live demo integration with mock NSM applications, validate GitHub star button functionality with API mocking, and verify all CTAs redirect to correct destinations. Test form submissions and user interaction flows.\n\n3. **Accessibility and Performance Testing**: Run automated accessibility testing using jest-axe to ensure WCAG 2.1 AA compliance, validate keyboard navigation and screen reader compatibility. Perform Lighthouse audits to verify performance scores above 90 for all Core Web Vitals.\n\n4. **Build and Deployment Validation**: Test Vite static build process generates proper HTML output for GitHub Pages, validate asset optimization and bundle sizes meet performance budgets. Test deployment pipeline with staging environment before production.\n\n5. **Analytics Integration Testing**: Verify PostHog analytics integration works correctly in static site context, test event tracking for key user interactions, and validate privacy controls function properly. Test error boundary functionality and monitoring integration.\n\n6. **Cross-Browser and Device Testing**: Test landing page functionality across major browsers (Chrome, Firefox, Safari, Edge) and various device sizes. Validate responsive design implementation and ensure consistent experience across platforms.",
+        "status": "done",
+        "dependencies": [
+          "1",
+          "3",
+          "5",
+          "23"
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Landing Page Project Structure",
+            "description": "Set up the apps/landing-page directory with proper Turborepo monorepo structure, package.json configuration using Vite + React + TypeScript + Bun runtime, and integrate TailwindCSS with ShadCN/UI Ocean Breeze theme",
+            "dependencies": [],
+            "details": "Create apps/landing-page/ directory following the patterns from apps/nsm-browser and apps/poc-wordle. Initialize package.json with name 'nsm-landing-page', version '0.1.0', private: true, and scripts for dev, build, test, preview. Configure dependencies for React 18.2.0, React-DOM 18.2.0, and devDependencies for Vite 4.5.0, TypeScript 5.4.0, @vitejs/plugin-react 4.3.1. Set up TailwindCSS configuration and integrate ShadCN/UI with bunx shadcn@latest add command for Ocean Breeze theme. Create vite.config.ts with React plugin, TypeScript configuration with strict mode, and path aliases.",
+            "status": "done",
+            "testStrategy": "Create Vitest test configuration and validate that the project builds successfully with 'bun run build' and development server starts with 'bun run dev'. Test TailwindCSS compilation and ShadCN component integration with a basic component import test.",
+            "updatedAt": "2025-10-04T02:00:48.711Z",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement Hero Section and Core Landing Page Layout",
+            "description": "Build the main landing page structure with hero section, navigation, and responsive layout using semantic color tokens and modern design patterns",
+            "dependencies": [
+              "24.1"
+            ],
+            "details": "Create src/App.tsx with main landing page structure. Implement hero section with compelling headline 'Build Censorship-Resistant Apps on Nostr', subheading explaining NSM Framework benefits, and primary CTAs for GitHub star and live demo. Set up semantic color system using CSS custom properties (--color-success: emerald tones, --color-danger: red tones, --color-warning: amber tones, --color-info: blue tones). Create responsive navigation header and footer with proper ARIA labels. Implement mobile-first responsive design using TailwindCSS breakpoints. Create reusable components for buttons, cards, and sections using ShadCN/UI components with Ocean Breeze theme.",
+            "status": "done",
+            "testStrategy": "Write React Testing Library tests to verify hero section renders correctly, CTAs are clickable, responsive design adapts to different viewport sizes (mobile, tablet, desktop), and accessibility features work properly with screen readers.",
+            "parentId": "undefined",
+            "updatedAt": "2025-10-04T02:05:47.244Z"
+          },
+          {
+            "id": 3,
+            "title": "Build Developer and User-Focused Content Sections",
+            "description": "Create detailed content sections showcasing NSM Framework benefits for developers and end-users with interactive feature cards and code examples",
+            "dependencies": [
+              "24.2"
+            ],
+            "details": "Implement developer-focused section highlighting technical benefits: 0% platform fees, deterministic state machines, multi-user collaboration, and getting started guide with code examples. Create user-focused section emphasizing data sovereignty, censorship resistance, and application portability. Build interactive feature showcase cards displaying core framework capabilities with hover effects and expandable details. Include practical code examples showing NSM integration patterns and state machine definitions. Create testimonial or use case section demonstrating real-world applications. Implement proper semantic HTML structure with headings, sections, and landmark elements for accessibility.",
+            "status": "done",
+            "testStrategy": "Test that all content sections render properly, interactive cards respond to user interactions, code examples are properly formatted and syntax-highlighted, and content is accessible to screen readers with proper heading hierarchy and semantic markup.",
+            "parentId": "undefined",
+            "updatedAt": "2025-10-04T02:12:18.838Z"
+          },
+          {
+            "id": 4,
+            "title": "Integrate Live Demo and Application Showcase",
+            "description": "Embed the Wordle POC application as a live demo and create application discovery section linking to NSM Browser",
+            "dependencies": [
+              "24.3"
+            ],
+            "details": "Create embedded iframe component for the Wordle POC from Task 5, ensuring proper responsive sizing and error handling. Implement fallback content for when iframe fails to load. Add 'Try Example Apps' section with cards showcasing available NSM applications and direct links to NSM Browser. Create application preview cards with screenshots, descriptions, and 'Launch App' buttons. Implement proper iframe security with sandbox attributes and CSP headers. Add loading states and error boundaries for embedded content. Include call-to-action section encouraging developers to build their own NSM applications.",
+            "status": "done",
+            "testStrategy": "Test iframe integration works correctly across different browsers, responsive sizing maintains aspect ratios, error handling displays appropriate fallback content, and all external links function properly. Verify security measures prevent XSS and clickjacking attacks.",
+            "parentId": "undefined",
+            "updatedAt": "2025-10-04T02:17:03.861Z"
+          },
+          {
+            "id": 5,
+            "title": "Configure Build, Deployment, and Analytics",
+            "description": "Set up Vite build configuration for static site generation, GitHub Pages deployment, SEO optimization, and PostHog analytics integration",
+            "dependencies": [
+              "24.4"
+            ],
+            "details": "Configure Vite for static HTML generation with proper asset optimization, base path handling for GitHub Pages, and service worker for offline capability. Set up GitHub Actions workflow for automatic deployment on main branch updates. Implement comprehensive SEO meta tags, Open Graph properties, Twitter Card support, and JSON-LD structured data. Integrate PostHog analytics with privacy-first configuration, GDPR compliance, and conversion tracking for GitHub stars and demo interactions. Add performance monitoring with Core Web Vitals tracking. Configure error boundary components for graceful error handling and reporting. Set up build optimization with code splitting, lazy loading, and asset compression.",
+            "status": "done",
+            "testStrategy": "Test build process generates proper static files, deployment workflow functions correctly, SEO meta tags are properly set, analytics tracking works without privacy violations, and performance metrics meet Core Web Vitals thresholds (LCP <2.5s, FID <100ms, CLS <0.1).",
+            "parentId": "undefined",
+            "updatedAt": "2025-10-04T02:26:02.737Z"
+          }
+        ],
+        "updatedAt": "2025-10-04T02:26:02.737Z"
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-09-25T01:05:16.589Z",
-      "taskCount": 23,
-      "completedCount": 23,
+      "lastModified": "2025-10-04T02:26:02.738Z",
+      "taskCount": 24,
+      "completedCount": 24,
       "tags": [
         "master"
       ]

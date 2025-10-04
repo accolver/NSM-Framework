@@ -28,10 +28,11 @@ help:
 	@echo "  make services    Show development service status"
 	@echo "  make tasks       Show TaskMaster tasks"
 
+# @bun install --frozen-lockfile
 # Install all dependencies
 install:
 	@echo "📦 Installing NSM Framework dependencies..."
-	@bun install --frozen-lockfile
+	@bun install
 	@echo "✅ Dependencies installed successfully"
 
 # Build all packages

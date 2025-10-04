@@ -1,6 +1,6 @@
 # Task ID: 22
 # Title: Update Client SDK for New Event Structure
-# Status: pending
+# Status: done
 # Dependencies: 19, 20
 # Priority: medium
 # Description: Refactor NSMClient to support inline configs and hybrid UI loading with the new event structure. Update SDK to parse inline machineConfig, implement UI fallback resolution logic, add MCP-UI intent to NSM event translation, update state machine instantiation with XState v5 setup() pattern, and add migration utilities for existing applications.

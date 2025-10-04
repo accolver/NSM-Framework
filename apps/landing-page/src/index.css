@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Ocean Breeze Theme - Light Mode */
+    --background: 210.0000 40.0000% 96.0784%;
+    --foreground: 223.6364 36.2637% 17.8431%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 20%;
+    --primary: 227.8125 29.9065% 41.9608%;
+    --primary-foreground: 247.5000 30.7692% 94.9020%;
+    --secondary: 300 40.3509% 88.8235%;
+    --secondary-foreground: 215 13.7931% 34.1176%;
+    --muted: 210.0000 5.0000% 92.1569%;
+    --muted-foreground: 225.7143 8.9362% 46.0784%;
+    --accent: 240 46.4286% 89.0196%;
+    --accent-foreground: 230.1176 38.8128% 42.9412%;
+    --destructive: 0 84.2365% 60.1961%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 9.3750% 87.4510%;
+    --input: 220 15.7895% 96.2745%;
+    --ring: 13.2143 73.0435% 54.9020%;
+    --chart-1: 210 37.5000% 65.4902%;
+    --chart-2: 12.9032 73.2283% 75.0980%;
+    --chart-3: 213.1579 29.9213% 50.1961%;
+    --chart-4: 216.9231 35.7798% 42.7451%;
+    --chart-5: 221.0127 43.6464% 35.4902%;
+    --sidebar: 240 20.0000% 96.0784%;
+    --sidebar-foreground: 0 0% 20%;
+    --sidebar-primary: 13.2143 73.0435% 54.9020%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 207.6923 46.4286% 89.0196%;
+    --sidebar-accent-foreground: 224.4444 64.2857% 32.9412%;
+    --sidebar-border: 220 13.0435% 90.9804%;
+    --sidebar-ring: 13.2143 73.0435% 54.9020%;
+    --font-sans: Inter, ui-sans-serif, sans-serif, system-ui;
+    --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    --font-mono: JetBrains Mono, monospace;
+    --radius: 0.5rem;
+    --shadow-x: 0px;
+    --shadow-y: 1px;
+    --shadow-blur: 4px;
+    --shadow-spread: 0px;
+    --shadow-opacity: 0.11;
+    --shadow-color: #19191a;
+    --shadow-2xs: 0px 1px 4px 0px hsl(240 1.9608% 10% / 0.06);
+    --shadow-xs: 0px 1px 4px 0px hsl(240 1.9608% 10% / 0.06);
+    --shadow-sm: 0px 1px 4px 0px hsl(240 1.9608% 10% / 0.11), 0px 1px 2px -1px hsl(240 1.9608% 10% / 0.11);
+    --shadow: 0px 1px 4px 0px hsl(240 1.9608% 10% / 0.11), 0px 1px 2px -1px hsl(240 1.9608% 10% / 0.11);
+    --shadow-md: 0px 1px 4px 0px hsl(240 1.9608% 10% / 0.11), 0px 2px 4px -1px hsl(240 1.9608% 10% / 0.11);
+    --shadow-lg: 0px 1px 4px 0px hsl(240 1.9608% 10% / 0.11), 0px 4px 6px -1px hsl(240 1.9608% 10% / 0.11);
+    --shadow-xl: 0px 1px 4px 0px hsl(240 1.9608% 10% / 0.11), 0px 8px 10px -1px hsl(240 1.9608% 10% / 0.11);
+    --shadow-2xl: 0px 1px 4px 0px hsl(240 1.9608% 10% / 0.28);
+    --tracking-normal: 0em;
+    --spacing: 0.25rem;
+  }
+
+  .dark {
+    /* Ocean Breeze Theme - Dark Mode */
+    --background: 236.4706 27.8689% 11.9608%;
+    --foreground: 240 7.0423% 86.0784%;
+    --card: 224.0000 19.4805% 15.0980%;
+    --card-foreground: 240 6.0606% 87.0588%;
+    --popover: 221.7391 12.8492% 35.0980%;
+    --popover-foreground: 0 0% 89.8039%;
+    --primary: 235.5882 27.2000% 50.9804%;
+    --primary-foreground: 264.0000 12.1951% 91.9608%;
+    --secondary: 185 23.5294% 40%;
+    --secondary-foreground: 200 5.8824% 90%;
+    --muted: 223.2000 25.7732% 19.0196%;
+    --muted-foreground: 0 0% 67.8431%;
+    --accent: 233.2075 37.0629% 28.0392%;
+    --accent-foreground: 222.5806 93.9394% 87.0588%;
+    --destructive: 0 84.2365% 60.1961%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 223.6364 9.4017% 22.9412%;
+    --input: 223.8462 15.8537% 32.1569%;
+    --ring: 168 73.9130% 54.9020%;
+    --chart-1: 210 37.5000% 65.4902%;
+    --chart-2: 11.7241 63.5036% 73.1373%;
+    --chart-3: 213.1579 29.9213% 50.1961%;
+    --chart-4: 216.9231 35.7798% 42.7451%;
+    --chart-5: 221.0127 43.6464% 35.4902%;
+    --sidebar: 223.3333 25.0000% 14.1176%;
+    --sidebar-foreground: 0 0% 89.8039%;
+    --sidebar-primary: 13.2143 73.0435% 54.9020%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 224.0625 36.7816% 34.1176%;
+    --sidebar-accent-foreground: 213.3333 96.9231% 87.2549%;
+    --sidebar-border: 224.3478 15.8621% 28.4314%;
+    --sidebar-ring: 13.2143 73.0435% 54.9020%;
+    --font-sans: Inter, ui-sans-serif, sans-serif, system-ui;
+    --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    --font-mono: JetBrains Mono, monospace;
+    --radius: 0.5rem;
+    --shadow-x: 0px;
+    --shadow-y: 1px;
+    --shadow-blur: 4px;
+    --shadow-spread: 0px;
+    --shadow-opacity: 0.11;
+    --shadow-color: #1a1a1a;
+    --shadow-2xs: 0px 1px 4px 0px hsl(0 0% 10.1961% / 0.06);
+    --shadow-xs: 0px 1px 4px 0px hsl(0 0% 10.1961% / 0.06);
+    --shadow-sm: 0px 1px 4px 0px hsl(0 0% 10.1961% / 0.11), 0px 1px 2px -1px hsl(0 0% 10.1961% / 0.11);
+    --shadow: 0px 1px 4px 0px hsl(0 0% 10.1961% / 0.11), 0px 1px 2px -1px hsl(0 0% 10.1961% / 0.11);
+    --shadow-md: 0px 1px 4px 0px hsl(0 0% 10.1961% / 0.11), 0px 2px 4px -1px hsl(0 0% 10.1961% / 0.11);
+    --shadow-lg: 0px 1px 4px 0px hsl(0 0% 10.1961% / 0.11), 0px 4px 6px -1px hsl(0 0% 10.1961% / 0.11);
+    --shadow-xl: 0px 1px 4px 0px hsl(0 0% 10.1961% / 0.11), 0px 8px 10px -1px hsl(0 0% 10.1961% / 0.11);
+    --shadow-2xl: 0px 1px 4px 0px hsl(0 0% 10.1961% / 0.28);
+  }
+  .theme {
+    --font-sans: DM Sans, sans-serif;
+    --font-mono: IBM Plex Mono, monospace;
+    --font-serif: Lora, serif;
+    --radius: 0.5rem;
+    --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
+    --tracking-tight: calc(var(--tracking-normal) - 0.025em);
+    --tracking-wide: calc(var(--tracking-normal) + 0.025em);
+    --tracking-wider: calc(var(--tracking-normal) + 0.05em);
+    --tracking-widest: calc(var(--tracking-normal) + 0.1em);
+  }
+  body {
+    letter-spacing: var(--tracking-normal);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Smooth theme transitions */
+  *,
+  *::before,
+  *::after {
+    transition-property: background-color, border-color, color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+}

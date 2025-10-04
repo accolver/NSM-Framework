@@ -1,6 +1,6 @@
 # Task ID: 19
 # Title: Refactor NSM Definition Event Structure (kind:30079) - Update the NSM Definition Event to include machine configuration inline in the content field and implement the new structure with XState v5 setup() pattern
-# Status: pending
+# Status: done
 # Dependencies: 2
 # Priority: medium
 # Description: Update the NSM Definition Event (kind:30079) structure to include machine configuration inline in the content field for faster loading and atomic updates, implementing separation of configuration from implementation using Blossom storage. Implement the new structure with XState v5 setup() pattern for improved modularity.

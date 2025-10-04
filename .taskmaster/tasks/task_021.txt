@@ -1,6 +1,6 @@
 # Task ID: 21
 # Title: Enhance Blossom Integration for Implementation Storage
-# Status: pending
+# Status: done
 # Dependencies: 19
 # Priority: medium
 # Description: Optimize Blossom storage to handle separated implementation functions while configs are inline. Store only implementation functions (actions, guards, services) in Blossom while machine configuration stays inline in events. Create implementation bundler for XState actions/guards and secure sandbox for implementation loading.
@@ -55,3 +55,35 @@ This task enhances the existing Blossom integration (Task 4) to create an optimi
 5. **Compatibility Testing**: Verify backward compatibility with existing NSM Definition events, test mixed implementation scenarios, and validate fallback mechanisms.
 
 6. **End-to-End Testing**: Test complete developer workflow from machine creation through publication and consumption, including implementation updates and cache invalidation.
+
+# Subtasks:
+## 1. Extend NSM Definition Event Structure for Implementation References [pending]
+### Dependencies: None
+### Description: Update the NSMDefinitionContent interface in nsm-definition.ts to include a new 'implementations' field that supports Blossom references for XState actions, guards, and services while maintaining backward compatibility with inline implementations.
+### Details:
+Create BlossomImplementationReference interface with hash, URI, and integrity metadata fields. Add implementations field to NSMDefinitionContent as optional to maintain backward compatibility. Update validation schema and createNSMDefinitionEvent function to handle both inline and Blossom-referenced implementations. Ensure the machineConfig.setup field can contain Blossom URIs instead of actual function implementations.
+
+## 2. Create Implementation Bundler System [pending]
+### Dependencies: 21.1
+### Description: Develop ImplementationBundler class in nsm-client-sdk to extract and package XState actions, guards, and services from serialized machines into secure, deployable bundles for Blossom storage.
+### Details:
+Create ImplementationBundler.ts that can extract function implementations from XState machine configurations. Implement secure bundle format with metadata, source maps, and integrity hashes using existing patterns from BlossomClient. Add TypeScript compilation support and minification for production bundles. Support bundling actions, guards, and services separately or together based on requirements.
+
+## 3. Enhanced Blossom Client for Implementation Storage [pending]
+### Dependencies: 21.2
+### Description: Extend the existing BlossomClient with implementation-specific methods for uploading and downloading XState implementation bundles with proper content-type validation and integrity verification.
+### Details:
+Add uploadImplementations() and downloadImplementations() methods to BlossomClient.ts. Implement content-type validation for 'application/x-nsm-implementation' bundles. Integrate with existing Blossom verifier.ts for integrity checking. Support batch upload/download operations for multiple implementation files. Add caching mechanisms for frequently accessed implementations.
+
+## 4. Secure Implementation Loading System [pending]
+### Dependencies: 21.3
+### Description: Enhance the existing SecuritySandbox to support loading and executing implementation functions downloaded from Blossom with runtime validation and caching based on content hashes.
+### Details:
+Extend SecuritySandbox.ts with ImplementationLoader class that can safely load and validate downloaded implementations. Add runtime validation against NSM schemas for loaded functions. Implement implementation caching with cache invalidation based on Blossom content hashes. Support both Web Worker and restricted context execution for downloaded implementations. Add integrity verification before execution.
+
+## 5. State Machine System Integration [pending]
+### Dependencies: 21.1, 21.4
+### Description: Update the NSMStateMachine class to handle mixed inline/Blossom implementations with lazy loading capabilities and offline fallback mechanisms for cached implementations.
+### Details:
+Modify state-machine.ts to detect and handle Blossom implementation references in machine configurations. Implement lazy loading of Blossom implementations when state machines are instantiated. Add fallback mechanisms for offline scenarios using cached implementations. Support hot-swapping of implementations without full machine reload. Integrate with enhanced SecuritySandbox for safe execution of loaded implementations.
+

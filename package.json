@@ -47,14 +47,13 @@
     "@typescript-eslint/eslint-plugin": "^8.43.0",
     "@typescript-eslint/parser": "^8.43.0",
     "bun-types": "^1.2.21",
-    "esbuild": "^0.25.9",
     "eslint": "^8.57.0",
     "events": "^3.3.0",
     "husky": "^9.0.11",
     "lint-staged": "^15.2.2",
     "module": "^1.2.5",
     "prettier": "^3.2.5",
-    "turbo": "^1.13.0",
+    "turbo": "^2.5.8",
     "typescript": "^5.4.0"
   },
   "lint-staged": {
