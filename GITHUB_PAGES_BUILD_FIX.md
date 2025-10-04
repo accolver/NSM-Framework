@@ -35,7 +35,7 @@ The `--build` flag enables TypeScript's project references mode, which:
 - Uses cached .tsbuildinfo files for incremental builds
 
 ### 2. Fixed GitHub Actions Workflow
-Modified `.github/workflows/deploy.yml` to build packages explicitly:
+Modified `.github/workflows/deploy.yml` to build packages in a single Turbo command:
 
 **Before:**
 ```yaml
@@ -47,16 +47,14 @@ Modified `.github/workflows/deploy.yml` to build packages explicitly:
 ```yaml
 - name: Build packages
   run: |
-    # Build packages in dependency order, excluding dev-tools
-    bun run build --filter=@nsm/core
-    bun run build --filter=@nsm/crypto
-    bun run build --filter=@nsm/client-sdk
-    bun run build --filter=@nsm/client
+    # Build required packages (Turbo handles dependency order automatically)
+    bun run build --filter='@nsm/core' --filter='@nsm/crypto' --filter='@nsm/client-sdk' --filter='@nsm/client'
 ```
 
 This ensures:
-- Correct build order is enforced
-- `@nsm/dev-tools` is skipped (has unrelated build issues)
+- All packages build in a single Turbo run (preserves build artifacts between packages)
+- Turbo automatically handles correct build order based on dependencies
+- `@nsm/dev-tools` is excluded (has unrelated build issues)
 - Only packages needed for deployment are built
 
 ## Files Modified

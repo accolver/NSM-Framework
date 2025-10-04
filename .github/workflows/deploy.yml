@@ -37,11 +37,8 @@ jobs:
 
       - name: Build packages
         run: |
-          # Build packages in dependency order, excluding dev-tools
-          bun run build --filter=@nsm/core
-          bun run build --filter=@nsm/crypto
-          bun run build --filter=@nsm/client-sdk
-          bun run build --filter=@nsm/client
+          # Build required packages (Turbo handles dependency order automatically)
+          bun run build --filter='@nsm/core' --filter='@nsm/crypto' --filter='@nsm/client-sdk' --filter='@nsm/client'
 
       - name: Build landing page
         working-directory: apps/landing-page
