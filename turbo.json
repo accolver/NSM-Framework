@@ -6,6 +6,18 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**", "build/**", "lib/**"]
     },
+    "@nsm/crypto#build": {
+      "dependsOn": ["@nsm/core#build"],
+      "outputs": ["dist/**"]
+    },
+    "@nsm/client-sdk#build": {
+      "dependsOn": ["@nsm/core#build", "@nsm/crypto#build"],
+      "outputs": ["dist/**"]
+    },
+    "@nsm/client#build": {
+      "dependsOn": ["@nsm/core#build", "@nsm/crypto#build"],
+      "outputs": ["dist/**"]
+    },
     "dev": {
       "cache": false,
       "persistent": true
