@@ -35,24 +35,10 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build @nsm/core first
-        run: bun run build --filter='@nsm/core'
-
-      - name: Debug - Check @nsm/core types
+      - name: Build packages
         run: |
-          echo "Checking @nsm/core dist after build:"
-          ls -la packages/nsm-core/dist/
-          echo "Finding all .d.ts files:"
-          find packages/nsm-core -name "*.d.ts" -type f
-          echo "Checking TypeScript version:"
-          npx tsc --version
-          echo "Checking if .d.ts files are being created elsewhere:"
-          find packages/nsm-core -name "index.d.ts" -type f
-
-      - name: Build remaining packages
-        run: |
-          # Build remaining packages that depend on @nsm/core
-          bun run build --filter='@nsm/crypto' --filter='@nsm/client-sdk' --filter='@nsm/client'
+          # Build required packages (Turbo handles dependency order automatically)
+          bun run build --filter='@nsm/core' --filter='@nsm/crypto' --filter='@nsm/client-sdk' --filter='@nsm/client'
 
       - name: Build landing page
         working-directory: apps/landing-page
