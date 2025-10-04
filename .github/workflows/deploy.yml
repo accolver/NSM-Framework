@@ -35,6 +35,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Install TypeScript globally
+        run: bun add -g typescript@5.9.2
+
       - name: Build packages
         run: |
           # Build required packages (Turbo handles dependency order automatically)
