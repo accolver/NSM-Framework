@@ -20,6 +20,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "composite": true,
+    "noEmit": false,
     "jsx": "react-jsx",
     "jsxImportSource": "react",
     "types": ["bun-types"]
