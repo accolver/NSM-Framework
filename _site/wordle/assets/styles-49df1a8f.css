@@ -1,0 +1,400 @@
+/* Wordle Game Styles */
+
+/* Screen reader only content */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.app {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  background-color: #121213;
+  color: #ffffff;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  outline: none;
+}
+
+.app-compact {
+  padding: 10px 20px;
+}
+
+/* Enhanced App Header */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  border-bottom: 1px solid #3a3a3c;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+
+.app-header h1 {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin: 0;
+  text-align: left;
+  flex: 1;
+}
+
+.app h1 {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin: 0;
+  text-align: center;
+  flex: 1;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+/* NSM Status Component */
+.nsm-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: #1a1a1b;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #3a3a3c;
+  min-width: 180px;
+  justify-content: space-between;
+}
+
+.nsm-status-text {
+  font-size: 0.8rem;
+  color: #b4b4b4;
+}
+
+.nsm-login-button {
+  background-color: #538d4e;
+  color: #ffffff;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.nsm-login-button:hover {
+  background-color: #4a7c59;
+}
+
+.nsm-login-button:focus {
+  outline: 2px solid #538d4e;
+  outline-offset: 2px;
+}
+
+.icon-button {
+  background: none;
+  border: 1px solid #3a3a3c;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s ease;
+}
+
+.icon-button:hover {
+  background-color: #3a3a3c;
+  border-color: #565758;
+}
+
+.icon-button:focus {
+  outline: 2px solid #538d4e;
+  outline-offset: 2px;
+}
+
+/* Game Info Footer */
+.game-info {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #1a1a1b;
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.info-item {
+  font-size: 0.9rem;
+  color: #b4b4b4;
+  text-align: center;
+}
+
+/* Single header for compatibility */
+.app h1:not(.app-header h1) {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin: 0 0 20px 0;
+  text-align: center;
+  border-bottom: 1px solid #3a3a3c;
+  padding-bottom: 10px;
+  width: 100%;
+}
+
+/* Game Status */
+.game-status {
+  margin: 10px 0;
+  text-align: center;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-playing p {
+  font-size: 1.1rem;
+  color: #ffffff;
+  margin: 0;
+}
+
+.status-won h2,
+.status-lost h2 {
+  color: #538d4e;
+  margin: 0 0 10px 0;
+  font-size: 1.5rem;
+}
+
+.status-lost h2 {
+  color: #b59f3b;
+}
+
+.status-won p,
+.status-lost p {
+  margin: 0 0 15px 0;
+  font-size: 1rem;
+}
+
+.reset-button {
+  background-color: #538d4e;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.reset-button:hover {
+  background-color: #4a7c59;
+}
+
+/* Word Grid */
+.word-grid {
+  display: grid;
+  grid-template-rows: repeat(6, 1fr);
+  gap: 5px;
+  margin: 10px 0;
+  padding: 10px;
+  background-color: #121213;
+}
+
+.word-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+
+.word-cell {
+  width: 62px;
+  height: 62px;
+  border: 2px solid #3a3a3c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  background-color: #121213;
+  color: #ffffff;
+  transition: all 0.2s ease-in-out;
+}
+
+.word-cell.cell-empty {
+  border-color: #3a3a3c;
+  background-color: #121213;
+}
+
+.word-cell.cell-correct {
+  background-color: #538d4e;
+  border-color: #538d4e;
+  color: #ffffff;
+}
+
+.word-cell.cell-present {
+  background-color: #b59f3b;
+  border-color: #b59f3b;
+  color: #ffffff;
+}
+
+.word-cell.cell-absent {
+  background-color: #3a3a3c;
+  border-color: #3a3a3c;
+  color: #ffffff;
+}
+
+/* Keyboard */
+.keyboard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.keyboard-row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.keyboard-key {
+  background-color: #818384;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: bold;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: background-color 0.2s;
+  padding: 14px 6px;
+  min-width: 43px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.keyboard-key:hover {
+  background-color: #6e7071;
+}
+
+.keyboard-key.key-special {
+  min-width: 65px;
+  font-size: 0.75rem;
+}
+
+.keyboard-key.key-correct {
+  background-color: #538d4e;
+}
+
+.keyboard-key.key-correct:hover {
+  background-color: #4a7c59;
+}
+
+.keyboard-key.key-present {
+  background-color: #b59f3b;
+}
+
+.keyboard-key.key-present:hover {
+  background-color: #a08b30;
+}
+
+.keyboard-key.key-absent {
+  background-color: #3a3a3c;
+}
+
+.keyboard-key.key-absent:hover {
+  background-color: #2f2f31;
+}
+
+.keyboard-key.key-default {
+  background-color: #818384;
+}
+
+.keyboard-key.key-default:hover {
+  background-color: #6e7071;
+}
+
+/* Animations */
+@keyframes flip-in {
+  0% {
+    transform: rotateX(0);
+  }
+  50% {
+    transform: rotateX(-90deg);
+  }
+  100% {
+    transform: rotateX(0);
+  }
+}
+
+.word-cell.cell-correct,
+.word-cell.cell-present,
+.word-cell.cell-absent {
+  animation: flip-in 0.6s ease-in-out;
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .app {
+    padding: 8px;
+  }
+
+  .app-compact {
+    padding: 5px 8px;
+  }
+
+  .app-header {
+    margin-bottom: 8px;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .app-header h1 {
+    font-size: 1.8rem;
+    text-align: center;
+  }
+
+  .nsm-status {
+    min-width: 150px !important;
+    font-size: 10px !important;
+  }
+
+  .word-cell {
+    width: 52px;
+    height: 52px;
+    font-size: 1.5rem;
+  }
+
+  .keyboard-key {
+    min-width: 36px;
+    height: 48px;
+    font-size: 0.75rem;
+    padding: 12px 4px;
+  }
+
+  .keyboard-key.key-special {
+    min-width: 55px;
+    font-size: 0.625rem;
+  }
+
+  .app h1 {
+    font-size: 2rem;
+  }
+}

@@ -1,0 +1,6 @@
+# robots.txt for NSM Framework Landing Page
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://accolver.github.io/NSM-Framework/sitemap.xml

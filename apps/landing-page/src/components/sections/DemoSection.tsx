@@ -49,7 +49,7 @@ export function DemoSection() {
             </CardContent>
             <CardFooter className="flex gap-2">
               <a
-                href="/wordle"
+                href="/NSM-Framework/wordle/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex-1"
