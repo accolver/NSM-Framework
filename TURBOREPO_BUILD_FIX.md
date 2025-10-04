@@ -2,7 +2,7 @@
 
 ## Problem
 
-GitHub Actions CI was failing with TypeScript errors because Turborepo was building `@nsm/crypto` in parallel with `@nsm/core`, causing the build to fail when `@nsm/crypto` tried to import types from `@nsm/core` that weren't available yet:
+GitHub Actions CI was failing with TypeScript errors because `@nsm/crypto` couldn't find types from `@nsm/core`:
 
 ```
 src/nostr/verifier.ts(7,15): error TS2305: Module '"@nsm/core"' has no exported member 'INostrEvent'.
@@ -10,12 +10,14 @@ src/nostr/verifier.ts(7,15): error TS2305: Module '"@nsm/core"' has no exported 
 
 ## Root Cause
 
-- TypeScript project references were correctly configured in `tsconfig.json` files
-- The generic `"dependsOn": ["^build"]` in `turbo.json` should have enforced the correct build order
-- However, Turborepo 2.x was starting both package builds almost simultaneously
-- The `tsc --build` command in `@nsm/crypto` failed because `@nsm/core`'s declaration files weren't ready yet
+The issue had two parts:
+
+1. **Build Ordering**: Turborepo was starting both package builds almost simultaneously, even with `"dependsOn": ["^build"]` configured
+2. **TypeScript Project References**: The project references in `tsconfig.json` files were not reliably resolving in CI environments, even when Turborepo correctly ordered the builds
 
 ## Solution
+
+### Part 1: Explicit Turborepo Task Dependencies
 
 Added explicit package-specific build dependencies in `turbo.json`:
 
@@ -48,6 +50,32 @@ This ensures:
 2. **@nsm/crypto** waits for @nsm/core to complete
 3. **@nsm/client-sdk** waits for both @nsm/core and @nsm/crypto
 4. **@nsm/client** waits for both @nsm/core and @nsm/crypto
+
+### Part 2: Remove TypeScript Project References
+
+Removed TypeScript project references from package tsconfig.json files:
+
+**Before** (`packages/nsm-crypto/tsconfig.json`):
+```json
+{
+  "references": [
+    { "path": "../nsm-core" }
+  ]
+}
+```
+
+**After**:
+```json
+{
+  // No references - TypeScript will use workspace dependencies from node_modules
+}
+```
+
+**Why This Works**:
+- Bun's workspace resolution creates symlinks in `node_modules/@nsm/*` pointing to package directories
+- TypeScript finds type declarations through normal module resolution via these symlinks
+- This is more reliable than project references, which can have timing issues in CI environments
+- Turborepo's explicit task ordering ensures types are built before dependent packages need them
 
 ## Testing
 
@@ -96,6 +124,7 @@ bun run build --filter='@nsm/core' --filter='@nsm/crypto' --filter='@nsm/client-
 
 ## Related Files
 
-- `turbo.json` - Turborepo task configuration
-- `packages/*/tsconfig.json` - TypeScript project references
+- `turbo.json` - Turborepo task configuration with explicit dependencies
+- `packages/nsm-crypto/tsconfig.json` - Removed project references
+- `packages/nsm-client-sdk/tsconfig.json` - Removed project references
 - `.github/workflows/deploy.yml` - GitHub Actions workflow
