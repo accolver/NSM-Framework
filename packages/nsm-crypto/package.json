@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "build": "tsc && bun build src/index.ts --outdir dist --target node --format esm",
+    "build": "tsc --build && bun build src/index.ts --outdir dist --target node --format esm",
     "test": "bun test",
     "dev": "bun --silent test --watch",
     "typecheck": "bun tsc --noEmit --skipLibCheck"

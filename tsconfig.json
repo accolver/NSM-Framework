@@ -18,14 +18,6 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "baseUrl": ".",
-    "paths": {
-      "@nsm/core": ["./packages/nsm-core/src"],
-      "@nsm/client-sdk": ["./packages/nsm-client-sdk/src"],
-      "@nsm/dev-tools": ["./packages/nsm-dev-tools/src"],
-      "@nsm/crypto": ["./packages/nsm-crypto/src"],
-      "@nsm/client": ["./packages/nsm-client/src"]
-    },
     "types": ["bun-types"]
   },
   "include": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],

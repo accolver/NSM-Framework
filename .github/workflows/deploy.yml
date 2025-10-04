@@ -36,7 +36,12 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build packages
-        run: bun run build --filter=@nsm/*
+        run: |
+          # Build packages in dependency order, excluding dev-tools
+          bun run build --filter=@nsm/core
+          bun run build --filter=@nsm/crypto
+          bun run build --filter=@nsm/client-sdk
+          bun run build --filter=@nsm/client
 
       - name: Build landing page
         working-directory: apps/landing-page
