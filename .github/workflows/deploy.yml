@@ -42,10 +42,12 @@ jobs:
         run: |
           echo "Checking @nsm/core dist after build:"
           ls -la packages/nsm-core/dist/
-          echo "Checking @nsm/core events exports:"
-          ls -la packages/nsm-core/dist/events/
-          echo "Checking @nsm/core index.d.ts:"
-          cat packages/nsm-core/dist/index.d.ts | head -20
+          echo "Finding all .d.ts files:"
+          find packages/nsm-core -name "*.d.ts" -type f
+          echo "Checking TypeScript version:"
+          npx tsc --version
+          echo "Checking if .d.ts files are being created elsewhere:"
+          find packages/nsm-core -name "index.d.ts" -type f
 
       - name: Build remaining packages
         run: |
