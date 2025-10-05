@@ -38,15 +38,8 @@ jobs:
       - name: Install TypeScript globally
         run: bun add -g typescript@5.9.2
 
-      - name: Prebuild TypeScript packages
-        run: |
-          bunx tsc -b packages/nsm-core
-          bunx tsc -b packages/nsm-crypto
-          bunx tsc -b packages/nsm-client
-          bunx tsc -b packages/nsm-client-sdk
-
       - name: Build packages
-        run: bunx turbo run build --force
+        run: bunx turbo run build --filter='@nsm/client-sdk^...' --concurrency=1 --force
 
       - name: Build landing page
         working-directory: apps/landing-page
