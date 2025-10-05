@@ -7,12 +7,22 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
+      "types": "./dist/index.d.ts",
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
   },
+  "sideEffects": false,
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b --force",
     "test": "bun test",
     "dev": "bun --silent test --watch",
     "typecheck": "bun tsc --noEmit --skipLibCheck"
