@@ -3,19 +3,19 @@
  * Provides secure content uploads, downloads, and integrity verification using NSM crypto
  */
 
-import { BlossomClient, BlossomConfig, BlossomUploadResponse, BlossomUploadOptions } from './BlossomClient.js';
-import {
-  createCryptoSuite,
-  BlossomVerifier,
-  NostrVerifier,
-  CryptoAuditLogger
-} from '@nsm/crypto';
-import type {
-  VerificationResult,
-  HashVerificationOptions,
-  SignatureVerificationOptions
-} from '@nsm/crypto';
 import type { INostrEvent } from '@nsm/core';
+import type {
+  HashVerificationOptions,
+  SignatureVerificationOptions,
+  VerificationResult,
+} from '@nsm/crypto';
+import { createCryptoSuite, CryptoAuditLogger } from '@nsm/crypto';
+import {
+  BlossomClient,
+  BlossomConfig,
+  BlossomUploadOptions,
+  BlossomUploadResponse,
+} from './BlossomClient.js';
 
 export interface CryptoBlossomConfig extends BlossomConfig {
   /** Enable persistent audit logging */
@@ -94,7 +94,7 @@ export class CryptoBlossomClient extends BlossomClient {
     // Initialize crypto suite
     this.cryptoSuite = createCryptoSuite({
       persistentAuditLogs: config.persistentAuditLogs,
-      auditOptions: config.auditOptions
+      auditOptions: config.auditOptions,
     });
 
     // Set verification options
@@ -103,7 +103,7 @@ export class CryptoBlossomClient extends BlossomClient {
         algorithm: 'SHA-256',
         secureComparison: true,
         validateFormat: true,
-        ...config.hashOptions
+        ...config.hashOptions,
       },
       signature: {
         verifyEventId: true,
@@ -111,10 +111,10 @@ export class CryptoBlossomClient extends BlossomClient {
         verifyTimestamp: true,
         maxAge: 86400, // 24 hours
         checkMalleability: true,
-        ...config.signatureOptions
+        ...config.signatureOptions,
       },
       autoVerifyContent: config.autoVerifyContent ?? true,
-      autoVerifySignatures: config.autoVerifySignatures ?? true
+      autoVerifySignatures: config.autoVerifySignatures ?? true,
     };
   }
 
@@ -180,24 +180,23 @@ export class CryptoBlossomClient extends BlossomClient {
           hash: uploadResult.hash,
           size: uploadResult.size,
           auditTrailId,
-          serversUsed: this.getServers().length
-        }
+          serversUsed: this.getServers().length,
+        },
       });
 
       return {
         ...uploadResult,
         integrityProof,
         cryptoVerification,
-        auditTrailId
+        auditTrailId,
       };
-
     } catch (error) {
       // Log failed operation
       this.cryptoSuite.auditLogger.log({
         timestamp: startTime,
         operation: 'hash_verify',
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown upload error'
+        error: error instanceof Error ? error.message : 'Unknown upload error',
       });
       throw error;
     }
@@ -262,17 +261,16 @@ export class CryptoBlossomClient extends BlossomClient {
           operation: 'download',
           hash,
           contentSize: content.length,
-          verified: verification.valid
-        }
+          verified: verification.valid,
+        },
       });
 
       return {
         content,
         hash,
         verification,
-        integrityProof
+        integrityProof,
       };
-
     } catch (error) {
       // Log failed operation
       this.cryptoSuite.auditLogger.log({
@@ -280,7 +278,7 @@ export class CryptoBlossomClient extends BlossomClient {
         operation: 'hash_verify',
         success: false,
         error: error instanceof Error ? error.message : 'Unknown download error',
-        metadata: { operation: 'download', hash }
+        metadata: { operation: 'download', hash },
       });
       throw error;
     }
@@ -294,18 +292,21 @@ export class CryptoBlossomClient extends BlossomClient {
     options?: HashVerificationOptions
   ): Promise<BatchVerificationResult> {
     const verificationOptions = { ...this.verificationOptions.hash, ...options };
-    const results = await this.cryptoSuite.blossomVerifier.verifyBatchHashes(items, verificationOptions);
+    const results: VerificationResult[] = await this.cryptoSuite.blossomVerifier.verifyBatchHashes(
+      items,
+      verificationOptions
+    );
 
     const batchResult: BatchVerificationResult = {
       items: items.map((item, index) => ({
         hash: item.expectedHash,
         content: item.content,
         verified: results[index]?.valid || false,
-        error: results[index]?.error
+        error: results[index]?.error,
       })),
       totalItems: items.length,
       successfulVerifications: results.filter(r => r.valid).length,
-      failedVerifications: results.filter(r => !r.valid).length
+      failedVerifications: results.filter(r => !r.valid).length,
     };
 
     // Log batch operation
@@ -317,8 +318,8 @@ export class CryptoBlossomClient extends BlossomClient {
         operation: 'batch_verify',
         totalItems: batchResult.totalItems,
         successCount: batchResult.successfulVerifications,
-        failureCount: batchResult.failedVerifications
-      }
+        failureCount: batchResult.failedVerifications,
+      },
     });
 
     return batchResult;
@@ -327,7 +328,10 @@ export class CryptoBlossomClient extends BlossomClient {
   /**
    * Verify Nostr authentication event signature
    */
-  async verifyAuthEvent(authEvent: INostrEvent, options?: SignatureVerificationOptions): Promise<VerificationResult> {
+  async verifyAuthEvent(
+    authEvent: INostrEvent,
+    options?: SignatureVerificationOptions
+  ): Promise<VerificationResult> {
     const verificationOptions = { ...this.verificationOptions.signature, ...options };
     return await this.cryptoSuite.nostrVerifier.verifyEvent(authEvent, verificationOptions);
   }
@@ -367,13 +371,15 @@ export class CryptoBlossomClient extends BlossomClient {
           operation: 'hash_verify',
           success: false,
           error: `Backup upload to server ${server} failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          metadata: { operation: 'secure_backup', server, index }
+          metadata: { operation: 'secure_backup', server, index },
         });
         return null;
       }
     });
 
-    const uploadResults = (await Promise.all(uploadPromises)).filter((result): result is CryptoUploadResponse => result !== null);
+    const uploadResults = (await Promise.all(uploadPromises)).filter(
+      (result): result is CryptoUploadResponse => result !== null
+    );
 
     if (uploadResults.length === 0) {
       throw new Error('All backup uploads failed');
@@ -391,15 +397,15 @@ export class CryptoBlossomClient extends BlossomClient {
         primaryHash,
         backupCount: uploadResults.length,
         totalServers: this.getServers().length,
-        redundancyLevel: uploadResults.length / this.getServers().length
-      }
+        redundancyLevel: uploadResults.length / this.getServers().length,
+      },
     });
 
     return {
       primaryHash,
       backupHashes,
       integrityProofs,
-      uploadResults
+      uploadResults,
     };
   }
 
@@ -444,12 +450,11 @@ export class CryptoBlossomClient extends BlossomClient {
             operation: 'secure_restore',
             hash,
             backupHashesAttempted: backupHashes.indexOf(hash) + 1,
-            totalBackupHashes: backupHashes.length
-          }
+            totalBackupHashes: backupHashes.length,
+          },
         });
 
         return result;
-
       } catch (error) {
         errors.push(error as Error);
         continue;
@@ -465,11 +470,13 @@ export class CryptoBlossomClient extends BlossomClient {
       metadata: {
         operation: 'secure_restore',
         backupHashesAttempted: backupHashes.length,
-        errors: errors.map(e => e.message)
-      }
+        errors: errors.map(e => e.message),
+      },
     });
 
-    throw new Error(`Restore from backup failed: ${errors[errors.length - 1]?.message || 'All backup hashes failed'}`);
+    throw new Error(
+      `Restore from backup failed: ${errors[errors.length - 1]?.message || 'All backup hashes failed'}`
+    );
   }
 
   /**
@@ -481,7 +488,7 @@ export class CryptoBlossomClient extends BlossomClient {
       verificationCacheSize: this.verificationCache.size,
       integrityProofCacheSize: this.integrityProofCache.size,
       serverStats: this.getServerStats(),
-      failedOperations: this.cryptoSuite.auditLogger.getFailedOperations(since)
+      failedOperations: this.cryptoSuite.auditLogger.getFailedOperations(since),
     };
   }
 
@@ -513,7 +520,10 @@ export class CryptoBlossomClient extends BlossomClient {
       this.verificationOptions.hash = { ...this.verificationOptions.hash, ...options.hash };
     }
     if (options.signature) {
-      this.verificationOptions.signature = { ...this.verificationOptions.signature, ...options.signature };
+      this.verificationOptions.signature = {
+        ...this.verificationOptions.signature,
+        ...options.signature,
+      };
     }
     if (options.autoVerifyContent !== undefined) {
       this.verificationOptions.autoVerifyContent = options.autoVerifyContent;
