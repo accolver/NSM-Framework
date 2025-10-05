@@ -95,3 +95,8 @@ Thumbs.db
 ehthumbs.db
 
 .claude-collective/metrics/
+
+# Compiled TypeScript files in source directories
+packages/*/src/**/*.js
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.map
