@@ -39,7 +39,12 @@ jobs:
         run: bun add -g typescript@5.9.2
 
       - name: Build packages
-        run: bunx turbo run build --filter='@nsm/client-sdk^...' --concurrency=1 --force
+        run: |
+          bunx tsc -b packages/nsm-core
+          bunx tsc -b packages/nsm-crypto
+          bunx tsc -b packages/nsm-client
+          bunx tsc -b packages/nsm-client-sdk
+          bunx turbo run build --filter='@nsm/client-sdk^...' --concurrency=1 --force
 
       - name: Build landing page
         working-directory: apps/landing-page
