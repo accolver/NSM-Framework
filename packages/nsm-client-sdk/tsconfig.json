@@ -13,7 +13,12 @@
     "target": "ES2022",
     "strict": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@nsm/core": ["../nsm-core/dist"],
+      "@nsm/crypto": ["../nsm-crypto/dist"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules", "**/*.test.ts", "**/*.spec.ts"]
