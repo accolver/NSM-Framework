@@ -1,29 +1,28 @@
 {
   "name": "@nsm/client",
   "version": "0.1.0",
+  "description": "NSM Client library for app integration",
   "type": "module",
-  "main": "./dist/src/minimal-index.js",
-  "types": "./dist/src/minimal-index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/src/minimal-index.d.ts",
-      "import": "./dist/src/minimal-index.js"
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -b",
     "test": "bun test",
-    "dev": "tsc --watch --pretty false"
+    "dev": "bun --silent test --watch",
+    "typecheck": "bun tsc --noEmit"
   },
   "dependencies": {
     "@nsm/core": "workspace:*",
-    "@nsm/crypto": "workspace:*",
-    "@nostr-dev-kit/ndk": "^2.10.5",
-    "xstate": "^5.19.0",
-    "nostr-tools": "^2.10.4"
+    "@nsm/crypto": "workspace:*"
   },
   "devDependencies": {
-    "@types/bun": "^1.2.21",
-    "typescript": "^5.4.0"
+    "@types/bun": "^1.0.0",
+    "typescript": "^5.0.0"
   }
 }

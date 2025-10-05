@@ -19,12 +19,16 @@
     "baseUrl": ".",
     "composite": true,
     "paths": {
-      "@nsm/core": ["../nsm-core/dist"],
-      "@nsm/core/*": ["../nsm-core/dist/*"],
-      "@nsm/crypto": ["../nsm-crypto/dist"],
-      "@nsm/crypto/*": ["../nsm-crypto/dist/*"]
+      "@nsm/core": ["../nsm-core/src"],
+      "@nsm/core/*": ["../nsm-core/src/*"],
+      "@nsm/crypto": ["../nsm-crypto/src"],
+      "@nsm/crypto/*": ["../nsm-crypto/src/*"]
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules", "**/*.test.ts", "**/*.spec.ts"]
+  "exclude": ["dist", "node_modules", "**/*.test.ts", "**/*.spec.ts"],
+  "references": [
+    { "path": "../nsm-core" },
+    { "path": "../nsm-crypto" }
+  ]
 }

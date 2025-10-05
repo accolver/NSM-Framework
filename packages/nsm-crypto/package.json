@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -b",
     "test": "bun test",
     "dev": "bun --silent test --watch",
     "typecheck": "bun tsc --noEmit --skipLibCheck"
