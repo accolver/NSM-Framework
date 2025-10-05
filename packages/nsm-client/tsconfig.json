@@ -17,12 +17,11 @@
     "jsx": "react-jsx",
     "jsxImportSource": "react",
     "baseUrl": ".",
-    "composite": true,
     "paths": {
-      "@nsm/core": ["../nsm-core/src"],
-      "@nsm/core/*": ["../nsm-core/src/*"],
-      "@nsm/crypto": ["../nsm-crypto/src"],
-      "@nsm/crypto/*": ["../nsm-crypto/src/*"]
+      "@nsm/core": ["../nsm-core/dist"],
+      "@nsm/core/*": ["../nsm-core/dist/*"],
+      "@nsm/crypto": ["../nsm-crypto/dist"],
+      "@nsm/crypto/*": ["../nsm-crypto/dist/*"]
     }
   },
   "include": ["src/**/*"],

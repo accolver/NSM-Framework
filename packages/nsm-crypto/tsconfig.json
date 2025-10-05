@@ -8,7 +8,6 @@
     "declarationMap": true,
     "sourceMap": true,
     "skipLibCheck": true,
-    "composite": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
     "target": "ES2022",
@@ -17,13 +16,10 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@nsm/core": ["../nsm-core/src"],
-      "@nsm/core/*": ["../nsm-core/src/*"]
+      "@nsm/core": ["../nsm-core/dist"],
+      "@nsm/core/*": ["../nsm-core/dist/*"]
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules", "**/*.test.ts"],
-  "references": [
-    { "path": "../nsm-core" }
-  ]
+  "exclude": ["dist", "node_modules", "**/*.test.ts"]
 }

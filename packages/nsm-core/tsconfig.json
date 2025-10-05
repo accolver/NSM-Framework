@@ -14,8 +14,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "jsx": "react-jsx",
-    "jsxImportSource": "react",
-    "composite": true
+    "jsxImportSource": "react"
   },
   "include": [
     "src/**/*"
