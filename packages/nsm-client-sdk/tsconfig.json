@@ -18,6 +18,7 @@
     "jsxImportSource": "react",
     "baseUrl": ".",
     "composite": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "paths": {
       "@nsm/core": ["../nsm-core/src"],
       "@nsm/core/*": ["../nsm-core/src/*"],

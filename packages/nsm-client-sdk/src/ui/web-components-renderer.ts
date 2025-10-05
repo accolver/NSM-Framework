@@ -74,7 +74,7 @@ export class WebComponentsRenderer {
 
     return new Promise((resolve, reject) => {
       script.onload = () => resolve();
-      script.onerror = (error) => {
+      script.onerror = error => {
         console.error('Failed to load Web Components bundle:', error);
         reject(error);
       };
@@ -89,7 +89,7 @@ export class WebComponentsRenderer {
     if (!this.spec.customElements) return;
 
     const promises = Object.entries(this.spec.customElements).map(([elementName, tagName]) => {
-      if (!tagName) {
+      if (!tagName || typeof tagName !== 'string') {
         console.warn(`No tag name defined for element ${elementName}`);
         return Promise.resolve();
       }
@@ -126,7 +126,11 @@ export class WebComponentsRenderer {
 
     // Mount each defined custom element
     Object.entries(this.spec.customElements).forEach(([elementName, tagName]) => {
-      const element = document.createElement(tagName);
+      if (typeof tagName !== 'string') {
+        console.warn(`Invalid tag name for element ${elementName}`);
+        return;
+      }
+      const element = document.createElement(tagName as string);
       element.setAttribute('data-nsm-component', elementName);
 
       // Pass any initial properties
@@ -134,7 +138,7 @@ export class WebComponentsRenderer {
         (element as any).nsmContext = {
           sendEvent: (eventType: string, data: any) => {
             this.onInteraction(eventType, data);
-          }
+          },
         };
       }
 
@@ -170,7 +174,10 @@ export class WebComponentsRenderer {
         };
 
         // Add listener to appropriate target
-        if (targetElement === '*' || targetElement === component.getAttribute('data-nsm-component')) {
+        if (
+          targetElement === '*' ||
+          targetElement === component.getAttribute('data-nsm-component')
+        ) {
           component.addEventListener(eventName, listener);
           elementListeners.set(eventName, listener);
         } else {
@@ -206,7 +213,13 @@ export class WebComponentsRenderer {
    */
   private parseEventMapping(mapping: string): [string, string] {
     const parts = mapping.split(':');
-    if (parts.length === 2 && parts[0] && parts[1]) {
+    if (
+      parts.length === 2 &&
+      typeof parts[0] === 'string' &&
+      typeof parts[1] === 'string' &&
+      parts[0] &&
+      parts[1]
+    ) {
       return [parts[0], parts[1]];
     }
     // Default to global event
