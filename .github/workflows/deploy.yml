@@ -41,10 +41,11 @@ jobs:
       - name: Build packages
         run: |
           # Build packages one at a time to ensure dependencies are available
-          bun run build --filter='@nsm/core' --concurrency=1
-          bun run build --filter='@nsm/crypto' --concurrency=1
-          bun run build --filter='@nsm/client-sdk' --concurrency=1
-          bun run build --filter='@nsm/client' --concurrency=1
+          # Use --force to ignore cache and ensure dist files are generated
+          bun run build --filter='@nsm/core' --concurrency=1 --force
+          bun run build --filter='@nsm/crypto' --concurrency=1 --force
+          bun run build --filter='@nsm/client-sdk' --concurrency=1 --force
+          bun run build --filter='@nsm/client' --concurrency=1 --force
 
       - name: Build landing page
         working-directory: apps/landing-page
