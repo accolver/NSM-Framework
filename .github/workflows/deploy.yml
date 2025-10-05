@@ -40,11 +40,10 @@ jobs:
 
       - name: Build packages
         run: |
-          bunx tsc -b packages/nsm-core
-          bunx tsc -b packages/nsm-crypto
-          bunx tsc -b packages/nsm-client
-          bunx tsc -b packages/nsm-client-sdk
-          bunx turbo run build --filter='@nsm/client-sdk^...' --concurrency=1 --force
+          cd packages/nsm-core && bun run build
+          cd ../nsm-crypto && bun run build
+          cd ../nsm-client && bun run build
+          cd ../nsm-client-sdk && bun run build
 
       - name: Build landing page
         working-directory: apps/landing-page

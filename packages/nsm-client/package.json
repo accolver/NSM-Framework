@@ -23,7 +23,7 @@
   },
   "sideEffects": false,
   "scripts": {
-    "build": "tsc -b --force",
+    "build": "tsc",
     "test": "bun test",
     "dev": "bun --silent test --watch",
     "typecheck": "bun tsc --noEmit"
