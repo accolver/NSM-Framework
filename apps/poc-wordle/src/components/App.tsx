@@ -1,20 +1,20 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { createActor } from 'xstate';
-import { DeveloperDashboard } from '@nsm/dev-tools';
-import { wordleMachine } from '../wordle-machine';
-import { WordGrid } from './WordGrid';
-import { Keyboard } from './Keyboard';
-import { GameStatus } from './GameStatus';
-import { NSMStatus } from './NSMStatus';
-import { DeveloperDashboardToggle } from './DeveloperDashboardToggle';
-import { WordleExporter } from './WordleExporter';
-import { getWordleDashboardServices } from '../services/wordleDashboardIntegration';
-import { logStateTransition, logGameEvent } from '../utils/gameLogger';
+// import { DeveloperDashboard } from '@nsm/dev-tools';
 import { initializeLogging } from '../config/logging';
 import { NostrAuthService } from '../services/auth';
 import { NSMAuthIntegration } from '../services/nsm-auth-integration';
 import { WordleNSMSetup } from '../services/wordle-nsm-setup';
+import { getWordleDashboardServices } from '../services/wordleDashboardIntegration';
+import { logGameEvent, logStateTransition } from '../utils/gameLogger';
+import { wordleMachine } from '../wordle-machine';
+import { DeveloperDashboardToggle } from './DeveloperDashboardToggle';
+import { GameStatus } from './GameStatus';
+import { Keyboard } from './Keyboard';
+import { NSMStatus } from './NSMStatus';
 import './styles.css';
+import { WordGrid } from './WordGrid';
+import { WordleExporter } from './WordleExporter';
 
 export const App: React.FC = () => {
   const [actor] = useState(() => createActor(wordleMachine));
@@ -22,12 +22,14 @@ export const App: React.FC = () => {
 
   // DASHBOARD FIX: Start with dashboard visible by default for better UX
   const [isDashboardVisible, setIsDashboardVisible] = useState(true);
-  const [dashboardServices] = useState(() => getWordleDashboardServices({
-    enableEventLogging: true,
-    enableTimeTravel: true,
-    enableInspector: true,
-    enableAutoConnect: false // We'll connect manually after actor starts
-  }));
+  const [dashboardServices] = useState(() =>
+    getWordleDashboardServices({
+      enableEventLogging: true,
+      enableTimeTravel: true,
+      enableInspector: true,
+      enableAutoConnect: false, // We'll connect manually after actor starts
+    })
+  );
 
   // Authentication services
   const [authService] = useState(() => new NostrAuthService());
@@ -44,14 +46,10 @@ export const App: React.FC = () => {
     let previousState = actor.getSnapshot().value;
     let previousContext = actor.getSnapshot().context;
 
-    const subscription = actor.subscribe((snapshot) => {
+    const subscription = actor.subscribe(snapshot => {
       // Log actual state value transitions
       if (snapshot.value !== previousState) {
-        logStateTransition(
-          String(previousState),
-          String(snapshot.value),
-          snapshot.context
-        );
+        logStateTransition(String(previousState), String(snapshot.value), snapshot.context);
         previousState = snapshot.value;
       }
 
@@ -60,7 +58,7 @@ export const App: React.FC = () => {
         logGameEvent(`Typed: "${snapshot.context.currentGuess}"`, {
           currentGuess: snapshot.context.currentGuess,
           letterCount: snapshot.context.currentGuess.length,
-          attemptNumber: snapshot.context.attemptNumber
+          attemptNumber: snapshot.context.attemptNumber,
         });
       }
 
@@ -146,9 +144,12 @@ export const App: React.FC = () => {
   }, [state.context.guesses]);
 
   // Event handlers
-  const handleKeyPress = useCallback((letter: string) => {
-    actor.send({ type: 'KEYPRESS', letter });
-  }, [actor]);
+  const handleKeyPress = useCallback(
+    (letter: string) => {
+      actor.send({ type: 'KEYPRESS', letter });
+    },
+    [actor]
+  );
 
   const handleBackspace = useCallback(() => {
     actor.send({ type: 'BACKSPACE' });
@@ -163,20 +164,23 @@ export const App: React.FC = () => {
   }, [actor]);
 
   // Physical keyboard handling
-  const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
-    const key = event.key.toUpperCase();
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      const key = event.key.toUpperCase();
 
-    if (key === 'ENTER') {
-      event.preventDefault();
-      handleEnter();
-    } else if (key === 'BACKSPACE') {
-      event.preventDefault();
-      handleBackspace();
-    } else if (/^[A-Z]$/.test(key)) {
-      event.preventDefault();
-      handleKeyPress(key);
-    }
-  }, [handleEnter, handleBackspace, handleKeyPress]);
+      if (key === 'ENTER') {
+        event.preventDefault();
+        handleEnter();
+      } else if (key === 'BACKSPACE') {
+        event.preventDefault();
+        handleBackspace();
+      } else if (/^[A-Z]$/.test(key)) {
+        event.preventDefault();
+        handleKeyPress(key);
+      }
+    },
+    [handleEnter, handleBackspace, handleKeyPress]
+  );
 
   // Dashboard toggle handler
   const handleDashboardToggle = useCallback((isVisible: boolean) => {
@@ -199,8 +203,8 @@ export const App: React.FC = () => {
 
       <div id="game-instructions" className="sr-only">
         Guess the 5-letter word in 6 attempts. Use your keyboard or click the virtual keyboard.
-        Green letters are correct, yellow letters are in the word but wrong position,
-        gray letters are not in the word.
+        Green letters are correct, yellow letters are in the word but wrong position, gray letters
+        are not in the word.
       </div>
 
       <GameStatus
@@ -226,14 +230,10 @@ export const App: React.FC = () => {
       />
 
       {/* State Machine Exporter */}
-      <WordleExporter
-        actor={actor}
-        showCodeViewer={false}
-        enableGameShortcuts={true}
-      />
+      <WordleExporter actor={actor} showCodeViewer={false} enableGameShortcuts={true} />
 
       {/* Developer Dashboard */}
-      {isDashboardVisible && (
+      {/* {isDashboardVisible && (
         <DeveloperDashboard
           eventLogService={dashboardServices.eventLogService}
           timeTravelService={dashboardServices.timeTravelService}
@@ -242,7 +242,7 @@ export const App: React.FC = () => {
           openVisualizer={dashboardServices.openVisualizer}
           className="wordle-dashboard"
         />
-      )}
+      )} */}
     </main>
   );
 };

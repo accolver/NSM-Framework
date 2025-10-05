@@ -1,15 +1,11 @@
-"use strict";
 /**
  * Cryptographic operations audit logger
  * Provides security audit logging for all crypto operations with configurable retention
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PersistentCryptoAuditLogger = exports.CryptoAuditLogger = void 0;
-exports.createAuditLogger = createAuditLogger;
 /**
  * In-memory audit logger with configurable retention
  */
-class CryptoAuditLogger {
+export class CryptoAuditLogger {
     logs = [];
     maxEntries;
     retentionDays;
@@ -153,11 +149,10 @@ class CryptoAuditLogger {
             (log.metadata === undefined || typeof log.metadata === 'object'));
     }
 }
-exports.CryptoAuditLogger = CryptoAuditLogger;
 /**
  * Persistent audit logger that saves to storage
  */
-class PersistentCryptoAuditLogger extends CryptoAuditLogger {
+export class PersistentCryptoAuditLogger extends CryptoAuditLogger {
     storageKey;
     constructor(storageKey = 'nsm-crypto-audit-logs', options = {}) {
         super(options);
@@ -209,11 +204,10 @@ class PersistentCryptoAuditLogger extends CryptoAuditLogger {
         }
     }
 }
-exports.PersistentCryptoAuditLogger = PersistentCryptoAuditLogger;
 /**
  * Create audit logger instance based on environment
  */
-function createAuditLogger(persistent = false, options) {
+export function createAuditLogger(persistent = false, options) {
     if (persistent) {
         return new PersistentCryptoAuditLogger(options?.storageKey, options);
     }
@@ -221,3 +215,4 @@ function createAuditLogger(persistent = false, options) {
         return new CryptoAuditLogger(options);
     }
 }
+//# sourceMappingURL=logger.js.map

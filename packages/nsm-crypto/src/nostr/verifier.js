@@ -1,19 +1,16 @@
-"use strict";
 /**
  * Nostr event signature verification implementation
  * Implements robust cryptographic verification for Nostr events using noble libraries
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.NostrVerifier = void 0;
-const nostr_tools_1 = require("nostr-tools");
-const logger_js_1 = require("../audit/logger.js");
+import { verifyEvent, getEventHash } from 'nostr-tools';
+import { CryptoAuditLogger } from '../audit/logger.js';
 /**
  * Nostr event signature verifier implementation
  */
-class NostrVerifier {
+export class NostrVerifier {
     auditLogger;
     constructor(auditLogger) {
-        this.auditLogger = auditLogger || new logger_js_1.CryptoAuditLogger();
+        this.auditLogger = auditLogger || new CryptoAuditLogger();
     }
     /**
      * Verify a complete Nostr event including signature, ID, and format validation
@@ -237,7 +234,7 @@ class NostrVerifier {
     verifyEventId(event) {
         try {
             // Use nostr-tools to calculate the event hash
-            const computedId = (0, nostr_tools_1.getEventHash)(event);
+            const computedId = getEventHash(event);
             return computedId === event.id;
         }
         catch (error) {
@@ -325,7 +322,7 @@ class NostrVerifier {
      */
     async verifyEventSignature(event) {
         try {
-            return (0, nostr_tools_1.verifyEvent)(event);
+            return verifyEvent(event);
         }
         catch (error) {
             // Only log warnings in non-test environments or for unexpected errors
@@ -345,4 +342,4 @@ class NostrVerifier {
             errorMessage.includes('Invalid event'));
     }
 }
-exports.NostrVerifier = NostrVerifier;
+//# sourceMappingURL=verifier.js.map

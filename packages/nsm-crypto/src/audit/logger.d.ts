@@ -106,4 +106,3 @@ export declare function createAuditLogger(persistent?: boolean, options?: {
     retentionDays?: number;
     storageKey?: string;
 }): ICryptoAuditLogger;
-//# sourceMappingURL=logger.d.ts.map

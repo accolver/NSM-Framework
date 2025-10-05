@@ -67,4 +67,3 @@ export declare class KeyManager implements IKeyManager {
         metadata?: Record<string, unknown>;
     }>;
 }
-//# sourceMappingURL=manager.d.ts.map

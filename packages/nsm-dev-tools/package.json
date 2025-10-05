@@ -16,7 +16,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "bun run build:ts && bun run build:bundle",
+    "build": "tsc -b --force",
     "build:ts": "tsc --build",
     "build:bundle": "bun build src/index.ts --format esm --outfile dist/index.mjs && bun build src/index.ts --format cjs --outfile dist/index.js",
     "dev": "tsc --build --watch --pretty false",

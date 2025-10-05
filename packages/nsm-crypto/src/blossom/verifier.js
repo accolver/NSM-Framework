@@ -1,21 +1,18 @@
-"use strict";
 /**
  * Blossom content hash verification implementation
  * Implements secure hash validation for Blossom protocol with protection against timing attacks
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.BlossomVerifier = void 0;
-const sha256_1 = require("@noble/hashes/sha256");
-const sha512_1 = require("@noble/hashes/sha512");
-const utils_1 = require("@noble/hashes/utils");
-const logger_js_1 = require("../audit/logger.js");
+import { sha256 } from '@noble/hashes/sha256';
+import { sha512 } from '@noble/hashes/sha512';
+import { bytesToHex } from '@noble/hashes/utils';
+import { CryptoAuditLogger } from '../audit/logger.js';
 /**
  * Blossom content verifier implementation
  */
-class BlossomVerifier {
+export class BlossomVerifier {
     auditLogger;
     constructor(auditLogger) {
-        this.auditLogger = auditLogger || new logger_js_1.CryptoAuditLogger();
+        this.auditLogger = auditLogger || new CryptoAuditLogger();
     }
     /**
      * Calculate SHA-256 hash of content
@@ -29,8 +26,8 @@ class BlossomVerifier {
             else {
                 data = content;
             }
-            const hash = (0, sha256_1.sha256)(data);
-            return (0, utils_1.bytesToHex)(hash);
+            const hash = sha256(data);
+            return bytesToHex(hash);
         }
         catch (error) {
             const auditEntry = {
@@ -176,15 +173,15 @@ class BlossomVerifier {
         let hash;
         switch (algorithm) {
             case 'SHA-256':
-                hash = (0, sha256_1.sha256)(data);
+                hash = sha256(data);
                 break;
             case 'SHA-512':
-                hash = (0, sha512_1.sha512)(data);
+                hash = sha512(data);
                 break;
             default:
                 throw new Error(`Unsupported hash algorithm: ${algorithm}`);
         }
-        return (0, utils_1.bytesToHex)(hash);
+        return bytesToHex(hash);
     }
     /**
      * Verify multiple content pieces against their hashes in batch
@@ -248,4 +245,4 @@ class BlossomVerifier {
         });
     }
 }
-exports.BlossomVerifier = BlossomVerifier;
+//# sourceMappingURL=verifier.js.map

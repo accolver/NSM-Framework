@@ -56,4 +56,3 @@ export declare class NostrVerifier implements INostrVerifier {
      */
     private isExpectedValidationError;
 }
-//# sourceMappingURL=verifier.d.ts.map

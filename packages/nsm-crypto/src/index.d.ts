@@ -33,11 +33,11 @@ export declare function createCryptoSuite(options?: {
 /**
  * Utility function to verify a Nostr event with default options
  */
-export declare function verifyNostrEvent(event: unknown, options?: import('./types.js').SignatureVerificationOptions): Promise<import("./types.js").VerificationResult>;
+export declare function verifyNostrEvent(event: unknown, options?: import('./types.js').SignatureVerificationOptions): Promise<import("src/index.js").VerificationResult>;
 /**
  * Utility function to verify Blossom content hash
  */
-export declare function verifyBlossomContent(content: string | Uint8Array, expectedHash: string, options?: import('./types.js').HashVerificationOptions): Promise<import("./types.js").VerificationResult>;
+export declare function verifyBlossomContent(content: string | Uint8Array, expectedHash: string, options?: import('./types.js').HashVerificationOptions): Promise<import("src/index.js").VerificationResult>;
 /**
  * Security configuration constants
  */
@@ -82,4 +82,3 @@ export declare const ValidationUtils: {
      */
     readonly isValidSHA512Hash: (hash: string) => boolean;
 };
-//# sourceMappingURL=index.d.ts.map

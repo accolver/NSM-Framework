@@ -56,4 +56,3 @@ export declare class BlossomVerifier implements IBlossomVerifier {
         size: number;
     }, maxAge?: number): Promise<VerificationResult>;
 }
-//# sourceMappingURL=verifier.d.ts.map

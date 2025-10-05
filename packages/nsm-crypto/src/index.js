@@ -1,66 +1,54 @@
-"use strict";
 /**
  * @nsm/crypto - Cryptographic verification utilities for NSM Framework
  *
  * This package provides secure cryptographic verification for Nostr events,
  * Blossom content hashes, and key management operations.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.ValidationUtils = exports.SECURITY_CONFIG = exports.NSM_CRYPTO_VERSION = exports.createAuditLogger = exports.PersistentCryptoAuditLogger = exports.CryptoAuditLogger = exports.KeyManager = exports.BlossomVerifier = exports.NostrVerifier = void 0;
-exports.createCryptoSuite = createCryptoSuite;
-exports.verifyNostrEvent = verifyNostrEvent;
-exports.verifyBlossomContent = verifyBlossomContent;
 // Export Nostr verification
-var verifier_js_1 = require("./nostr/verifier.js");
-Object.defineProperty(exports, "NostrVerifier", { enumerable: true, get: function () { return verifier_js_1.NostrVerifier; } });
+export { NostrVerifier } from './nostr/verifier.js';
 // Export Blossom verification
-var verifier_js_2 = require("./blossom/verifier.js");
-Object.defineProperty(exports, "BlossomVerifier", { enumerable: true, get: function () { return verifier_js_2.BlossomVerifier; } });
+export { BlossomVerifier } from './blossom/verifier.js';
 // Export key management
-var manager_js_1 = require("./keys/manager.js");
-Object.defineProperty(exports, "KeyManager", { enumerable: true, get: function () { return manager_js_1.KeyManager; } });
+export { KeyManager } from './keys/manager.js';
 // Export audit logging
-var logger_js_1 = require("./audit/logger.js");
-Object.defineProperty(exports, "CryptoAuditLogger", { enumerable: true, get: function () { return logger_js_1.CryptoAuditLogger; } });
-Object.defineProperty(exports, "PersistentCryptoAuditLogger", { enumerable: true, get: function () { return logger_js_1.PersistentCryptoAuditLogger; } });
-Object.defineProperty(exports, "createAuditLogger", { enumerable: true, get: function () { return logger_js_1.createAuditLogger; } });
+export { CryptoAuditLogger, PersistentCryptoAuditLogger, createAuditLogger } from './audit/logger.js';
 // Import classes for internal use
-const verifier_js_3 = require("./nostr/verifier.js");
-const verifier_js_4 = require("./blossom/verifier.js");
-const manager_js_2 = require("./keys/manager.js");
-const logger_js_2 = require("./audit/logger.js");
+import { NostrVerifier } from './nostr/verifier.js';
+import { BlossomVerifier } from './blossom/verifier.js';
+import { KeyManager } from './keys/manager.js';
+import { CryptoAuditLogger } from './audit/logger.js';
 // Package version and metadata
-exports.NSM_CRYPTO_VERSION = "0.1.0";
+export const NSM_CRYPTO_VERSION = "0.1.0";
 /**
  * Create a complete crypto verification suite
  */
-function createCryptoSuite(options) {
-    const auditLogger = new logger_js_2.CryptoAuditLogger(options?.auditOptions);
+export function createCryptoSuite(options) {
+    const auditLogger = new CryptoAuditLogger(options?.auditOptions);
     return {
-        nostrVerifier: new verifier_js_3.NostrVerifier(auditLogger),
-        blossomVerifier: new verifier_js_4.BlossomVerifier(auditLogger),
-        keyManager: new manager_js_2.KeyManager(auditLogger),
+        nostrVerifier: new NostrVerifier(auditLogger),
+        blossomVerifier: new BlossomVerifier(auditLogger),
+        keyManager: new KeyManager(auditLogger),
         auditLogger
     };
 }
 /**
  * Utility function to verify a Nostr event with default options
  */
-async function verifyNostrEvent(event, options) {
-    const verifier = new verifier_js_3.NostrVerifier();
+export async function verifyNostrEvent(event, options) {
+    const verifier = new NostrVerifier();
     return await verifier.verifyEvent(event, options);
 }
 /**
  * Utility function to verify Blossom content hash
  */
-async function verifyBlossomContent(content, expectedHash, options) {
-    const verifier = new verifier_js_4.BlossomVerifier();
+export async function verifyBlossomContent(content, expectedHash, options) {
+    const verifier = new BlossomVerifier();
     return await verifier.verifyContentHash(content, expectedHash, options);
 }
 /**
  * Security configuration constants
  */
-exports.SECURITY_CONFIG = {
+export const SECURITY_CONFIG = {
     /** Default PBKDF2 iterations for key derivation */
     DEFAULT_PBKDF2_ITERATIONS: 100000,
     /** Minimum private key entropy (bytes) */
@@ -79,7 +67,7 @@ exports.SECURITY_CONFIG = {
 /**
  * Validation utilities
  */
-exports.ValidationUtils = {
+export const ValidationUtils = {
     /**
      * Validate hex string format
      */
@@ -118,3 +106,4 @@ exports.ValidationUtils = {
         return this.isValidHex(hash, 128);
     }
 };
+//# sourceMappingURL=index.js.map

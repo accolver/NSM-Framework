@@ -4,15 +4,15 @@
  * Integrates the NSM Developer Dashboard with the Wordle state machine
  */
 
-import { createActor, type Actor } from 'xstate';
-import {
-  createEventLogService,
-  createTimeTravelService,
-  createInspectorService,
-  type EventLogService,
-  type TimeTravelService,
-  type InspectorService
-} from '@nsm/dev-tools';
+import { type Actor } from 'xstate';
+// import {
+//   createEventLogService,
+//   createTimeTravelService,
+//   createInspectorService,
+//   type EventLogService,
+//   type TimeTravelService,
+//   type InspectorService
+// } from '@nsm/dev-tools';
 import type { wordleMachine } from '../wordle-machine';
 
 /**
@@ -36,7 +36,7 @@ const DEFAULT_CONFIG: Required<WordleDashboardConfig> = {
   enableInspector: true,
   enableAutoConnect: true,
   maxStoredEvents: 500,
-  maxStoredSnapshots: 50
+  maxStoredSnapshots: 50,
 };
 
 /**
@@ -64,19 +64,19 @@ export function createWordleDashboardServices(
   const eventLogService = createEventLogService({
     maxEvents: finalConfig.maxStoredEvents,
     enableRealtime: true,
-    autoStart: true
+    autoStart: true,
   });
 
   const timeTravelService = createTimeTravelService({
     maxSnapshots: finalConfig.maxStoredSnapshots,
     enableAutoSnapshot: true,
-    snapshotInterval: 1000 // Snapshot every second during active gameplay
+    snapshotInterval: 1000, // Snapshot every second during active gameplay
   });
 
   const inspectorService = createInspectorService({
     enableDevtools: true,
     autoConnect: finalConfig.enableAutoConnect,
-    reconnectOnError: true
+    reconnectOnError: true,
   });
 
   let connectedActor: Actor<typeof wordleMachine> | null = null;
@@ -99,7 +99,7 @@ export function createWordleDashboardServices(
     // Subscribe to actor events for event logging
     if (finalConfig.enableEventLogging) {
       const unsubscribeEventLog = actor.subscribe({
-        next: (snapshot) => {
+        next: snapshot => {
           // Log state transitions as custom events
           const event = {
             id: `wordle-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -108,7 +108,7 @@ export function createWordleDashboardServices(
             tags: [
               ['state', String(snapshot.value)],
               ['attempt', String(snapshot.context.attemptNumber)],
-              ['guessCount', String(snapshot.context.guesses.length)]
+              ['guessCount', String(snapshot.context.guesses.length)],
             ],
             content: JSON.stringify({
               state: snapshot.value,
@@ -117,19 +117,19 @@ export function createWordleDashboardServices(
                 currentGuess: snapshot.context.currentGuess,
                 guessCount: snapshot.context.guesses.length,
                 gameStatus: snapshot.context.gameStatus,
-                isComplete: snapshot.matches('won') || snapshot.matches('lost')
+                isComplete: snapshot.matches('won') || snapshot.matches('lost'),
               },
-              timestamp: Date.now()
+              timestamp: Date.now(),
             }),
             pubkey: 'wordle-app',
-            sig: ''
+            sig: '',
           };
 
           eventLogService.addEvent(event);
         },
-        error: (error) => {
+        error: error => {
           console.error('🚨 Actor error:', error);
-        }
+        },
       });
 
       actorSubscriptions.push(unsubscribeEventLog);
@@ -229,7 +229,7 @@ export function createWordleDashboardServices(
     connectInspector,
     openVisualizer,
     connectToActor,
-    cleanup
+    cleanup,
   };
 }
 
@@ -241,7 +241,9 @@ let globalWordleDashboardServices: WordleDashboardServices | null = null;
 /**
  * Get or create the global Wordle dashboard services
  */
-export function getWordleDashboardServices(config?: WordleDashboardConfig): WordleDashboardServices {
+export function getWordleDashboardServices(
+  config?: WordleDashboardConfig
+): WordleDashboardServices {
   if (!globalWordleDashboardServices) {
     globalWordleDashboardServices = createWordleDashboardServices(config);
   }

@@ -152,4 +152,3 @@ export interface ICryptoAuditLogger {
     /** Clear old audit logs */
     clearOldLogs(olderThan: number): void;
 }
-//# sourceMappingURL=types.d.ts.map

@@ -5,10 +5,10 @@
  * REFACTOR PHASE - Production-ready React integration with error handling
  */
 
-import { DeveloperDashboard } from '@nsm/dev-tools';
+// import { DeveloperDashboard } from '@nsm/dev-tools';
+import { NSMClient } from '@nsm/client';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createActor } from 'xstate';
-import { NSMClient } from '@nsm/client';
 import { initializeLogging } from '../config/logging';
 import { createWordleNSMDefinition, WordleNSMConnector } from '../nsm-integration';
 import { getWordleDashboardServices } from '../services/wordleDashboardIntegration';
@@ -451,7 +451,7 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
       )}
 
       {/* Developer Dashboard */}
-      {isDashboardVisible && (
+      {/* {isDashboardVisible && (
         <DeveloperDashboard
           eventLogService={dashboardServices.eventLogService}
           timeTravelService={dashboardServices.timeTravelService}
@@ -460,7 +460,7 @@ export const NSMWordleApp: React.FC<NSMWordleAppProps> = ({
           openVisualizer={dashboardServices.openVisualizer}
           className="wordle-dashboard"
         />
-      )}
+      )} */}
     </main>
   );
 };

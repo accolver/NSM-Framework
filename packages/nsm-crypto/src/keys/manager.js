@@ -1,16 +1,13 @@
-"use strict";
 /**
  * Secure key management implementation
  * Handles private key storage, encryption, and key derivation with security best practices
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.KeyManager = void 0;
-const secp256k1_1 = require("@noble/secp256k1");
-const pbkdf2_1 = require("@noble/hashes/pbkdf2");
-const sha256_1 = require("@noble/hashes/sha256");
-const sha512_1 = require("@noble/hashes/sha512");
-const utils_1 = require("@noble/hashes/utils");
-const logger_js_1 = require("../audit/logger.js");
+import { getPublicKey } from '@noble/secp256k1';
+import { pbkdf2 } from '@noble/hashes/pbkdf2';
+import { sha256 } from '@noble/hashes/sha256';
+import { sha512 } from '@noble/hashes/sha512';
+import { randomBytes, bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import { CryptoAuditLogger } from '../audit/logger.js';
 /**
  * AES-GCM encryption/decryption utilities
  */
@@ -45,10 +42,10 @@ class AESGCMCrypto {
 /**
  * Key manager implementation with secure practices
  */
-class KeyManager {
+export class KeyManager {
     auditLogger;
     constructor(auditLogger) {
-        this.auditLogger = auditLogger || new logger_js_1.CryptoAuditLogger();
+        this.auditLogger = auditLogger || new CryptoAuditLogger();
     }
     /**
      * Generate a new secp256k1 key pair
@@ -58,17 +55,17 @@ class KeyManager {
             const privateKey = this.generateRandomBytes(32);
             // Ensure the private key is within the valid secp256k1 range
             const secp256k1Order = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
-            let privateKeyBigInt = BigInt('0x' + (0, utils_1.bytesToHex)(privateKey));
+            let privateKeyBigInt = BigInt('0x' + bytesToHex(privateKey));
             // If generated key is >= order, regenerate (very unlikely but important for security)
             while (privateKeyBigInt >= secp256k1Order || privateKeyBigInt === 0n) {
                 const newPrivateKey = this.generateRandomBytes(32);
-                privateKeyBigInt = BigInt('0x' + (0, utils_1.bytesToHex)(newPrivateKey));
-                newPrivateKey.set((0, utils_1.hexToBytes)(privateKeyBigInt.toString(16).padStart(64, '0')));
+                privateKeyBigInt = BigInt('0x' + bytesToHex(newPrivateKey));
+                newPrivateKey.set(hexToBytes(privateKeyBigInt.toString(16).padStart(64, '0')));
                 privateKey.set(newPrivateKey);
             }
             // Calculate public key
-            const publicKeyBytes = (0, secp256k1_1.getPublicKey)(privateKey, false); // Uncompressed
-            const publicKey = (0, utils_1.bytesToHex)(publicKeyBytes.slice(1, 33)); // Take x-coordinate only for Schnorr
+            const publicKeyBytes = getPublicKey(privateKey, false); // Uncompressed
+            const publicKey = bytesToHex(publicKeyBytes.slice(1, 33)); // Take x-coordinate only for Schnorr
             const auditEntry = {
                 timestamp: Date.now(),
                 operation: 'key_generate',
@@ -187,10 +184,10 @@ class KeyManager {
             let derivedKey;
             switch (hashAlgorithm) {
                 case 'SHA-256':
-                    derivedKey = (0, pbkdf2_1.pbkdf2)(sha256_1.sha256, passwordBytes, salt, { c: iterations, dkLen: keyLength });
+                    derivedKey = pbkdf2(sha256, passwordBytes, salt, { c: iterations, dkLen: keyLength });
                     break;
                 case 'SHA-512':
-                    derivedKey = (0, pbkdf2_1.pbkdf2)(sha512_1.sha512, passwordBytes, salt, { c: iterations, dkLen: keyLength });
+                    derivedKey = pbkdf2(sha512, passwordBytes, salt, { c: iterations, dkLen: keyLength });
                     break;
                 default:
                     throw new Error(`Unsupported hash algorithm: ${hashAlgorithm}`);
@@ -215,7 +212,7 @@ class KeyManager {
         }
         else {
             // Use noble-hashes randomBytes which works in Node.js
-            return (0, utils_1.randomBytes)(length);
+            return randomBytes(length);
         }
     }
     /**
@@ -264,7 +261,7 @@ class KeyManager {
         }
         // Check that private key is within secp256k1 order
         const secp256k1Order = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
-        const privateKeyBigInt = BigInt('0x' + (0, utils_1.bytesToHex)(privateKey));
+        const privateKeyBigInt = BigInt('0x' + bytesToHex(privateKey));
         return privateKeyBigInt > 0n && privateKeyBigInt < secp256k1Order;
     }
     /**
@@ -278,7 +275,7 @@ class KeyManager {
             ...encrypted.salt,
             ...encrypted.iv
         ]);
-        const checksum = (0, utils_1.bytesToHex)((0, sha256_1.sha256)(checksumData));
+        const checksum = bytesToHex(sha256(checksumData));
         return {
             encrypted,
             checksum,
@@ -296,7 +293,7 @@ class KeyManager {
             ...backup.encrypted.salt,
             ...backup.encrypted.iv
         ]);
-        const computedChecksum = (0, utils_1.bytesToHex)((0, sha256_1.sha256)(checksumData));
+        const computedChecksum = bytesToHex(sha256(checksumData));
         if (computedChecksum !== backup.checksum) {
             throw new Error('Backup integrity verification failed');
         }
@@ -313,4 +310,4 @@ class KeyManager {
         };
     }
 }
-exports.KeyManager = KeyManager;
+//# sourceMappingURL=manager.js.map
