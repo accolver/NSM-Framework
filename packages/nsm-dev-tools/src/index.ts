@@ -17,8 +17,7 @@ export * from './components/StateMachineExporter';
 export * from './components/CodeViewer';
 
 // Dashboard Components and Services
-// Temporarily commented out to fix CI build
-// export * from './dashboard';
+export * from './dashboard';
 
 // Convenience exports for common patterns
 export { ModularDeveloperDashboard as DeveloperDashboard } from './dashboard';

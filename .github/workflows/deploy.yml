@@ -39,12 +39,7 @@ jobs:
         run: bun add -g typescript@5.9.2
 
       - name: Build packages
-        run: |
-          cd packages/nsm-core && bun run build
-          cd ../nsm-crypto && bun run build
-          cd ../nsm-client && bun run build
-          cd ../nsm-client-sdk && bun run build
-          cd ../nsm-dev-tools && bun run build
+        run: bun run build
 
       - name: Build landing page
         working-directory: apps/landing-page

@@ -37,8 +37,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@nsm/core": "workspace:*",
-    "@nsm/client-sdk": "workspace:*"
+    "@nsm/core": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18.0.0",
