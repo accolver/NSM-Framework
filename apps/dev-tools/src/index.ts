@@ -1,5 +1,5 @@
 // NSM Developer Tools UI Application
-import { NSMDebugger } from '@nsm/dev-tools';
+// import { NSMDebugger } from '@nsm/dev-tools';
 
 const PORT = process.env.DEV_TOOLS_PORT || 3001;
 
@@ -88,6 +88,7 @@ const server = Bun.serve({
 console.log(`✅ NSM Developer Tools UI running at: http://localhost:${server.port}`);
 
 // Placeholder - will be implemented in Task 7
-const devTools = new NSMDebugger();
+// const devTools = new NSMDebugger();
+const devTools = null;
 
 export { devTools, server };
