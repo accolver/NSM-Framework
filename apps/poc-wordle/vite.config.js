@@ -65,16 +65,12 @@ export default defineConfig({
   optimizeDeps: {
     // Include packages that need optimization
     include: ['react', 'react-dom', 'xstate', '@xstate/react', 'events'],
-    exclude: [
-      // Exclude workspace packages from optimization to avoid build issues
-      '@nsm/client-sdk',
-      '@nsm/core',
-      '@nsm/dev-tools',
-    ],
-    // Force include ESM packages that might be problematic
+    // Don't prebundle workspace pkgs; resolve from built dist via exports
+    exclude: ['@nsm/client', '@nsm/client-sdk', '@nsm/core', '@nsm/crypto', '@nsm/dev-tools'],
     force: true,
   },
   resolve: {
+    preserveSymlinks: true,
     alias: {
       '@': '/src',
       events: 'events',
