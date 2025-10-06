@@ -7,16 +7,25 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
+      "types": "./dist/index.d.ts",
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
   },
+  "sideEffects": false,
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc -b --force",
+    "build": "tsc",
     "build:ts": "tsc --build",
     "build:bundle": "bun build src/index.ts --format esm --outfile dist/index.mjs && bun build src/index.ts --format cjs --outfile dist/index.js",
     "dev": "tsc --build --watch --pretty false",

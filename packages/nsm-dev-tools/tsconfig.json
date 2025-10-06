@@ -6,19 +6,22 @@
     "noEmit": false,
     "allowImportingTsExtensions": false,
     "declaration": true,
-    "declarationMap": true,
-    "composite": true,
-    "module": "CommonJS",
-    "moduleResolution": "node",
+    "declarationMap": false,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "skipLibCheck": true,
-    "strict": false
+    "strict": false,
+    "baseUrl": ".",
+    "paths": {
+      "@nsm/core": ["../nsm-core/dist"],
+      "@nsm/core/*": ["../nsm-core/dist/*"],
+      "@nsm/client": ["../nsm-client/dist"],
+      "@nsm/client/*": ["../nsm-client/dist/*"],
+      "@nsm/client-sdk": ["../nsm-client-sdk/dist"],
+      "@nsm/client-sdk/*": ["../nsm-client-sdk/dist/*"]
+    }
   },
   "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules", "**/*.test.ts", "**/*.spec.ts", "**/*.test.tsx", "**/__tests__/**/*", "src/test-setup.ts"],
-  "references": [
-    { "path": "../nsm-core" },
-    { "path": "../nsm-client" },
-    { "path": "../nsm-client-sdk" }
-  ]
+  "exclude": ["dist", "node_modules", "**/*.test.ts", "**/*.spec.ts", "**/*.test.tsx", "**/__tests__/**/*", "src/test-setup.ts"]
 }

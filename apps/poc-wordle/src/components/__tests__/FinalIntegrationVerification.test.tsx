@@ -3,10 +3,7 @@ import { render } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { createActor } from 'xstate';
-// import { StateMachineExporter } from '@nsm/dev-tools';
-
-// Mock StateMachineExporter
-const StateMachineExporter = () => null;
+import { StateMachineExporter } from '@nsm/dev-tools';
 import { wordleMachine } from '../../wordle-machine';
 
 describe('Final State Machine Integration Verification', () => {

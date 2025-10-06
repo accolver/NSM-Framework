@@ -7,13 +7,20 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "default": "./dist/index.mjs",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
   },
+  "sideEffects": false,
   "files": [
     "dist"
   ],

@@ -5,40 +5,15 @@
  */
 
 import { type Actor } from 'xstate';
-// import {
-//   createEventLogService,
-//   createTimeTravelService,
-//   createInspectorService,
-//   type EventLogService,
-//   type TimeTravelService,
-//   type InspectorService
-// } from '@nsm/dev-tools';
+import {
+  createEventLogService,
+  createTimeTravelService,
+  createInspectorService,
+  type EventLogService,
+  type TimeTravelService,
+  type InspectorService
+} from '@nsm/dev-tools';
 import type { wordleMachine } from '../wordle-machine';
-
-// Mock implementations for dev-tools services
-const createEventLogService = (config: any) => ({
-  logEvent: () => {},
-  getEvents: () => [],
-  clearEvents: () => {},
-  start: () => {},
-  stop: () => {},
-  subscribe: () => () => {}
-});
-
-const createTimeTravelService = (config: any) => ({
-  takeSnapshot: () => {},
-  restoreSnapshot: () => {},
-  getSnapshots: () => [],
-  clearSnapshots: () => {},
-  subscribe: () => () => {}
-});
-
-const createInspectorService = (config: any) => ({
-  connect: () => {},
-  disconnect: () => {},
-  send: () => {},
-  subscribe: () => () => {}
-});
 
 /**
  * Configuration for Wordle dashboard integration
