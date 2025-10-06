@@ -12,7 +12,8 @@ const server = Bun.serve({
     const url = new URL(request.url);
 
     if (url.pathname === '/') {
-      return new Response(`
+      return new Response(
+        `
         <!DOCTYPE html>
         <html>
         <head>
@@ -67,9 +68,11 @@ const server = Bun.serve({
           </div>
         </body>
         </html>
-      `, {
-        headers: { 'Content-Type': 'text/html' }
-      });
+      `,
+        {
+          headers: { 'Content-Type': 'text/html' },
+        }
+      );
     }
 
     if (url.pathname === '/health') {
@@ -77,12 +80,12 @@ const server = Bun.serve({
         status: 'ok',
         service: 'nsm-dev-tools',
         port: PORT,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
     return new Response('Not Found', { status: 404 });
-  }
+  },
 });
 
 console.log(`✅ NSM Developer Tools UI running at: http://localhost:${server.port}`);
