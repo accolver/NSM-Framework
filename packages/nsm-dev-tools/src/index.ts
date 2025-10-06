@@ -10,14 +10,15 @@ export { createEventLogService } from './services/event-log-service';
 export { createTimeTravelService } from './services/time-travel-service';
 export { createInspectorService } from './services/inspector-service';
 
-// Dashboard Components and Services
-export * from './dashboard';
-
 // Individual dashboard-related components
 export * from './components/EventLogViewer';
 export * from './components/TimeTravelDebugger';
 export * from './components/StateMachineExporter';
 export * from './components/CodeViewer';
+
+// Dashboard Components and Services
+// Temporarily commented out to fix CI build
+// export * from './dashboard';
 
 // Convenience exports for common patterns
 export { ModularDeveloperDashboard as DeveloperDashboard } from './dashboard';
