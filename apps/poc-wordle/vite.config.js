@@ -84,6 +84,13 @@ export default defineConfig({
   esbuild: false,
   // Configure SSR to handle packages properly
   ssr: {
-    noExternal: ['events', '@nsm/client-sdk', '@nsm/client', '@nsm/core', '@nsm/crypto'],
+    noExternal: [
+      'events',
+      '@nsm/client-sdk',
+      '@nsm/client',
+      '@nsm/core',
+      '@nsm/crypto',
+      '@nsm/dev-tools',
+    ],
   },
 });

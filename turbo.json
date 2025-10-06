@@ -1,31 +1,74 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["**/.env.*local"],
+  "globalDependencies": [
+    "**/.env.*local"
+  ],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "build/**", "lib/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**",
+        ".next/**",
+        "build/**",
+        "lib/**"
+      ]
     },
     "@nsm/crypto#build": {
-      "dependsOn": ["@nsm/core#build"],
-      "outputs": ["dist/**"]
+      "dependsOn": [
+        "@nsm/core#build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
     },
     "@nsm/client-sdk#build": {
-      "dependsOn": ["@nsm/core#build", "@nsm/crypto#build"],
-      "outputs": ["dist/**"]
+      "dependsOn": [
+        "@nsm/core#build",
+        "@nsm/crypto#build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
     },
     "@nsm/client#build": {
-      "dependsOn": ["@nsm/core#build", "@nsm/crypto#build"],
-      "outputs": ["dist/**"]
+      "dependsOn": [
+        "@nsm/core#build",
+        "@nsm/crypto#build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    "nsm-poc-wordle#build": {
+      "dependsOn": [
+        "@nsm/dev-tools#build",
+        "@nsm/client#build",
+        "@nsm/client-sdk#build",
+        "@nsm/core#build",
+        "@nsm/crypto#build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
     },
     "dev": {
       "cache": false,
       "persistent": true
     },
     "test": {
-      "dependsOn": ["build"],
-      "outputs": ["coverage/**"],
-      "inputs": ["src/**/*.{ts,tsx,js,jsx}", "test/**/*.{ts,tsx,js,jsx}", "**/*.test.{ts,tsx,js,jsx}"]
+      "dependsOn": [
+        "build"
+      ],
+      "outputs": [
+        "coverage/**"
+      ],
+      "inputs": [
+        "src/**/*.{ts,tsx,js,jsx}",
+        "test/**/*.{ts,tsx,js,jsx}",
+        "**/*.test.{ts,tsx,js,jsx}"
+      ]
     },
     "test:watch": {
       "cache": false,
@@ -38,7 +81,9 @@
       "outputs": []
     },
     "type-check": {
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "outputs": []
     },
     "clean": {
