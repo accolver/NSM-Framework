@@ -6,29 +6,29 @@ export { version };
 export * from '@nsm/client-sdk';
 
 // Dashboard Components and Services
-export * from './dashboard';
-export * from './services/event-log-service';
-export * from './services/time-travel-service';
-export * from './services/inspector-service';
+export * from './dashboard/index.js';
+export * from './services/event-log-service.js';
+export * from './services/time-travel-service.js';
+export * from './services/inspector-service.js';
 
 // Individual dashboard-related components
-export * from './components/EventLogViewer';
-export * from './components/TimeTravelDebugger';
-export * from './components/StateMachineExporter';
-export * from './components/CodeViewer';
+export * from './components/EventLogViewer.js';
+export * from './components/TimeTravelDebugger.js';
+export * from './components/StateMachineExporter.js';
+export * from './components/CodeViewer.js';
 
 // Convenience exports for common patterns
-export { ModularDeveloperDashboard as DeveloperDashboard } from './dashboard';
+export { ModularDeveloperDashboard as DeveloperDashboard } from './dashboard/index.js';
 
 // Service factory functions
-export { createEventLogService } from './services/event-log-service';
-export { createTimeTravelService } from './services/time-travel-service';
-export { createInspectorService } from './services/inspector-service';
+export { createEventLogService } from './services/event-log-service.js';
+export { createTimeTravelService } from './services/time-travel-service.js';
+export { createInspectorService } from './services/inspector-service.js';
 
 // Utilities
-export * from './utils/machineSerializer';
-export * from './utils/machineValidator';
-export * from './utils/clipboardAPI';
+export * from './utils/machineSerializer.js';
+export * from './utils/machineValidator.js';
+export * from './utils/clipboardAPI.js';
 
 // Legacy placeholder - to be removed
 export class NSMDebugger {

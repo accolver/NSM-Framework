@@ -9,6 +9,7 @@
     "declarationMap": false,
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false,
     "jsx": "react-jsx",
     "skipLibCheck": true,
     "strict": false,
