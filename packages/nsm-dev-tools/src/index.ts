@@ -5,11 +5,13 @@ export { version };
 // Note: @nsm/client-sdk already re-exports @nsm/core, so we don't need to export @nsm/core separately
 export * from '@nsm/client-sdk';
 
+// Service factory functions - export these first
+export { createEventLogService } from './services/event-log-service';
+export { createTimeTravelService } from './services/time-travel-service';
+export { createInspectorService } from './services/inspector-service';
+
 // Dashboard Components and Services
 export * from './dashboard';
-export * from './services/event-log-service';
-export * from './services/time-travel-service';
-export * from './services/inspector-service';
 
 // Individual dashboard-related components
 export * from './components/EventLogViewer';
@@ -19,11 +21,6 @@ export * from './components/CodeViewer';
 
 // Convenience exports for common patterns
 export { ModularDeveloperDashboard as DeveloperDashboard } from './dashboard';
-
-// Service factory functions
-export { createEventLogService } from './services/event-log-service';
-export { createTimeTravelService } from './services/time-travel-service';
-export { createInspectorService } from './services/inspector-service';
 
 // Utilities
 export * from './utils/machineSerializer';
