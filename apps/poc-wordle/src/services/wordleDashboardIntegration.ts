@@ -4,15 +4,16 @@
  * Integrates the NSM Developer Dashboard with the Wordle state machine
  */
 
-import { type Actor } from 'xstate';
 import {
-  createEventLogService,
-  createTimeTravelService,
-  createInspectorService,
+  // Temporarily disable dashboard services in production to avoid runtime incompatibilities
+  // createEventLogService,
+  // createTimeTravelService,
+  // createInspectorService,
   type EventLogService,
+  type InspectorService,
   type TimeTravelService,
-  type InspectorService
 } from '@nsm/dev-tools';
+import { type Actor } from 'xstate';
 import type { wordleMachine } from '../wordle-machine';
 
 /**
@@ -61,23 +62,24 @@ export function createWordleDashboardServices(
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
 
   // Create core services
-  const eventLogService = createEventLogService({
-    maxEvents: finalConfig.maxStoredEvents,
-    enableRealtime: true,
-    autoStart: true,
-  });
+  const eventLogService = {
+    addEvent: () => {},
+    getEvents: () => [],
+    clear: () => {},
+    stop: () => {},
+  } as unknown as EventLogService;
 
-  const timeTravelService = createTimeTravelService({
-    maxSnapshots: finalConfig.maxStoredSnapshots,
-    enableAutoSnapshot: true,
-    snapshotInterval: 1000, // Snapshot every second during active gameplay
-  });
+  const timeTravelService = {
+    connect: () => {},
+    registerActor: () => {},
+    clearHistory: () => {},
+  } as unknown as TimeTravelService;
 
-  const inspectorService = createInspectorService({
-    enableDevtools: true,
-    autoConnect: finalConfig.enableAutoConnect,
-    reconnectOnError: true,
-  });
+  const inspectorService = {
+    connect: async () => {},
+    disconnect: () => {},
+    registerMachine: () => {},
+  } as unknown as InspectorService;
 
   let connectedActor: Actor<typeof wordleMachine> | null = null;
   let actorSubscriptions: (() => void)[] = [];
@@ -216,7 +218,9 @@ export function createWordleDashboardServices(
   };
 
   // Auto-connect inspector if enabled
-  if (finalConfig.enableAutoConnect && finalConfig.enableInspector) {
+  const isDev =
+    typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.MODE !== 'production';
+  if (isDev && finalConfig.enableAutoConnect && finalConfig.enableInspector) {
     connectInspector().catch(error => {
       console.warn('⚠️ Auto-connect to inspector failed:', error);
     });

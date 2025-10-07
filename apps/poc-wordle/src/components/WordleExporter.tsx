@@ -19,6 +19,11 @@ export const WordleExporter: React.FC<WordleExporterProps> = ({
   enableGameShortcuts = false,
   className = '',
 }) => {
+  const isDev =
+    typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.MODE !== 'production';
+  if (!isDev) {
+    return null;
+  }
   const handleExportSuccess = useCallback((json: string) => {
     // Wordle-specific success handling
     console.log('Wordle machine exported successfully');
