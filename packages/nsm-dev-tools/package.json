@@ -8,7 +8,9 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "default": "./dist/index.mjs"
     },
     "./*": "./dist/*",
     "./package.json": "./package.json"
@@ -18,7 +20,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && bun run build:bundle",
     "build:ts": "tsc --build",
     "build:bundle": "bun build src/index.ts --format esm --outfile dist/index.mjs && bun build src/index.ts --format cjs --outfile dist/index.js",
     "dev": "tsc --build --watch --pretty false",
