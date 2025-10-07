@@ -1,4 +1,4 @@
-// import { StateMachineExporter } from '@nsm/dev-tools';
+import { StateMachineExporter } from '@nsm/dev-tools';
 import React, { useCallback } from 'react';
 import { AnyActor } from 'xstate';
 
