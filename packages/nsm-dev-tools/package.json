@@ -22,7 +22,7 @@
   "scripts": {
     "build": "tsc && bun run build:bundle",
     "build:ts": "tsc --build",
-    "build:bundle": "bun build src/index.ts --format esm --outfile dist/index.mjs && bun build src/index.ts --format cjs --outfile dist/index.js",
+    "build:bundle": "bun build src/index.ts --format esm --outfile dist/index.mjs --external react --external react-dom --external @xstate/react --external xstate --external @nsm/core --external @nsm/client-sdk && bun build src/index.ts --format cjs --outfile dist/index.js --external react --external react-dom --external @xstate/react --external xstate --external @nsm/core --external @nsm/client-sdk",
     "dev": "tsc --build --watch --pretty false",
     "test": "bun test --preload ./src/test-setup.ts",
     "test:watch": "bun test --watch --preload ./src/test-setup.ts",
